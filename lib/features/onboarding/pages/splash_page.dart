@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_text_styles.dart';
+import '../../../core/theme/app_colors.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -15,9 +17,9 @@ class _SplashPageState extends State<SplashPage> {
   }
 
   Future<void> _navigateToNext() async {
-    await Future.delayed(const Duration(seconds: 3));
+    await Future.delayed(const Duration(seconds: 2));
     if (mounted) {
-      // Navigate to onboarding or home based on user state
+      // TODO: Navigate to next screen
       // Navigator.pushReplacementNamed(context, '/onboarding');
     }
   }
@@ -25,28 +27,13 @@ class _SplashPageState extends State<SplashPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Add your app logo here
-            Icon(
-              Icons.app_blocking,
-              size: 100,
-              color: Theme.of(context).primaryColor,
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'BIMO',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
+        child: Text(
+          'BIMO',
+          style: AppTextStyles.display.copyWith(color: AppColors.textPrimary),
         ),
       ),
     );
   }
 }
-
