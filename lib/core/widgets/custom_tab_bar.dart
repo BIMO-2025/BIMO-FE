@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../utils/responsive_extensions.dart';
 import '../utils/responsive.dart';
@@ -38,26 +39,30 @@ class CustomTabBar extends StatelessWidget {
         left: context.w(44),
         right: context.w(44),
       ),
-      child: Container(
-        // 탭바 컨테이너: 287 x 60 (Hug)
-        width: context.w(287),
-        decoration: BoxDecoration(
-          // 배경: FFFFFF 5%
-          color: AppColors.white.withOpacity(0.05),
-          // 코너 레디어스: 30px
-          borderRadius: BorderRadius.circular(context.w(30)),
-          // 스트로크: FFFFFF 10%, 두께 1px
-          border: Border.all(color: AppColors.white.withOpacity(0.1), width: 1),
-        ),
-        // 내부 패딩: 좌우 15px, 상하 8px (2px 오버플로우 방지)
-        padding: EdgeInsets.symmetric(
-          horizontal: context.w(15),
-          vertical: context.h(8),
-        ),
-        constraints: BoxConstraints(
-          maxHeight: context.h(60), // 최대 높이 제한
-        ),
-        child: Row(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(context.w(30)),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+          child: Container(
+            // 탭바 컨테이너: 287 x 60 (Hug)
+            width: context.w(287),
+            decoration: BoxDecoration(
+              // 배경: FFFFFF 5%
+              color: AppColors.white.withOpacity(0.05),
+              // 코너 레디어스: 30px
+              borderRadius: BorderRadius.circular(context.w(30)),
+              // 스트로크: FFFFFF 10%, 두께 1px
+              border: Border.all(color: AppColors.white.withOpacity(0.1), width: 1),
+            ),
+            // 내부 패딩: 좌우 15px, 상하 8px (2px 오버플로우 방지)
+            padding: EdgeInsets.symmetric(
+              horizontal: context.w(15),
+              vertical: context.h(8),
+            ),
+            constraints: BoxConstraints(
+              maxHeight: context.h(60), // 최대 높이 제한
+            ),
+            child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -91,9 +96,11 @@ class CustomTabBar extends StatelessWidget {
               iconPath: 'my',
               isEnabled: true,
             ),
-          ],
+            ],
+          ),
         ),
       ),
+    ),
     );
   }
 

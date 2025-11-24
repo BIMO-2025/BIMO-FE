@@ -25,6 +25,7 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.darkTheme.scaffoldBackgroundColor,
+      extendBody: true, // 본문이 탭바 영역까지 확장됨
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -124,14 +125,17 @@ class _HomePageState extends State<HomePage> {
 
   /// 하단 네비게이션 바
   Widget _buildBottomNavigationBar() {
-    return CustomTabBar(
-      currentIndex: _selectedIndex,
-      onTap: (index) {
-        setState(() {
-          _selectedIndex = index;
-        });
-        // TODO: 탭별 화면 전환 구현
-      },
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: CustomTabBar(
+        currentIndex: _selectedIndex,
+        onTap: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+          // TODO: 탭별 화면 전환 구현
+        },
+      ),
     );
   }
 }
