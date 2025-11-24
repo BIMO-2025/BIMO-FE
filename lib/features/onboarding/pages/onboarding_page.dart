@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../models/onboarding_content.dart';
 import '../widgets/onboarding_slide.dart';
 import '../widgets/page_indicator.dart';
+import '../../../core/router/route_names.dart';
 
 class OnboardingPage extends StatefulWidget {
   const OnboardingPage({super.key});
@@ -28,7 +30,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
   void _onSkip() {
     // Navigate to home or auth
-    // Navigator.pushReplacementNamed(context, '/home');
+    // TODO: 로그인 상태에 따라 라우팅
+    context.go(RouteNames.login);
   }
 
   void _onNext() {
