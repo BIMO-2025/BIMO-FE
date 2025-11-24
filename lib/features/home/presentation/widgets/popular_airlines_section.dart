@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../../../core/utils/responsive_extensions.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -61,35 +62,51 @@ class PopularAirlinesSection extends StatelessWidget {
               ),
             ],
           ),
-          SizedBox(height: context.h(14)), // 제목 아래 14px
           // 항공사 리스트
           Padding(
             padding: EdgeInsets.symmetric(horizontal: context.w(20)),
-            child: Column(
-              children: [
-                ...airlines.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final airline = entry.value;
-                  return Transform.translate(
-                    offset: Offset(
-                      0,
-                      index == 1 ? -context.h(4) : 0,
-                    ), // 두 번째 카드는 4px 위로
-                    child: Padding(
-                      padding: EdgeInsets.only(bottom: context.h(12)),
-                      child: AirlineCard(
-                        rank: index + 1,
-                        airline: airline,
-                        rotation: index == 1 ? -1.5 : 0, // 두 번째 카드만 -1.5도 회전
-                        isSelected: index == 1, // 두 번째 카드는 Blue1 색상
-                      ),
-                    ),
-                  );
-                }),
-              ],
+            child: SizedBox(
+              height: context.h(14 + 90 * 3 + 12 * 2 - 34), // 제목 간격 + 카드들 높이 + 간격 - 티웨이 올라간 거리
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  // 대한항공 (맨 뒤)
+                  if (airlines.isNotEmpty)
+                    _buildAirlineCard(context, 0, airlines[0], 0.0, 0),
+                  // 아시아나 (중간)
+                  if (airlines.length > 1)
+                    _buildAirlineCard(context, 1, airlines[1], 1.5, -21),
+                  // 티웨이 (맨 앞, 블러 효과)
+                  if (airlines.length > 2)
+                    _buildAirlineCard(context, 2, airlines[2], -1.5, -42, hasBlur: true),
+                ],
+              ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// 항공사 카드 빌드 헬퍼
+  Widget _buildAirlineCard(
+    BuildContext context,
+    int index,
+    AirlineData airline,
+    double rotation,
+    double offsetY, {
+    bool hasBlur = false,
+  }) {
+    return Positioned(
+      top: context.h(14) + (index * context.h(90)) + (index * context.h(12)) + offsetY,
+      left: 0,
+      right: 0,
+      child: AirlineCard(
+        rank: index + 1,
+        airline: airline,
+        rotation: rotation,
+        isSelected: index == 1, // 아시아나만 Blue1 색상
+        hasBlur: hasBlur,
       ),
     );
   }
@@ -123,6 +140,7 @@ class AirlineCard extends StatelessWidget {
   final AirlineData airline;
   final bool isSelected;
   final double rotation; // 회전 각도 (도 단위)
+  final bool hasBlur; // 백그라운드 블러 여부
 
   const AirlineCard({
     super.key,
@@ -130,19 +148,24 @@ class AirlineCard extends StatelessWidget {
     required this.airline,
     this.isSelected = false,
     this.rotation = 0, // 기본값: 회전 없음
+    this.hasBlur = false, // 기본값: 블러 없음
   });
 
   @override
   Widget build(BuildContext context) {
     return Transform.rotate(
       angle: rotation * (3.14159 / 180), // 도를 라디안으로 변환
-      child: Container(
-        width: context.w(335),
-        height: context.h(90), // 고정 높이 90
-        decoration: BoxDecoration(
-          color:
-              isSelected ? AppColors.blue1 : AppColors.white.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(context.w(12)),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(context.w(12)),
+        child: BackdropFilter(
+          filter: hasBlur ? ImageFilter.blur(sigmaX: 40, sigmaY: 40) : ImageFilter.blur(sigmaX: 0, sigmaY: 0),
+          child: Container(
+            width: context.w(335),
+            height: context.h(90), // 고정 높이 90
+            decoration: BoxDecoration(
+              color:
+                  isSelected ? AppColors.blue1 : AppColors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(context.w(12)),
         ),
         child: Stack(
           clipBehavior: Clip.hardEdge,
@@ -245,6 +268,8 @@ class AirlineCard extends StatelessWidget {
           ],
         ),
       ), // Container 닫기
+        ), // BackdropFilter 닫기
+      ), // ClipRRect 닫기
     ); // Transform.rotate 닫기
   }
 }

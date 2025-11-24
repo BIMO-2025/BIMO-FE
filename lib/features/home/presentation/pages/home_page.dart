@@ -80,7 +80,7 @@ class _HomePageState extends State<HomePage> {
             DestinationSearchSection(
               departureAirport: '인천 (INC)',
               arrivalAirport: '파리 (CDG)',
-              departureDate: '2025년 10월 29일',
+              departureDate: '', // 빈 문자열로 현재 날짜 플레이스홀더 표시
               onDepartureTap: () {
                 // TODO: 출발 공항 선택 화면으로 이동
               },
