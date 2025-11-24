@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../models/onboarding_content.dart';
 import '../widgets/onboarding_slide.dart';
 import '../widgets/page_indicator.dart';
-import '../../../core/router/route_names.dart';
+import '../../../core/network/router/route_names.dart';
 
 class OnboardingPage extends StatefulWidget {
   const OnboardingPage({super.key});
@@ -53,10 +53,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
           children: [
             Align(
               alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: _onSkip,
-                child: const Text('Skip'),
-              ),
+              child: TextButton(onPressed: _onSkip, child: const Text('Skip')),
             ),
             Expanded(
               child: PageView.builder(
@@ -94,4 +91,3 @@ class _OnboardingPageState extends State<OnboardingPage> {
     );
   }
 }
-
