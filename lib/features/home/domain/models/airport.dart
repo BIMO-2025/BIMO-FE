@@ -2,12 +2,14 @@ class Airport {
   final String cityName;
   final String airportName;
   final String airportCode;
+  final String country;
   final String locationType;
 
   const Airport({
     required this.cityName,
     required this.airportName,
     required this.airportCode,
+    required this.country,
     required this.locationType,
   });
 

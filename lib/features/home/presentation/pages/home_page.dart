@@ -7,6 +7,7 @@ import '../widgets/airline_search_input.dart';
 import '../widgets/destination_search_section.dart';
 import '../widgets/popular_airlines_section.dart';
 import '../widgets/airport_search_bottom_sheet.dart';
+import '../widgets/date_selection_bottom_sheet.dart';
 import '../../domain/models/airport.dart';
 
 /// 홈 화면 메인 페이지
@@ -26,6 +27,7 @@ class _HomePageState extends State<HomePage> {
   // Selected airports
   Airport? _departureAirport;
   Airport? _arrivalAirport;
+  DateTime? _selectedDate;
 
   @override
   Widget build(BuildContext context) {
@@ -91,7 +93,11 @@ class _HomePageState extends State<HomePage> {
               arrivalAirport: _arrivalAirport != null
                   ? '${_arrivalAirport!.cityName} (${_arrivalAirport!.airportCode})'
                   : '파리 (CDG)',
-              departureDate: '', // 빈 문자열로 현재 날짜 플레이스홀더 표시
+              isDepartureSelected: _departureAirport != null,
+              isArrivalSelected: _arrivalAirport != null,
+              departureDate: _selectedDate != null
+                  ? '${_selectedDate!.year}년 ${_selectedDate!.month}월 ${_selectedDate!.day}일'
+                  : '',
               onDepartureTap: () {
                 _showAirportSearchBottomSheet(isDeparture: true);
               },
@@ -99,14 +105,23 @@ class _HomePageState extends State<HomePage> {
                 _showAirportSearchBottomSheet(isDeparture: false);
               },
               onDateTap: () {
-                // TODO: 날짜 선택 화면으로 이동
+                _showDateSelectionBottomSheet();
               },
               onSwapAirports: () {
-                setState(() {
-                  final temp = _departureAirport;
-                  _departureAirport = _arrivalAirport;
-                  _arrivalAirport = temp;
-                });
+                if (_departureAirport != null && _arrivalAirport != null) {
+                  setState(() {
+                    final temp = _departureAirport;
+                    _departureAirport = _arrivalAirport;
+                    _arrivalAirport = temp;
+                  });
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('출발지와 도착지를 모두 선택해주세요.'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
               },
             ),
           PopularAirlinesSection(
@@ -156,6 +171,23 @@ class _HomePageState extends State<HomePage> {
         },
       ),
     );
+  }
+
+  /// 날짜 선택 바텀시트 표시
+  Future<void> _showDateSelectionBottomSheet() async {
+    final result = await showModalBottomSheet<DateTime>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withOpacity(0.5),
+      isScrollControlled: true,
+      builder: (context) => const DateSelectionBottomSheet(),
+    );
+
+    if (result != null) {
+      setState(() {
+        _selectedDate = result;
+      });
+    }
   }
 
   /// 하단 네비게이션 바

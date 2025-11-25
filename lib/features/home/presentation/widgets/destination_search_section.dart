@@ -11,6 +11,8 @@ class DestinationSearchSection extends StatelessWidget {
   final VoidCallback? onArrivalTap;
   final VoidCallback? onDateTap;
   final VoidCallback? onSwapAirports;
+  final bool isDepartureSelected;
+  final bool isArrivalSelected;
 
   const DestinationSearchSection({
     super.key,
@@ -21,6 +23,8 @@ class DestinationSearchSection extends StatelessWidget {
     this.onArrivalTap,
     this.onDateTap,
     this.onSwapAirports,
+    this.isDepartureSelected = false,
+    this.isArrivalSelected = false,
   });
 
   @override
@@ -49,6 +53,7 @@ class DestinationSearchSection extends StatelessWidget {
                         context,
                         label: '출발 공항',
                         airport: departureAirport,
+                        isSelected: isDepartureSelected,
                       ),
                     ),
                   ),
@@ -61,6 +66,7 @@ class DestinationSearchSection extends StatelessWidget {
                         context,
                         label: '도착 공항',
                         airport: arrivalAirport,
+                        isSelected: isArrivalSelected,
                       ),
                     ),
                   ),
@@ -149,6 +155,7 @@ class DestinationSearchSection extends StatelessWidget {
     BuildContext context, {
     required String label,
     required String airport,
+    required bool isSelected,
   }) {
     return Container(
       width: context.w(163.5),
@@ -186,7 +193,9 @@ class DestinationSearchSection extends StatelessWidget {
               fontWeight: FontWeight.w400, // Regular
               height: 1.5, // 150% line height
               letterSpacing: -context.fs(0.26), // -2% of 13
-              color: AppColors.white.withOpacity(0.5), // FFFFFF 50%
+              color: isSelected
+                  ? AppColors.white // 선택됨: FFFFFF 100%
+                  : AppColors.white.withOpacity(0.5), // 선택 안됨: FFFFFF 50%
             ),
           ),
         ],
@@ -200,3 +209,4 @@ class DestinationSearchSection extends StatelessWidget {
     return '${now.year}년 ${now.month}월 ${now.day}일';
   }
 }
+

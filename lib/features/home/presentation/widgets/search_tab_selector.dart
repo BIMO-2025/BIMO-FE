@@ -144,3 +144,4 @@ class SearchTabSelector extends StatelessWidget {
     );
   }
 }
+
