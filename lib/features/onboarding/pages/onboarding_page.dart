@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../auth/pages/login_page.dart';
 
 class OnboardingPage extends StatefulWidget {
   const OnboardingPage({super.key});
@@ -55,12 +56,16 @@ class _OnboardingPageState extends State<OnboardingPage> with SingleTickerProvid
 
   void _onDragEnd(DragEndDetails details) {
     if (_dragValue > _maxWidth * 0.7) {
-      // Trigger Action (Navigate)
+      // Navigate to Login Page
       setState(() {
         _dragValue = _maxWidth;
       });
-      // TODO: Navigate to next screen
-      print("Slide Completed!");
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const LoginPage(),
+        ),
+      );
     } else {
       // Reset
       setState(() {
