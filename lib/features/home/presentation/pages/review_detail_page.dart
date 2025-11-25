@@ -192,17 +192,22 @@ class ReviewDetailPage extends StatelessWidget {
                       );
                     },
                   ),
-                  // Fourth image - clipped (50px width)
-                  if (review.images.length > 3)
-                    Container(
-                      width: context.w(50),
-                      height: context.w(100),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(context.w(12)),
-                        color: const Color(0xFF333333),
-                        // image: DecorationImage(...)
+                    // Fourth image - constrained to avoid overflow
+                    if (review.images.length > 3)
+                      Expanded(
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: context.w(50)),
+                          child: Container(
+                            height: context.w(100),
+                            margin: EdgeInsets.only(right: context.w(8)),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(context.w(12)),
+                              color: const Color(0xFF333333),
+                              // image: DecorationImage(...)
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
                 ],
               ),
               SizedBox(height: context.h(24)),
