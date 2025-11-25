@@ -64,6 +64,7 @@ flutter:
     - assets/images/onboarding & login/
     - assets/images/tabbar/
     - assets/images/home/
+    - assets/images/search/
 
   # Custom fonts
   fonts:
