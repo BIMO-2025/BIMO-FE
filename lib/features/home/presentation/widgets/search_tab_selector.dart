@@ -12,11 +12,13 @@ import '../../../../core/theme/app_text_styles.dart';
 class SearchTabSelector extends StatelessWidget {
   final int selectedIndex; // 0: 항공사, 1: 목적지
   final ValueChanged<int> onTap;
+  final VoidCallback? onSearchTap; // Added
 
   const SearchTabSelector({
     super.key,
     required this.selectedIndex,
     required this.onTap,
+    this.onSearchTap,
   });
 
   @override
@@ -33,14 +35,17 @@ class SearchTabSelector extends StatelessWidget {
           _buildTabContainer(context),
           SizedBox(width: context.w(125)), // 탭 컨테이너 오른쪽으로 125px 간격
           // 검색 아이콘 (40x40, 같은 높이 선상)
-          SizedBox(
-            width: context.w(40),
-            height: context.h(40),
-            child: Image.asset(
-              'assets/images/home/search.png',
+          GestureDetector(
+            onTap: onSearchTap,
+            child: SizedBox(
               width: context.w(40),
               height: context.h(40),
-              fit: BoxFit.contain,
+              child: Image.asset(
+                'assets/images/home/search.png',
+                width: context.w(40),
+                height: context.h(40),
+                fit: BoxFit.contain,
+              ),
             ),
           ),
         ],

@@ -8,6 +8,7 @@ import '../widgets/destination_search_section.dart';
 import '../widgets/popular_airlines_section.dart';
 import '../widgets/airport_search_bottom_sheet.dart';
 import '../widgets/date_selection_bottom_sheet.dart';
+import 'airline_search_result_page.dart';
 import '../../domain/models/airport.dart';
 
 /// 홈 화면 메인 페이지
@@ -82,9 +83,12 @@ class _HomePageState extends State<HomePage> {
                 _searchTabIndex = index;
               });
             },
+            onSearchTap: () => _navigateToSearchResult(),
           ),
           if (_searchTabIndex == 0)
-            AirlineSearchInput(controller: _airlineSearchController)
+            AirlineSearchInput(
+              controller: _airlineSearchController,
+            )
           else
             DestinationSearchSection(
               departureAirport: _departureAirport != null
@@ -124,8 +128,8 @@ class _HomePageState extends State<HomePage> {
                 }
               },
             ),
-          PopularAirlinesSection(
-            weekLabel: '[10월 1주]',
+            PopularAirlinesSection(
+            weekLabel: _getCurrentWeekLabel(),
             airlines: [
               AirlineData(
                 name: '대한항공',
@@ -150,6 +154,17 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
     );
+  }
+
+  /// 현재 날짜의 주차 라벨 생성 (예: "[11월 4주]")
+  String _getCurrentWeekLabel() {
+    final now = DateTime.now();
+    final firstDayOfMonth = DateTime(now.year, now.month, 1);
+    // DateTime.weekday: Mon=1, ... Sat=6, Sun=7
+    // % 7 -> Sun=0, Mon=1, ... Sat=6
+    final firstDayWeekday = firstDayOfMonth.weekday % 7;
+    final weekNumber = ((now.day + firstDayWeekday) / 7).ceil();
+    return '[${now.month}월 ${weekNumber}주]';
   }
 
   /// 공항 검색 바텀시트 표시
@@ -188,6 +203,49 @@ class _HomePageState extends State<HomePage> {
         _selectedDate = result;
       });
     }
+  }
+
+  /// 검색 결과 화면으로 이동
+  void _navigateToSearchResult() {
+    // 유효성 검사
+    if (_searchTabIndex == 0) {
+      // 항공사 검색 탭
+      if (_airlineSearchController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('검색할 항공사를 입력해주세요.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+    } else {
+      // 목적지 검색 탭
+      if (_departureAirport == null ||
+          _arrivalAirport == null ||
+          _selectedDate == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('출발지, 도착지, 날짜를 모두 선택해주세요.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AirlineSearchResultPage(
+          initialTabIndex: _searchTabIndex,
+          departureAirport: _departureAirport,
+          arrivalAirport: _arrivalAirport,
+          selectedDate: _selectedDate,
+          airlineQuery: _airlineSearchController.text,
+        ),
+      ),
+    );
   }
 
   /// 하단 네비게이션 바

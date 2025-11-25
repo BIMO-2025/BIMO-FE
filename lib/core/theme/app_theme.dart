@@ -32,6 +32,7 @@ class AppTheme {
         backgroundColor: Colors.transparent,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
+        scrolledUnderElevation: 0,
         centerTitle: true,
         titleTextStyle: AppTextStyles.large.copyWith(
           color: AppColors.textPrimary,

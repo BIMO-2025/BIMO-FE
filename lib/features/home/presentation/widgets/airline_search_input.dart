@@ -13,10 +13,12 @@ import '../../../../core/theme/app_text_styles.dart';
 /// - 플레이스홀더: "어떤 항공사를 이용하시나요?" (화이트 50%, 바디 스타일)
 /// - 패딩: 양옆 15px, 상하 중앙 정렬
 class AirlineSearchInput extends StatelessWidget {
-  final TextEditingController? controller;
-  final ValueChanged<String>? onChanged;
+  final TextEditingController controller;
 
-  const AirlineSearchInput({super.key, this.controller, this.onChanged});
+  const AirlineSearchInput({
+    super.key,
+    required this.controller,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -42,12 +44,11 @@ class AirlineSearchInput extends StatelessWidget {
         ),
         child: TextField(
           controller: controller,
-          onChanged: onChanged,
           style: AppTextStyles.body.copyWith(
             color: AppColors.white, // 화이트 100%
           ),
-          minLines: 1, // 기본 한 줄
-          maxLines: 2, // 텍스트가 길어지면 두 줄로 확장되어 사각형이 커짐
+          minLines: 1,
+          maxLines: 2,
           textInputAction: TextInputAction.done,
           decoration: InputDecoration(
             hintText: '어떤 항공사를 이용하시나요?',
@@ -56,7 +57,7 @@ class AirlineSearchInput extends StatelessWidget {
             ),
             border: InputBorder.none,
             isDense: true,
-            contentPadding: EdgeInsets.zero, // Container의 padding 사용
+            contentPadding: EdgeInsets.zero,
           ),
         ),
       ),
