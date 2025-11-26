@@ -2,11 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
-<<<<<<< HEAD
 import '../../../core/network/router/route_names.dart';
-=======
-import 'onboarding_page.dart';
->>>>>>> origin/feature/auth
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -38,14 +34,7 @@ class _SplashPageState extends State<SplashPage> {
   Future<void> _navigateToNext() async {
     await Future.delayed(const Duration(seconds: 2));
     if (mounted) {
-<<<<<<< HEAD
       context.go(RouteNames.onboarding);
-=======
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const OnboardingPage()),
-      );
->>>>>>> origin/feature/auth
     }
   }
 

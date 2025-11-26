@@ -1,16 +1,9 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-<<<<<<< HEAD
 import 'package:go_router/go_router.dart';
-import '../models/onboarding_content.dart';
-import '../widgets/onboarding_slide.dart';
-import '../widgets/page_indicator.dart';
-import '../../../core/network/router/route_names.dart';
-=======
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../auth/pages/login_page.dart';
->>>>>>> origin/feature/auth
+import '../../../core/network/router/route_names.dart';
 
 class OnboardingPage extends StatefulWidget {
   const OnboardingPage({super.key});
@@ -62,32 +55,13 @@ class _OnboardingPageState extends State<OnboardingPage> with SingleTickerProvid
     });
   }
 
-<<<<<<< HEAD
-  void _onSkip() {
-    // Navigate to home or auth
-    // TODO: 로그인 상태에 따라 라우팅
-    context.go(RouteNames.login);
-  }
-
-  void _onNext() {
-    if (_currentPage < OnboardingContent.contents.length - 1) {
-      _pageController.nextPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-=======
   void _onDragEnd(DragEndDetails details) {
     if (_dragValue > _maxWidth * 0.7) {
       // Navigate to Login Page
       setState(() {
         _dragValue = _maxWidth;
       });
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const LoginPage(),
-        ),
->>>>>>> origin/feature/auth
-      );
+      context.go(RouteNames.login);
     } else {
       // Reset
       setState(() {
@@ -99,14 +73,6 @@ class _OnboardingPageState extends State<OnboardingPage> with SingleTickerProvid
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-<<<<<<< HEAD
-      body: SafeArea(
-        child: Column(
-          children: [
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(onPressed: _onSkip, child: const Text('Skip')),
-=======
       backgroundColor: AppColors.black,
       body: Stack(
         children: [
@@ -115,7 +81,6 @@ class _OnboardingPageState extends State<OnboardingPage> with SingleTickerProvid
             child: Image.asset(
               'assets/images/onboarding & login/bg.png',
               fit: BoxFit.cover,
->>>>>>> origin/feature/auth
             ),
           ),
 
@@ -300,8 +265,6 @@ class _OnboardingPageState extends State<OnboardingPage> with SingleTickerProvid
     );
   }
 }
-<<<<<<< HEAD
-=======
 
 /// 온보딩 컨텐츠 모델
 class OnboardingContent {
@@ -315,4 +278,3 @@ class OnboardingContent {
     required this.imagePath,
   });
 }
->>>>>>> origin/feature/auth
