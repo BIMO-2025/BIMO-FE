@@ -12,10 +12,11 @@ class OnboardingPage extends StatefulWidget {
   State<OnboardingPage> createState() => _OnboardingPageState();
 }
 
-class _OnboardingPageState extends State<OnboardingPage> with SingleTickerProviderStateMixin {
+class _OnboardingPageState extends State<OnboardingPage>
+    with SingleTickerProviderStateMixin {
   int _currentPage = 0;
   final PageController _pageController = PageController();
-  
+
   // Slide Button State
   double _dragValue = 0.0;
   final double _maxWidth = 335.0 - 50.0; // Button Width - Icon Width (approx)
@@ -23,22 +24,26 @@ class _OnboardingPageState extends State<OnboardingPage> with SingleTickerProvid
   final List<OnboardingContent> _pages = [
     OnboardingContent(
       title: '비모는 왜 사용해야 하나요?',
-      description: '장거리 비행은 단순히 이동이 아닙니다.\n비모와 함께라면 최적의 컨디션으로 목적지에\n도착하는 과정이 됩니다.',
+      description:
+          '장거리 비행은 단순히 이동이 아닙니다.\n비모와 함께라면 최적의 컨디션으로 목적지에\n도착하는 과정이 됩니다.',
       imagePath: 'assets/images/onboarding & login/onboarding_1.png',
     ),
     OnboardingContent(
       title: '한국인 실사용자 후기',
-      description: '항공편명만 입력하면 인증된 탑승객들의\n생생한 기내식 사진, 최적의 좌석 꿀팁을\n미리 확인하고 후회 없는 선택을 도와드립니다.',
+      description:
+          '항공편명만 입력하면 인증된 탑승객들의\n생생한 기내식 사진, 최적의 좌석 꿀팁을\n미리 확인하고 후회 없는 선택을 도와드립니다.',
       imagePath: 'assets/images/onboarding & login/onboarding_2.png',
     ),
     OnboardingContent(
       title: '하늘 위 스마트 비서',
-      description: '맞춤형 최적 비행 타임라인을 제공합니다.\n와이파이 없이도 완벽하게 작동하여\n시차 적응, 휴식, 업무를 스마트하게 관리합니다.',
+      description:
+          '맞춤형 최적 비행 타임라인을 제공합니다.\n와이파이 없이도 완벽하게 작동하여\n시차 적응, 휴식, 업무를 스마트하게 관리합니다.',
       imagePath: 'assets/images/onboarding & login/onboarding_3.png',
     ),
     OnboardingContent(
       title: '나의 경험이 곧 새로운 가치',
-      description: '나만의 비행을 기록하세요.\n당신의 소중한 후기는 다음 여행자를 돕는\n가장 가치 있는 정보 자산이 됩니다.',
+      description:
+          '나만의 비행을 기록하세요.\n당신의 소중한 후기는 다음 여행자를 돕는\n가장 가치 있는 정보 자산이 됩니다.',
       imagePath: 'assets/images/onboarding & login/onboarding_4.png',
     ),
   ];
@@ -111,12 +116,7 @@ class _OnboardingPageState extends State<OnboardingPage> with SingleTickerProvid
           ),
 
           // 시작하기 버튼 (하단 고정)
-          Positioned(
-            bottom: 36,
-            left: 0,
-            right: 0,
-            child: _buildGlassButton(),
-          ),
+          Positioned(bottom: 36, left: 0, right: 0, child: _buildGlassButton()),
         ],
       ),
     );
@@ -170,9 +170,10 @@ class _OnboardingPageState extends State<OnboardingPage> with SingleTickerProvid
           margin: const EdgeInsets.symmetric(horizontal: 4),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: _currentPage == index
-                ? AppColors.white
-                : AppColors.white.withOpacity(0.1),
+            color:
+                _currentPage == index
+                    ? AppColors.white
+                    : AppColors.white.withOpacity(0.1),
           ),
         ),
       ),
@@ -187,10 +188,7 @@ class _OnboardingPageState extends State<OnboardingPage> with SingleTickerProvid
         height: 50,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(56),
-          border: Border.all(
-            color: Colors.white.withOpacity(0.1),
-            width: 1,
-          ),
+          border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
           color: Colors.white.withOpacity(0.05),
         ),
         child: ClipRRect(
