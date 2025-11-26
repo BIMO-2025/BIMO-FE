@@ -62,12 +62,9 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/images/onboarding & login/
-<<<<<<< HEAD
     - assets/images/tabbar/
     - assets/images/home/
     - assets/images/search/
-=======
->>>>>>> origin/feature/auth
 
   # Custom fonts
   fonts:
