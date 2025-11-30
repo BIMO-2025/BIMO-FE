@@ -6,6 +6,7 @@ import '../widgets/search_tab_selector.dart';
 import '../widgets/airline_search_input.dart';
 import '../widgets/destination_search_section.dart';
 import '../widgets/popular_airlines_section.dart';
+import '../../../myflight/pages/myflight_page.dart';
 
 /// 홈 화면 메인 페이지
 class HomePage extends StatefulWidget {
@@ -130,10 +131,21 @@ class _HomePageState extends State<HomePage> {
       child: CustomTabBar(
         currentIndex: _selectedIndex,
         onTap: (index) {
+          if (index == 0) {
+            // Already here
+          } else if (index == 1) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const MyFlightPage()),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('준비 중인 기능입니다.')),
+            );
+          }
           setState(() {
             _selectedIndex = index;
           });
-          // TODO: 탭별 화면 전환 구현
         },
       ),
     );
