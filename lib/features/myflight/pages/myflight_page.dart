@@ -6,6 +6,7 @@ import '../../../../core/widgets/custom_app_bar.dart';
 import '../../../../core/widgets/custom_tab_bar.dart';
 import '../widgets/flight_card_widget.dart';
 import '../models/flight_model.dart';
+import 'add_flight_page.dart';
 import '../../home/presentation/pages/home_page.dart';
 import '../../../../core/utils/responsive_extensions.dart';
 
@@ -167,8 +168,11 @@ class _MyFlightPageState extends State<MyFlightPage> {
                 // Plus 버튼 (24x24)
                 GestureDetector(
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('비행 추가 기능 준비 중입니다.')),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AddFlightPage(),
+                      ),
                     );
                   },
                   child: SvgPicture.asset(
