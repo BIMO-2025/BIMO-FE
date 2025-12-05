@@ -8,6 +8,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/responsive_extensions.dart';
 import '../models/flight_search_result.dart';
 import '../widgets/flight_card_widget.dart' show DashedLinePainter;
+import 'flight_plan_page.dart';
 
 /// 비행 등록 페이지
 class AddFlightPage extends StatefulWidget {
@@ -968,7 +969,7 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
           children: [
             Text(
               title,
-              style: AppTextStyles.body.copyWith(color: Colors.white),
+              style: AppTextStyles.bigBody.copyWith(color: Colors.white),
             ),
             SizedBox(height: 8),
             Text(
@@ -1008,7 +1009,7 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
           children: [
             Text(
               '출발 날짜',
-              style: AppTextStyles.body.copyWith(color: Colors.white),
+              style: AppTextStyles.bigBody.copyWith(color: Colors.white),
             ),
             SizedBox(height: 8),
             Text(
@@ -1205,15 +1206,19 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
       });
       _rotationController?.repeat();
       
-      // 3초 후 로딩 종료 (실제로는 API 호출 완료 후)
+      // 3초 후 로딩 종료 및 비행 플랜 페이지로 이동 (실제로는 API 호출 완료 후)
       Future.delayed(const Duration(seconds: 3), () {
         if (mounted) {
           setState(() {
             _isLoading = false;
           });
           _rotationController?.stop();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('플랜 생성 완료')),
+          // 비행 플랜 페이지로 이동
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const FlightPlanPage(),
+            ),
           );
         }
       });
