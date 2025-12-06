@@ -10,6 +10,7 @@ import '../widgets/airport_search_bottom_sheet.dart';
 import '../widgets/date_selection_bottom_sheet.dart';
 import 'airline_search_result_page.dart';
 import '../../domain/models/airport.dart';
+import '../../../my/presentation/pages/my_page.dart';
 
 /// 홈 화면 메인 페이지
 class HomePage extends StatefulWidget {
@@ -72,6 +73,21 @@ class _HomePageState extends State<HomePage> {
 
   /// 메인 바디 영역
   Widget _buildBody() {
+    // 탭 인덱스에 따라 다른 페이지 표시
+    switch (_selectedIndex) {
+      case 0: // 홈 탭
+        return _buildHomeContent();
+      case 1: // 나의비행 탭
+        return _buildMyFlightContent();
+      case 2: // 마이 탭
+        return const MyPage();
+      default:
+        return _buildHomeContent();
+    }
+  }
+
+  /// 홈 탭 컨텐츠
+  Widget _buildHomeContent() {
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -248,6 +264,20 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  /// 나의비행 탭 컨텐츠 (TODO: 구현 필요)
+  Widget _buildMyFlightContent() {
+    return Center(
+      child: Text(
+        '나의비행 페이지\n(구현 예정)',
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: AppTheme.darkTheme.colorScheme.onSurface,
+          fontSize: 18,
+        ),
+      ),
+    );
+  }
+
   /// 하단 네비게이션 바
   Widget _buildBottomNavigationBar() {
     return Align(
@@ -258,7 +288,6 @@ class _HomePageState extends State<HomePage> {
           setState(() {
             _selectedIndex = index;
           });
-          // TODO: 탭별 화면 전환 구현
         },
       ),
     );

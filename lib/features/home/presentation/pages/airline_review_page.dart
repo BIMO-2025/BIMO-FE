@@ -386,20 +386,29 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
 
   Widget _buildReviewList(BuildContext context) {
     return ListView.separated(
-      padding: EdgeInsets.all(context.w(20)),
+      padding: EdgeInsets.all(context.w(20)), // 원래대로 복구
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: _reviews.length,
       separatorBuilder: (context, index) => SizedBox(height: context.h(12)),
       itemBuilder: (context, index) {
         final review = _reviews[index];
-        return Container(
-          padding: EdgeInsets.all(context.w(20)),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1A1A1A),
-            borderRadius: BorderRadius.circular(context.w(16)),
-          ),
-          child: Column(
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ReviewDetailPage(review: review),
+              ),
+            );
+          },
+          child: Container(
+            padding: EdgeInsets.all(context.w(20)),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A1A1A),
+              borderRadius: BorderRadius.circular(context.w(16)),
+            ),
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // User Info
@@ -498,9 +507,10 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
               // Photos
               SizedBox(
                 height: context.w(80),
+                width: context.w(315), // 콘텐츠 영역(295) + 오른쪽 확장(20)
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
-                  padding: EdgeInsets.zero, // Remove default padding
+                  padding: EdgeInsets.zero,
                   itemCount: review.images.length,
                   separatorBuilder: (context, index) => SizedBox(width: context.w(8)),
                   itemBuilder: (context, index) {
@@ -585,6 +595,7 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
               ),
             ],
           ),
+          ), // GestureDetector
         );
       },
     );
