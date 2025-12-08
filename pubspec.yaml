@@ -67,6 +67,7 @@ flutter:
     - assets/images/home/
     - assets/images/search/
     - assets/images/my/
+    - assets/images/myflight/
 
   # Custom fonts
   fonts:

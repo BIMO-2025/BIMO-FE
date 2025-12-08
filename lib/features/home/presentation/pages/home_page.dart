@@ -11,6 +11,7 @@ import '../widgets/date_selection_bottom_sheet.dart';
 import 'airline_search_result_page.dart';
 import '../../domain/models/airport.dart';
 import '../../../my/presentation/pages/my_page.dart';
+import '../../../myflight/pages/myflight_page.dart';
 
 /// 홈 화면 메인 페이지
 class HomePage extends StatefulWidget {
@@ -267,16 +268,7 @@ class _HomePageState extends State<HomePage> {
 
   /// 나의비행 탭 컨텐츠 (TODO: 구현 필요)
   Widget _buildMyFlightContent() {
-    return Center(
-      child: Text(
-        '나의비행 페이지\n(구현 예정)',
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          color: AppTheme.darkTheme.colorScheme.onSurface,
-          fontSize: 18,
-        ),
-      ),
-    );
+    return const MyFlightPage();
   }
 
   /// 하단 네비게이션 바
@@ -286,6 +278,18 @@ class _HomePageState extends State<HomePage> {
       child: CustomTabBar(
         currentIndex: _selectedIndex,
         onTap: (index) {
+          if (index == 0) {
+            // Already here
+          } else if (index == 1) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const MyFlightPage()),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('준비 중인 기능입니다.')),
+            );
+          }
           setState(() {
             _selectedIndex = index;
           });
