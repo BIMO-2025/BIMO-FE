@@ -71,10 +71,11 @@ class _MenuItemState extends State<MenuItem> {
               children: [
                 GestureDetector(
                   onTap: _toggleTooltip,
-                  child: Icon(
-                    Icons.info_outline,
-                    size: context.w(18),
-                    color: AppColors.white,
+                  child: Image.asset(
+                    'assets/images/my/info.png',
+                    width: context.w(18),
+                    height: context.h(18),
+                    fit: BoxFit.contain,
                   ),
                 ),
 

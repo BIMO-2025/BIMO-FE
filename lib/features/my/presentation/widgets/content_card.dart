@@ -4,22 +4,36 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/responsive_extensions.dart';
 
 /// 수면/집중력 콘텐츠 카드 위젯
-class ContentCard extends StatelessWidget {
+class ContentCard extends StatefulWidget {
   final String title;
   final String subtitle;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   const ContentCard({
     super.key,
     required this.title,
     required this.subtitle,
-    required this.onTap,
+    this.onTap,
   });
+
+  @override
+  State<ContentCard> createState() => _ContentCardState();
+}
+
+class _ContentCardState extends State<ContentCard> {
+  bool _isPlaying = false;
+
+  void _togglePlayState() {
+    setState(() {
+      _isPlaying = !_isPlaying;
+    });
+    widget.onTap?.call();
+  }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: _togglePlayState,
       child: Container(
         width: context.w(160), // 160 x 100
         height: context.h(100), // 96 → 100 (4픽셀 증가)
@@ -36,7 +50,7 @@ class ContentCard extends StatelessWidget {
               children: [
                 // 제목 (BigBody, 화이트)
                 Text(
-                  title,
+                  widget.title,
                   style: AppTextStyles.bigBody.copyWith(
                     fontSize: context.fs(15),
                     color: AppColors.white,
@@ -47,7 +61,7 @@ class ContentCard extends StatelessWidget {
                 
                 // 부제목 (SmallBody, 화이트)
                 Text(
-                  subtitle,
+                  widget.subtitle,
                   style: AppTextStyles.smallBody.copyWith(
                     fontSize: context.fs(13),
                     color: AppColors.white,
@@ -57,14 +71,17 @@ class ContentCard extends StatelessWidget {
               ],
             ),
             
-            // 아이콘 (20 x 20) - 상단 0, 오른쪽 0
+            // 재생/정지 아이콘 (20 x 20) - 상단 0, 오른쪽 0
             Positioned(
               top: 0,
               right: 0,
-              child: Icon(
-                Icons.pause_circle_outline,
-                size: context.w(20),
-                color: AppColors.white,
+              child: Image.asset(
+                _isPlaying
+                    ? 'assets/images/my/playing.png'
+                    : 'assets/images/my/pause.png',
+                width: context.w(20),
+                height: context.h(20),
+                fit: BoxFit.contain,
               ),
             ),
           ],
@@ -73,4 +90,5 @@ class ContentCard extends StatelessWidget {
     );
   }
 }
+
 

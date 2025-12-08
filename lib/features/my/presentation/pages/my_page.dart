@@ -6,6 +6,10 @@ import '../widgets/menu_section.dart';
 import '../widgets/menu_item.dart';
 import '../widgets/content_card.dart';
 import 'my_info_page.dart';
+import 'settings_page.dart';
+import 'faq_page.dart';
+import 'announcement_page.dart';
+import 'my_reviews_page.dart';
 
 /// 마이 페이지 (탭 컨텐츠)
 class MyPage extends StatelessWidget {
@@ -45,7 +49,12 @@ class MyPage extends StatelessWidget {
                 MenuItem(
                   title: '내 리뷰 보기',
                   onTap: () {
-                    // TODO: 내 리뷰 화면으로 이동
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const MyReviewsPage(),
+                      ),
+                    );
                   },
                 ),
                 SizedBox(height: context.h(10)),
@@ -130,7 +139,12 @@ class MyPage extends StatelessWidget {
                 MenuItem(
                   title: '설정',
                   onTap: () {
-                    // TODO: 설정 화면으로 이동
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SettingsPage(),
+                      ),
+                    );
                   },
                 ),
                 SizedBox(height: context.h(10)),
@@ -145,7 +159,10 @@ class MyPage extends StatelessWidget {
                 MenuItem(
                   title: 'FAQ',
                   onTap: () {
-                    // TODO: FAQ 화면으로 이동
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const FaqPage()),
+                    );
                   },
                 ),
                 SizedBox(height: context.h(10)),
@@ -175,7 +192,12 @@ class MyPage extends StatelessWidget {
                 MenuItem(
                   title: '공지사항',
                   onTap: () {
-                    // TODO: 공지사항 화면으로 이동
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AnnouncementPage(),
+                      ),
+                    );
                   },
                 ),
               ],
