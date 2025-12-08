@@ -26,7 +26,7 @@ class _HomePageState extends State<HomePage> {
   int _searchTabIndex = 0; // Search tab index (0: Airline, 1: Destination)
   final TextEditingController _airlineSearchController =
       TextEditingController();
-  
+
   // Selected airports
   Airport? _departureAirport;
   Airport? _arrivalAirport;
@@ -104,22 +104,23 @@ class _HomePageState extends State<HomePage> {
             onSearchTap: () => _navigateToSearchResult(),
           ),
           if (_searchTabIndex == 0)
-            AirlineSearchInput(
-              controller: _airlineSearchController,
-            )
+            AirlineSearchInput(controller: _airlineSearchController)
           else
             DestinationSearchSection(
-              departureAirport: _departureAirport != null
-                  ? '${_departureAirport!.cityName} (${_departureAirport!.airportCode})'
-                  : '인천 (INC)',
-              arrivalAirport: _arrivalAirport != null
-                  ? '${_arrivalAirport!.cityName} (${_arrivalAirport!.airportCode})'
-                  : '파리 (CDG)',
+              departureAirport:
+                  _departureAirport != null
+                      ? '${_departureAirport!.cityName} (${_departureAirport!.airportCode})'
+                      : '인천 (INC)',
+              arrivalAirport:
+                  _arrivalAirport != null
+                      ? '${_arrivalAirport!.cityName} (${_arrivalAirport!.airportCode})'
+                      : '파리 (CDG)',
               isDepartureSelected: _departureAirport != null,
               isArrivalSelected: _arrivalAirport != null,
-              departureDate: _selectedDate != null
-                  ? '${_selectedDate!.year}년 ${_selectedDate!.month}월 ${_selectedDate!.day}일'
-                  : '',
+              departureDate:
+                  _selectedDate != null
+                      ? '${_selectedDate!.year}년 ${_selectedDate!.month}월 ${_selectedDate!.day}일'
+                      : '',
               onDepartureTap: () {
                 _showAirportSearchBottomSheet(isDeparture: true);
               },
@@ -146,7 +147,7 @@ class _HomePageState extends State<HomePage> {
                 }
               },
             ),
-            PopularAirlinesSection(
+          PopularAirlinesSection(
             weekLabel: _getCurrentWeekLabel(),
             airlines: [
               AirlineData(
@@ -192,17 +193,18 @@ class _HomePageState extends State<HomePage> {
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black.withOpacity(0.5), // 50% black overlay
       isScrollControlled: true,
-      builder: (context) => AirportSearchBottomSheet(
-        onAirportSelected: (airport) {
-          setState(() {
-            if (isDeparture) {
-              _departureAirport = airport;
-            } else {
-              _arrivalAirport = airport;
-            }
-          });
-        },
-      ),
+      builder:
+          (context) => AirportSearchBottomSheet(
+            onAirportSelected: (airport) {
+              setState(() {
+                if (isDeparture) {
+                  _departureAirport = airport;
+                } else {
+                  _arrivalAirport = airport;
+                }
+              });
+            },
+          ),
     );
   }
 
@@ -255,13 +257,14 @@ class _HomePageState extends State<HomePage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => AirlineSearchResultPage(
-          initialTabIndex: _searchTabIndex,
-          departureAirport: _departureAirport,
-          arrivalAirport: _arrivalAirport,
-          selectedDate: _selectedDate,
-          airlineQuery: _airlineSearchController.text,
-        ),
+        builder:
+            (context) => AirlineSearchResultPage(
+              initialTabIndex: _searchTabIndex,
+              departureAirport: _departureAirport,
+              arrivalAirport: _arrivalAirport,
+              selectedDate: _selectedDate,
+              airlineQuery: _airlineSearchController.text,
+            ),
       ),
     );
   }
@@ -278,18 +281,6 @@ class _HomePageState extends State<HomePage> {
       child: CustomTabBar(
         currentIndex: _selectedIndex,
         onTap: (index) {
-          if (index == 0) {
-            // Already here
-          } else if (index == 1) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const MyFlightPage()),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('준비 중인 기능입니다.')),
-            );
-          }
           setState(() {
             _selectedIndex = index;
           });

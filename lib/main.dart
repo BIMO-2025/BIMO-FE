@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'core/theme/app_theme.dart';
-import 'features/myflight/pages/myflight_page.dart';
+import 'core/network/router/app_router.dart';
 
 void main() {
   runApp(const MyApp());
@@ -11,11 +11,11 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MaterialApp.router(
       title: 'BIMO',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
-      home: const MyFlightPage(), // MyFlight 페이지로 테스트
+      routerConfig: AppRouter.router,
     );
   }
 }
