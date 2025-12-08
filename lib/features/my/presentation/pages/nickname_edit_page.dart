@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/responsive_extensions.dart';
+import '../../../../core/utils/responsive.dart';
+import '../../../../core/widgets/primary_button.dart';
 
 /// 닉네임 변경 페이지
 class NicknameEditPage extends StatefulWidget {
@@ -14,17 +16,24 @@ class NicknameEditPage extends StatefulWidget {
 class _NicknameEditPageState extends State<NicknameEditPage> {
   final TextEditingController _nicknameController = TextEditingController();
   bool _hasText = true; // 초기값이 '여행조아'이므로 true
+  bool _isDuplicate = false; // 닉네임 중복 여부
+  final List<String> _existingNicknames = ['유자']; // TODO: 백엔드에서 가져올 기존 닉네임 리스트
+  final String _originalNickname = '여행조아'; // 기존 닉네임
 
   @override
   void initState() {
     super.initState();
     // TODO: 백엔드에서 현재 닉네임 가져오기
-    _nicknameController.text = '여행조아';
+    _nicknameController.text = _originalNickname;
 
     // 텍스트 변경 리스너 추가
     _nicknameController.addListener(() {
       setState(() {
         _hasText = _nicknameController.text.isNotEmpty;
+        // 실시간 중복 검사
+        _isDuplicate = _existingNicknames.contains(
+          _nicknameController.text.trim(),
+        );
       });
     });
   }
@@ -135,11 +144,49 @@ class _NicknameEditPageState extends State<NicknameEditPage> {
                 ),
               ),
 
-              // TODO: 저장 버튼 구현
+              // 중복 에러 메시지
+              if (_isDuplicate) ...[
+                SizedBox(height: context.h(4)),
+                Padding(
+                  padding: EdgeInsets.only(left: context.w(13)),
+                  child: Text(
+                    '이미 사용 중인 닉네임입니다.',
+                    style: AppTextStyles.smallBody.copyWith(
+                      color: AppColors.white.withOpacity(0.5),
+                    ),
+                  ),
+                ),
+              ],
+
+              // 버튼 위 여백
+              SizedBox(height: context.h(450)),
+
+              // 저장하기 버튼
+              PrimaryButton(
+                text: '저장하기',
+                isEnabled: _isButtonEnabled(),
+                onTap: () {
+                  // TODO: 닉네임 변경 API 호출
+                  Navigator.pop(context);
+                },
+              ),
+
+              // 버튼 아래 여백 (하단 인디케이터 고려)
+              SizedBox(
+                height: Responsive.bottomSafeArea(context) + context.h(36),
+              ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  /// 저장 버튼 활성화 조건
+  bool _isButtonEnabled() {
+    final currentNickname = _nicknameController.text.trim();
+    return currentNickname.isNotEmpty &&
+        !_isDuplicate &&
+        currentNickname != _originalNickname;
   }
 }
