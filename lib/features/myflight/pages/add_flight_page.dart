@@ -1213,7 +1213,8 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
             _isLoading = false;
           });
           _rotationController?.stop();
-          // 비행 플랜 페이지로 이동
+          
+          // 타임라인(비행 플랜) 페이지로 이동
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(

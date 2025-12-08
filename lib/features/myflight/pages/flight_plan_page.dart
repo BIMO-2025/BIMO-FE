@@ -7,6 +7,10 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/responsive_extensions.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/state/flight_state.dart';
+import '../models/flight_model.dart';
+import 'flight_plan_end_page.dart';
+import 'myflight_page.dart';
 
 /// 비행 플랜 페이지
 class FlightPlanPage extends StatefulWidget {
@@ -306,6 +310,7 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
                                 ), // 총 높이(79) - 박스 하단 여백(8)
                                 isActive: event.isActive, // 새로 추가된 이벤트만 파란색
                                 isEditable: event.isEditable,
+                                isSelected: isSelected, // 선택된 이벤트
                               ),
                             ),
                           ),
@@ -552,17 +557,71 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // 플랜 저장하기 (맨 위)
+                      // 비행 종료 테스트 (테스트용)
                       _buildOptionItem(
                         context,
-                        text: '플랜 저장하기',
+                        text: '비행 종료 테스트',
                         isFirst: true,
                         isLast: false,
                         onTap: () {
                           setState(() {
                             _showMoreOptions = false;
                           });
-                          // 저장 기능 (나가지지 않음)
+                          // 비행 종료 페이지로 이동
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder:
+                                  (context) => FlightPlanEndPage(
+                                    arrivalCity: '파리',
+                                    airline: '에어프랑스항공',
+                                    route: 'INC→CDG',
+                                    departureCode: 'DXB',
+                                    departureCity: '두바이',
+                                    arrivalCode: 'INC',
+                                    arrivalCityName: '대한민국',
+                                    duration: '13h 30m',
+                                    departureTime: '10:30 AM',
+                                    arrivalTime: '09:30 PM',
+                                    date: '2025.11.26. (토)',
+                                    rating: null, // 평점 없음 (리뷰 작성 전)
+                                  ),
+                            ),
+                          );
+                        },
+                      ),
+                      // 플랜 저장하기
+                      _buildOptionItem(
+                        context,
+                        text: '플랜 저장하기',
+                        isFirst: false,
+                        isLast: false,
+                        onTap: () {
+                          setState(() {
+                            _showMoreOptions = false;
+                          });
+                          
+                          // FlightState에 비행 추가 (더미 데이터, 실제로는 현재 비행 정보 사용)
+                          final newFlight = Flight(
+                            departureCode: 'DXB',
+                            departureCity: '두바이',
+                            arrivalCode: 'ICN',
+                            arrivalCity: '인천',
+                            duration: '14h 15m',
+                            departureTime: '10:30 AM',
+                            arrivalTime: '09:30 PM',
+                          );
+                          FlightState().addFlight(newFlight);
+                          
+                          // 나의 비행 페이지로 이동
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const MyFlightPage(),
+                            ),
+                          );
+                          
+                          // 저장 성공 메시지
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('플랜이 저장되었습니다.')),
                           );
@@ -1049,8 +1108,17 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
                             onTap: () {
                               Navigator.pop(context);
                               setState(() {
-                                _events.remove(event);
-                                _selectedEvent = null;
+                                // 삭제 대신 자유 시간으로 변경
+                                final index = _events.indexOf(event);
+                                if (index != -1) {
+                                  _events[index] = TimelineEvent(
+                                    title: '자유 시간',
+                                    time: event.time,
+                                    description: '자유롭게 일정을 등록하실 수 있습니다.',
+                                    isEditable: true,
+                                  );
+                                  _selectedEvent = null;
+                                }
                               });
                             },
                             child: Container(
@@ -1279,24 +1347,13 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
                       child: GestureDetector(
                         onTap: () {
                           if (titleController.text.isNotEmpty) {
-                            // 타임라인에 이벤트 추가
-                            final newEvent = TimelineEvent(
+                            _checkOverlapAndProceed(
+                              context,
                               title: titleController.text,
-                              time:
-                                  '${startTimeState.value} - ${endTimeState.value}',
+                              startTime: startTimeState.value,
+                              endTime: endTimeState.value,
                               description: descriptionController.text,
-                              isActive: true, // 파란색으로 표시하기 위해 활성화
                             );
-                            setState(() {
-                              _events.add(newEvent);
-                              _selectedEvent = newEvent; // 새로 추가된 이벤트 선택
-                              // 시간 순으로 정렬
-                              _events.sort((a, b) {
-                                // 간단한 시간 비교 (실제로는 더 정교한 파싱 필요)
-                                return a.time.compareTo(b.time);
-                              });
-                            });
-                            Navigator.pop(context);
                           }
                         },
                         child: ClipRRect(
@@ -1509,27 +1566,14 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
                       child: GestureDetector(
                         onTap: () {
                           if (titleController.text.isNotEmpty) {
-                            // 앵커 수면인지 확인하고 시간 범위가 줄어들었는지 확인
-                            if (event.title == '앵커 수면') {
-                              _checkAndHandleAnchorSleepEdit(
-                                context,
-                                event,
-                                startTimeState.value,
-                                endTimeState.value,
-                                titleController.text,
-                                descriptionController.text,
-                              );
-                            } else {
-                              // 일반 수정
-                              _updateEvent(
-                                event,
-                                titleController.text,
-                                startTimeState.value,
-                                endTimeState.value,
-                                descriptionController.text,
-                              );
-                              Navigator.pop(context);
-                            }
+                            _checkOverlapAndProceed(
+                              context,
+                              originalEvent: event,
+                              title: titleController.text,
+                              startTime: startTimeState.value,
+                              endTime: endTimeState.value,
+                              description: descriptionController.text,
+                            );
                           }
                         },
                         child: ClipRRect(
@@ -1575,59 +1619,298 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
     );
   }
 
-  /// 앵커 수면 수정 시 확인 및 처리
-  void _checkAndHandleAnchorSleepEdit(
-    BuildContext context,
-    TimelineEvent originalEvent,
-    String newStartTime,
-    String newEndTime,
-    String newTitle,
-    String newDescription,
-  ) async {
-    // 기존 시간 범위 파싱
-    final originalTimeParts = originalEvent.time.split(' - ');
-    final originalStart = _parseTimeToMinutes(originalTimeParts[0]);
-    final originalEnd = _parseTimeToMinutes(originalTimeParts[1]);
+  /// 플랜 추가/수정 시 겹침 확인 및 처리
+  void _checkOverlapAndProceed(
+    BuildContext context, {
+    TimelineEvent? originalEvent, // 수정일 경우 원본 이벤트
+    required String title,
+    required String startTime,
+    required String endTime,
+    required String description,
+  }) async {
+    final newStart = _parseTimeToMinutes(startTime);
+    final newEnd = _parseTimeToMinutes(endTime);
 
-    // 새로운 시간 범위 파싱
-    final newStart = _parseTimeToMinutes(newStartTime);
-    final newEnd = _parseTimeToMinutes(newEndTime);
-
-    // 시간 범위가 줄어들었는지 확인
-    final originalDuration = originalEnd - originalStart;
-    final newDuration = newEnd - newStart;
-
-    if (newDuration < originalDuration) {
-      // 경고 팝업 표시
-      final shouldProceed = await _showAnchorSleepWarningModal(context);
-      if (!shouldProceed) {
-        return; // 취소하면 수정하지 않음
-      }
-
-      // 나머지 시간을 자유 시간으로 변경
-      _updateEventAndCreateFreeTime(
-        originalEvent,
-        newStartTime,
-        newEndTime,
-        newTitle,
-        newDescription,
-        originalStart,
-        originalEnd,
-        newStart,
-        newEnd,
+    if (newStart >= newEnd) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('종료 시간은 시작 시간보다 늦어야 합니다.')),
       );
-    } else {
-      // 시간 범위가 늘어났거나 같으면 그냥 수정
-      _updateEvent(
-        originalEvent,
-        newTitle,
-        newStartTime,
-        newEndTime,
-        newDescription,
-      );
+      return;
     }
 
+    // 경고 팝업에 표시할 이벤트 이름들
+    final List<String> affectedEventNames = [];
+
+    // 수정 모드: 원본 이벤트의 시간이 변경되는지 확인
+    if (originalEvent != null) {
+      final parts = originalEvent.time.split(' - ');
+      if (parts.length == 2) {
+        final origStart = _parseTimeToMinutes(parts[0]);
+        final origEnd = _parseTimeToMinutes(parts[1]);
+
+        // 시간이 변경되어 남는 부분이 생기는 경우
+        if (origStart < newStart || origEnd > newEnd) {
+          affectedEventNames.add(originalEvent.title);
+        }
+      }
+    }
+
+    // 겹치는 이벤트 찾기
+    final overlappingEvents = <TimelineEvent>[];
+    for (final event in _events) {
+      if (event == originalEvent) continue; // 수정 중인 자기 자신은 제외
+
+      final parts = event.time.split(' - ');
+      if (parts.length != 2) continue;
+
+      final start = _parseTimeToMinutes(parts[0]);
+      final end = _parseTimeToMinutes(parts[1]);
+
+      // 겹침 조건: (NewStart < ExistingEnd) && (NewEnd > ExistingStart)
+      if (newStart < end && newEnd > start) {
+        overlappingEvents.add(event);
+        // 고정 이벤트(수정 불가능한 이벤트)만 경고 이름에 추가
+        if (!event.isEditable) {
+          affectedEventNames.add(event.title);
+        }
+      }
+    }
+
+    // 경고 팝업 표시 (원본 이벤트 변경 또는 다른 고정 이벤트와 겹침)
+    if (affectedEventNames.isNotEmpty) {
+      final eventNames = affectedEventNames.join(', ');
+      final shouldProceed = await _showOverlapWarningDialog(
+        context,
+        eventNames,
+      );
+      if (!shouldProceed) return;
+    }
+
+    // 겹림 처리 및 이벤트 추가/수정
+    _executePlanUpdate(
+      originalEvent: originalEvent,
+      title: title,
+      startTime: startTime,
+      endTime: endTime,
+      description: description,
+      newStart: newStart,
+      newEnd: newEnd,
+      overlappingEvents: overlappingEvents,
+    );
+
     Navigator.pop(context); // 바텀시트 닫기
+  }
+
+  /// 겹침 경고 다이얼로그
+  Future<bool> _showOverlapWarningDialog(
+    BuildContext context,
+    String eventNames,
+  ) async {
+    bool? result = false;
+    await showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.5),
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: EdgeInsets.symmetric(horizontal: context.w(20)),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+              child: Container(
+                width: context.w(300),
+                padding: EdgeInsets.all(context.w(20)),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1A1A1A),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.1),
+                    width: 1,
+                  ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '일정 겹침 알림',
+                      style: AppTextStyles.large.copyWith(color: Colors.white),
+                    ),
+                    SizedBox(height: context.h(16)),
+                    Text(
+                      '$eventNames 플랜이\n새로운 일정으로 대체됩니다.\n남은 시간은 자유 시간으로 변경됩니다.',
+                      style: AppTextStyles.body.copyWith(color: Colors.white),
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: context.h(24)),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              result = false;
+                              Navigator.pop(context);
+                            },
+                            child: Container(
+                              padding: EdgeInsets.symmetric(
+                                vertical: context.h(16),
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '취소',
+                                  style: AppTextStyles.buttonText.copyWith(
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: context.w(16)),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              result = true;
+                              Navigator.pop(context);
+                            },
+                            child: Container(
+                              padding: EdgeInsets.symmetric(
+                                vertical: context.h(16),
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.blue1,
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '확인',
+                                  style: AppTextStyles.buttonText.copyWith(
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+    return result ?? false;
+  }
+
+  /// 플랜 업데이트 실행 (겹침 처리 포함)
+  void _executePlanUpdate({
+    TimelineEvent? originalEvent,
+    required String title,
+    required String startTime,
+    required String endTime,
+    required String description,
+    required int newStart,
+    required int newEnd,
+    required List<TimelineEvent> overlappingEvents,
+  }) {
+    setState(() {
+      // 1. 수정 모드일 경우 원본 이벤트의 남는 시간 처리
+      if (originalEvent != null) {
+        final parts = originalEvent.time.split(' - ');
+        if (parts.length == 2) {
+          final origStart = _parseTimeToMinutes(parts[0]);
+          final origEnd = _parseTimeToMinutes(parts[1]);
+
+          // 원본 이벤트를 먼저 제거
+          _events.remove(originalEvent);
+
+          // 원본의 앞부분이 남으면 자유 시간 생성
+          if (origStart < newStart) {
+            _events.add(
+              TimelineEvent(
+                title: '자유 시간',
+                time:
+                    '${_minutesToTimeString(origStart)} - ${_minutesToTimeString(newStart)}',
+                description: '자유롭게 일정을 등록하실 수 있습니다.',
+                isEditable: true,
+              ),
+            );
+          }
+
+          // 원본의 뒷부분이 남으면 자유 시간 생성
+          if (origEnd > newEnd) {
+            _events.add(
+              TimelineEvent(
+                title: '자유 시간',
+                time:
+                    '${_minutesToTimeString(newEnd)} - ${_minutesToTimeString(origEnd)}',
+                description: '자유롭게 일정을 등록하실 수 있습니다.',
+                isEditable: true,
+              ),
+            );
+          }
+        }
+      }
+
+      // 2. 겹치는 이벤트들 처리 (삭제 및 남은 부분 자유 시간 생성)
+      for (final event in overlappingEvents) {
+        final parts = event.time.split(' - ');
+        final start = _parseTimeToMinutes(parts[0]);
+        final end = _parseTimeToMinutes(parts[1]);
+
+        _events.remove(event);
+
+        // 앞부분이 남으면 자유 시간 생성
+        if (start < newStart) {
+          _events.add(
+            TimelineEvent(
+              title: '자유 시간',
+              time:
+                  '${_minutesToTimeString(start)} - ${_minutesToTimeString(newStart)}',
+              description: '자유롭게 일정을 등록하실 수 있습니다.',
+              isEditable: true,
+            ),
+          );
+        }
+
+        // 뒷부분이 남으면 자유 시간 생성
+        if (end > newEnd) {
+          _events.add(
+            TimelineEvent(
+              title: '자유 시간',
+              time:
+                  '${_minutesToTimeString(newEnd)} - ${_minutesToTimeString(end)}',
+              description: '자유롭게 일정을 등록하실 수 있습니다.',
+              isEditable: true,
+            ),
+          );
+        }
+      }
+
+      // 3. 새 이벤트 생성 (수정/추가 모두)
+      final newEvent = TimelineEvent(
+        title: title,
+        time: '$startTime - $endTime',
+        description: description,
+        isActive: true,
+      );
+      _events.add(newEvent);
+      _selectedEvent = newEvent;
+
+      // 4. 시간 순 정렬
+      _events.sort((a, b) {
+        final startA = _parseTimeToMinutes(a.time.split(' - ')[0]);
+        final startB = _parseTimeToMinutes(b.time.split(' - ')[0]);
+        return startA.compareTo(startB);
+      });
+    });
   }
 
   /// 시간 문자열을 분으로 변환 (예: "12:00 PM" -> 720)
@@ -2359,38 +2642,38 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
       TimelineEvent(
         icon: 'assets/images/myflight/airplane.png',
         title: '이륙 및 안정',
-        time: '09:00 - 11:00',
+        time: '09:00 AM - 11:00 AM',
         description: 'BIMO와 함께 스마트한 비행을 시작합니다.',
       ),
       TimelineEvent(
         icon: 'assets/images/myflight/meal.png',
         title: '예상 저녁 식사',
-        time: '11:00 - 12:00',
+        time: '11:00 AM - 12:00 PM',
         description: '첫 번째 기내식이 제공될 예상 시간입니다.',
       ),
       TimelineEvent(
         icon: 'assets/images/myflight/moon.png',
         title: '앵커 수면',
-        time: '12:00 - 17:00',
+        time: '12:00 PM - 05:00 PM',
         description: '시차 적응을 위한 핵심 수면 시간입니다.',
       ),
       TimelineEvent(
         icon: null,
         title: '자유 시간',
-        time: '17:00 - 21:00',
+        time: '05:00 PM - 09:00 PM',
         description: '자유롭게 일정을 등록하실 수 있습니다.',
         isEditable: true, // 수정 권장
       ),
       TimelineEvent(
         icon: 'assets/images/myflight/meal.png',
         title: '예상 아침 식사',
-        time: '21:00 - 22:00',
+        time: '09:00 PM - 10:00 PM',
         description: '두 번째 기내식이 제공될 예상 시간입니다.',
       ),
       TimelineEvent(
         icon: 'assets/images/myflight/airplane.png',
         title: '착륙 및 안정',
-        time: '23:00 - 01:00',
+        time: '11:00 PM - 01:00 AM',
         description: 'BIMO와 함께 스마트한 비행을 마무리합니다.',
       ),
     ];
@@ -2423,6 +2706,7 @@ class TimelineLinePainter extends CustomPainter {
   final double lineEndOffset;
   final bool isActive; // 활성화 상태
   final bool isEditable; // 수정 권장 여부
+  final bool isSelected; // 선택 상태
 
   TimelineLinePainter({
     required this.circleSize,
@@ -2430,6 +2714,7 @@ class TimelineLinePainter extends CustomPainter {
     required this.lineEndOffset,
     this.isActive = false,
     this.isEditable = false,
+    this.isSelected = false,
   });
 
   @override
@@ -2448,6 +2733,25 @@ class TimelineLinePainter extends CustomPainter {
       final borderPaint =
           Paint()
             ..color = AppColors.blue1
+            ..strokeWidth = 1
+            ..style = PaintingStyle.stroke;
+
+      canvas.drawCircle(Offset(centerX, circleRadius), circleRadius, fillPaint);
+      canvas.drawCircle(
+        Offset(centerX, circleRadius),
+        circleRadius,
+        borderPaint,
+      );
+    } else if (isSelected) {
+      // 선택된 상태: 흰색으로 칠해진 원 + 흰색 테두리
+      final fillPaint =
+          Paint()
+            ..color = Colors.white
+            ..style = PaintingStyle.fill;
+
+      final borderPaint =
+          Paint()
+            ..color = Colors.white
             ..strokeWidth = 1
             ..style = PaintingStyle.stroke;
 

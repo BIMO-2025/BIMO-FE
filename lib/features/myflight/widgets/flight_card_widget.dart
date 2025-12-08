@@ -24,7 +24,12 @@ class FlightCardWidget extends StatelessWidget {
   final double? rating; // 평점 (지난 비행용, null이면 표시 안 함)
   final String? date; // 날짜 (지난 비행용, 예: "2025.11.26. (토)")
   final VoidCallback? onEditTap; // 편집 버튼 탭
-  final bool hasEditNotification; // 편집 알림 활성화 여부
+  final bool hasReview; // 리뷰 작성 여부 (리뷰 없으면 노란색 알림 표시)
+  final String? reviewText; // 리뷰 작성 텍스트 (비행 종료 화면용)
+  final VoidCallback? onReviewTap; // 리뷰 작성 버튼 탭
+  final VoidCallback? onTap; // 카드 전체 탭
+  final bool? hasEditNotification; // 편집 알림 표시 여부 (지난 비행용)
+  final bool isLightMode; // 라이트 모드 여부 (리스트 페이지용 = true, 내 비행 페이지용 = false)
 
   const FlightCardWidget({
     super.key,
@@ -38,55 +43,34 @@ class FlightCardWidget extends StatelessWidget {
     this.rating,
     this.date,
     this.onEditTap,
-    this.hasEditNotification = false,
+    this.onReviewTap,
+    this.reviewText,
+    this.hasReview = false,
+    this.hasEditNotification,
+    this.onTap,
+    this.isLightMode = false, // 기본값은 다크 모드 (내 비행 페이지)
   });
 
   @override
   Widget build(BuildContext context) {
-    final content = _buildContent(context);
-
-    // 지난 비행일 경우 티켓 박스 SVG 배경 사용
-    if (rating != null && date != null) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(context.w(14)), // 14px
-        child: content,
-      );
-    }
-
-    // 예정된 비행일 경우 일반 카드
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(
-          0xFF1A1A1A,
-        ).withOpacity(0.5), // rgba(26, 26, 26, 0.50)
-        borderRadius: BorderRadius.circular(context.w(14)), // 14px
-      ),
-      child: content,
-    );
-  }
-
-  /// 카드 내용 (공통)
-  Widget _buildContent(BuildContext context) {
-    // 높이 계산: 지난 비행일 경우 티켓 박스 이미지 크기(247px), 예정된 비행은 계산된 높이
+    // Figma 기준 비율에 따른 높이 계산
+    // 335:247 = width:height
     final double contentHeight =
-        (rating != null && date != null)
-            ? 247 // 티켓 박스 이미지 높이
-            : context.h(92) +
-                context.h(30) +
-                context.h(
-                  20,
-                ); // Timeline top + Timeline height + bottom padding
+        (MediaQuery.of(context).size.width - 40) * (247 / 335);
 
     return SizedBox(
       height: contentHeight,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          // 지난 비행일 경우 티켓 박스 SVG 배경
-          if (rating != null && date != null)
+          // 배경 이미지 선택 (isLightMode에 따라 결정)
+          // date가 있는 지난 비행의 경우에만 적용
+          if (date != null)
             Positioned.fill(
               child: SvgPicture.asset(
-                'assets/images/myflight/ticket box.svg',
+                isLightMode
+                    ? 'assets/images/myflight/ticketbox_white.svg'
+                    : 'assets/images/myflight/ticket box.svg',
                 fit: BoxFit.fill,
               ),
             ),
@@ -222,64 +206,112 @@ class FlightCardWidget extends StatelessWidget {
             ),
           ),
 
-          // 지난 비행일 경우 평점 정보 (배경 이미지 하단에서 27px 위에 배치)
-          if (rating != null && date != null)
+          // 지난 비행일 경우 평점 정보 또는 리뷰 섹션 (배경 이미지 하단에서 27px 위에 배치)
+          // 평점/날짜 또는 리뷰 작성 섹션 (리뷰 영역)
+          // rating이 있으면 평점+날짜, reviewText가 있으면 리뷰 작성 텍스트
+          if (rating != null || reviewText != null || date != null)
             Positioned(
-              bottom: 27,
+              bottom: context.h(20),
               left: context.w(20),
               right: context.w(20),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // 항공사 이미지
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: AppColors.white,
-                      borderRadius: BorderRadius.circular(14),
+                  // 항공사 로고 (지난 비행일 경우)
+                  // date가 있고 rating이 있을 때만(리뷰 작성 완료) 표시
+                  if (rating != null && date != null)
+                    Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: AppColors.white,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.flight,
+                          color: AppColors.blue1,
+                        ),
+                      ),
                     ),
-                    child: const Center(
-                      child: Icon(Icons.flight, color: Colors.blue),
-                    ),
-                  ),
 
-                  SizedBox(width: context.w(12)),
+                  if (rating != null && date != null)
+                    SizedBox(width: context.w(12)),
 
-                  // 평점 + 날짜
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
+                  // 평점 + 날짜 또는 리뷰 작성 텍스트
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // 평점이 있으면 평점 표시
+                        if (rating != null)
+                          Row(
+                            children: [
+                              Text(
+                                rating.toString(),
+                                style: AppTextStyles.body.copyWith(
+                                  color: AppColors.white,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              SvgPicture.asset(
+                                'assets/images/myflight/star.svg',
+                                width: 14,
+                                height: 14,
+                              ),
+                            ],
+                          ),
+
+                        // reviewText가 있고 공백이 아닐 때만 표시
+                        if (reviewText != null && reviewText!.trim().isNotEmpty)
+                          Padding(
+                            padding: EdgeInsets.only(bottom: rating == null ? 4.0 : 0),
+                            child: Text(
+                              reviewText!,
+                              style: AppTextStyles.body.copyWith(
+                                color: AppColors.white,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          )
+                        // reviewText가 없지만 평점도 없는 경우 (MyFlightPage 등에서 자동 표시)
+                        else if (rating == null)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 4.0),
+                            child: Text(
+                              '리뷰 작성하고 내 비행 기록하기',
+                              style: AppTextStyles.body.copyWith(
+                                color: AppColors.white,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+
+                        // 날짜 (지난 비행이면 항상 표시)
+                        // rating이 없을 때는 reviewText 아래에 위치
+                        if (date != null)
                           Text(
-                            rating.toString(),
+                            date!,
                             style: AppTextStyles.body.copyWith(
                               color: AppColors.white,
                             ),
+                            maxLines: 1,
+                            softWrap: false,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(width: 4),
-                          SvgPicture.asset(
-                            'assets/images/myflight/star.svg',
-                            width: 14,
-                            height: 14,
-                          ),
-                        ],
-                      ),
-                      Text(
-                        date!,
-                        style: AppTextStyles.body.copyWith(
-                          color: AppColors.white,
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
 
-                  const Spacer(),
+                  const SizedBox(width: 8), // 텍스트와 버튼 사이 최소 간격
 
                   // 편집 버튼
-                  if (onEditTap != null)
+                  if (onEditTap != null || onReviewTap != null)
                     GestureDetector(
-                      onTap: onEditTap,
+                      onTap: onReviewTap ?? onEditTap,
                       child: SizedBox(
                         width: 40,
                         height: 40,
@@ -318,7 +350,8 @@ class FlightCardWidget extends StatelessWidget {
                             ),
                             // 편집 알림 점 (Y1 컬러, 8x8)
                             // 상단에서 1px, 오른쪽에서 2px 위치
-                            if (hasEditNotification)
+                            // hasEditNotification이 true일 때만 표시
+                            if (hasEditNotification == true)
                               Positioned(
                                 right: context.w(2), // 오른쪽에서 2px
                                 top: context.h(1), // 상단에서 1px
