@@ -65,6 +65,7 @@ flutter:
     - assets/images/tabbar/
     - assets/images/home/
     - assets/images/search/
+    - assets/images/my/
 
   # Custom fonts
   fonts:

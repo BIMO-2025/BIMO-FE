@@ -46,6 +46,7 @@ class _HomePageState extends State<HomePage> {
               onNotificationTap: () {
                 // TODO: 알림 화면으로 이동
               },
+              showLogo: _selectedIndex != 2, // 마이페이지가 아닐 때만 로고 표시
             ),
             // 본문 영역
             Expanded(

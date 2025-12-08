@@ -5,6 +5,7 @@ import '../widgets/profile_card.dart';
 import '../widgets/menu_section.dart';
 import '../widgets/menu_item.dart';
 import '../widgets/content_card.dart';
+import 'my_info_page.dart';
 
 /// 마이 페이지 (탭 컨텐츠)
 class MyPage extends StatelessWidget {
@@ -28,7 +29,10 @@ class MyPage extends StatelessWidget {
               name: '여행조아', // TODO: 백엔드에서 받아온 사용자 이름
               email: 'hyerim2003@kakao.com', // TODO: 백엔드에서 받아온 이메일
               onTap: () {
-                // TODO: 프로필 상세/편집 화면으로 이동
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const MyInfoPage()),
+                );
               },
             ),
 
