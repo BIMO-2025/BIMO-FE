@@ -20,7 +20,8 @@ class MyReviewsPage extends StatelessWidget {
         date: '2025.10.09.',
         likes: 22,
         tags: ['인천 - 파리 노선', 'KE901', '이코노미'],
-        content: '좌석은 이코노미지만 넓고 나쁘지 않았어요 동양인들이 타기에는 나쁘지 않은 것 같아요 기내식은 비빔밥이랑 치즈랑 빵이 나왔어요 맛있어요 그리고 승무원 님들 서비스가 너무 좋았어요 14시간 내내 고생하시더라고요 그래서 어저구 저쩌구 했어요 ...더보기',
+        content:
+            '좌석은 이코노미지만 넓고 나쁘지 않았어요 동양인들이 타기에는 나쁘지 않은 것 같아요 기내식은 비빔밥이랑 치즈랑 빵이 나왔어요 맛있어요 그리고 승무원 님들 서비스가 너무 좋았어요 14시간 내내 고생하시더라고요 그래서 어저구 저쩌구 했어요 ...더보기',
         images: [
           'assets/images/search/review_photo_1.png',
           'assets/images/search/review_photo_2.png',
@@ -58,23 +59,6 @@ class MyReviewsPage extends StatelessWidget {
           style: AppTextStyles.large.copyWith(color: AppColors.white),
         ),
         centerTitle: true,
-        actions: [
-          // 리뷰 메뉴 아이콘 (40x40, 오른쪽 20 패딩)
-          Padding(
-            padding: EdgeInsets.only(right: context.w(20)),
-            child: GestureDetector(
-              onTap: () {
-                // TODO: 리뷰 메뉴 (편집/삭제 등) 바텀시트 표시
-              },
-              child: Image.asset(
-                'assets/images/my/Review_menu.png',
-                width: context.w(40),
-                height: context.h(40),
-                fit: BoxFit.contain,
-              ),
-            ),
-          ),
-        ],
       ),
       body: ListView.separated(
         padding: EdgeInsets.only(
@@ -100,7 +84,11 @@ class MyReviewsPage extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ReviewDetailPage(review: review),
+            builder:
+                (context) => ReviewDetailPage(
+                  review: review,
+                  isMyReview: true, // 나의 리뷰임을 표시
+                ),
           ),
         );
       },
@@ -140,7 +128,11 @@ class MyReviewsPage extends StatelessWidget {
                         SizedBox(height: context.h(2)),
                         Row(
                           children: [
-                            Icon(Icons.star, color: Colors.white, size: context.w(12)),
+                            Icon(
+                              Icons.star,
+                              color: Colors.white,
+                              size: context.w(12),
+                            ),
                             SizedBox(width: context.w(2)),
                             Text(
                               '${review.rating}',
@@ -181,30 +173,55 @@ class MyReviewsPage extends StatelessWidget {
 
             // Tags
             Row(
-              children: review.tags.map((tag) {
-                return Container(
-                  margin: EdgeInsets.only(right: context.w(4)),
-                  padding: EdgeInsets.symmetric(
-                    horizontal: context.w(8),
-                    vertical: context.h(4),
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2C2C2E),
-                    borderRadius: BorderRadius.circular(context.w(12)),
-                  ),
-                  child: Text(
-                    tag,
-                    style: TextStyle(
-                      fontFamily: 'Pretendard',
-                      fontSize: context.fs(12),
-                      fontWeight: FontWeight.w400,
-                      color: Colors.white,
-                    ),
-                  ),
-                );
-              }).toList(),
+              children:
+                  review.tags.map((tag) {
+                    return Container(
+                      margin: EdgeInsets.only(right: context.w(6)),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: context.w(8),
+                        vertical: context.h(4),
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF333333),
+                        borderRadius: BorderRadius.circular(context.w(4)),
+                      ),
+                      child: Text(
+                        tag,
+                        style: TextStyle(
+                          fontFamily: 'Pretendard',
+                          fontSize: context.fs(12),
+                          fontWeight: FontWeight.w400,
+                          color: const Color(0xFFCCCCCC),
+                        ),
+                      ),
+                    );
+                  }).toList(),
             ),
+            SizedBox(height: context.h(12)),
 
+            // Photos
+            SizedBox(
+              height: context.w(80),
+              width: context.w(315), // 콘텐츠 영역(295) + 오른쪽 확장(20)
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: EdgeInsets.zero,
+                itemCount: review.images.length,
+                separatorBuilder:
+                    (context, index) => SizedBox(width: context.w(8)),
+                itemBuilder: (context, index) {
+                  return Container(
+                    width: context.w(80),
+                    height: context.w(80),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(context.w(8)),
+                      color: const Color(0xFF333333),
+                      // image: DecorationImage(...)
+                    ),
+                  );
+                },
+              ),
+            ),
             SizedBox(height: context.h(12)),
 
             // Content
@@ -219,39 +236,9 @@ class MyReviewsPage extends StatelessWidget {
               ),
             ),
 
-            // Photos (if any)
-            if (review.images.isNotEmpty) ...[
-              SizedBox(height: context.h(12)),
-              Transform.translate(
-                offset: Offset(-20, 0),
-                child: SizedBox(
-                  height: context.h(80),
-                  width: context.w(335),
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    padding: EdgeInsets.zero,
-                    itemCount: review.images.length,
-                    separatorBuilder: (context, index) =>
-                        SizedBox(width: context.w(8)),
-                    itemBuilder: (context, index) {
-                      return ClipRRect(
-                        borderRadius: BorderRadius.circular(context.w(8)),
-                        child: Image.asset(
-                          review.images[index],
-                          width: context.w(80),
-                          height: context.h(80),
-                          fit: BoxFit.cover,
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-            ],
-
             SizedBox(height: context.h(12)),
 
-            // Date
+            // Footer (Date only, no report button for own reviews)
             Text(
               review.date,
               style: TextStyle(
@@ -267,4 +254,3 @@ class MyReviewsPage extends StatelessWidget {
     );
   }
 }
-

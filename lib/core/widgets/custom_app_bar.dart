@@ -31,11 +31,11 @@ class CustomAppBar extends StatelessWidget {
         children: [
           // 왼쪽: 로고
           if (showLogo)
-            Positioned(
-              left: context.w(20), // 왼쪽 패딩 20px
-              top: context.h(27.97), // 상단에서 27.97px 아래
-              child: _buildLogo(context),
-            ),
+          Positioned(
+            left: context.w(20), // 왼쪽 패딩 20px
+            top: context.h(27.97), // 상단에서 27.97px 아래
+            child: _buildLogo(context),
+          ),
           // 오른쪽: 알림 아이콘
           Positioned(
             right: context.w(20), // 오른쪽 패딩 20px
