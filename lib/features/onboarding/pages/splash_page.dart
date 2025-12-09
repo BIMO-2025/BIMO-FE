@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/network/router/route_names.dart';
+import '../../../core/storage/auth_token_storage.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -32,8 +33,25 @@ class _SplashPageState extends State<SplashPage> {
   }
 
   Future<void> _navigateToNext() async {
+    // 2초 대기 (로고 애니메이션 시간 고려)
     await Future.delayed(const Duration(seconds: 2));
-    if (mounted) {
+    
+    if (!mounted) return;
+
+    // 자동 로그인 체크
+    try {
+      final storage = AuthTokenStorage();
+      final accessToken = await storage.getAccessToken();
+
+      if (accessToken != null) {
+        // 토큰이 있으면 홈으로 이동
+        context.go(RouteNames.home);
+      } else {
+        // 토큰이 없으면 온보딩으로 이동
+        context.go(RouteNames.onboarding);
+      }
+    } catch (e) {
+      // 에러 발생 시 온보딩으로 이동
       context.go(RouteNames.onboarding);
     }
   }

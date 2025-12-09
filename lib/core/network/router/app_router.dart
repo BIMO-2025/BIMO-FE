@@ -3,6 +3,7 @@ import 'route_names.dart';
 import '../../../features/onboarding/pages/splash_page.dart';
 import '../../../features/onboarding/pages/onboarding_page.dart';
 import '../../../features/home/presentation/pages/home_page.dart';
+import '../../../features/auth/presentation/pages/login_page.dart';
 
 /// 앱의 라우팅 설정을 관리하는 클래스
 class AppRouter {
@@ -12,7 +13,7 @@ class AppRouter {
   static GoRouter get router => _router;
 
   static final GoRouter _router = GoRouter(
-    initialLocation: RouteNames.home,
+    initialLocation: RouteNames.splash,
     routes: [
       GoRoute(
         path: RouteNames.splash,
@@ -24,12 +25,12 @@ class AppRouter {
         name: 'onboarding',
         builder: (context, state) => const OnboardingPage(),
       ),
-      // TODO: Auth routes 추가
-      // GoRoute(
-      //   path: RouteNames.login,
-      //   name: 'login',
-      //   builder: (context, state) => const LoginPage(),
-      // ),
+      // Auth Routes
+      GoRoute(
+        path: RouteNames.login,
+        name: 'login',
+        builder: (context, state) => const LoginPage(),
+      ),
       // GoRoute(
       //   path: RouteNames.signUp,
       //   name: 'signUp',
@@ -44,4 +45,3 @@ class AppRouter {
     ],
   );
 }
-

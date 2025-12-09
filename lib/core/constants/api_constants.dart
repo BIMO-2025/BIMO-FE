@@ -3,19 +3,20 @@ class ApiConstants {
   ApiConstants._();
 
   /// 백엔드 Base URL
-  static const String baseUrl = 'https://nonsubtile-shea-wretched.ngrok-free.dev';
+  static const String baseUrl = 'https://nonsubtile-shea-wretched.ngrok-free.dev/';
 
   /// API 타임아웃 (밀리초)
   static const int connectTimeout = 30000; // 30초
   static const int receiveTimeout = 30000; // 30초
 
   /// API 엔드포인트
-  static const String _apiPrefix = '/api';
+  static const String _apiPrefix = '';
 
   // 인증 관련
-  static const String login = '$_apiPrefix/auth/login';
-  static const String logout = '$_apiPrefix/auth/logout';
-  static const String register = '$_apiPrefix/auth/register';
+  // 인증 관련
+  static const String login = '${_apiPrefix}auth/login';
+  static const String logout = '${_apiPrefix}auth/logout';
+  static const String register = '${_apiPrefix}auth/register';
 
   // 사용자 관련
   static const String userProfile = '$_apiPrefix/user/profile';
