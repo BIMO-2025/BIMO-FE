@@ -184,24 +184,34 @@ class _MyFlightPageState extends State<MyFlightPage> {
   /// 진행 중인 비행 섹션 (오프라인 모드)
   Widget _buildInFlightSection() {
     // 더미 데이터 (실제로는 FlightState에서 가져와야 함)
-    return InFlightProgressWidget(
-      departureCode: 'DXB',
-      departureCity: '두바이',
-      arrivalCode: 'INC',
-      arrivalCity: '인천',
-      departureTime: '09:00',
-      arrivalTime: '19:40',
-      totalDurationMinutes: 870, // 14h 30m
-      departureDateTime: DateTime.now(), // 실제로는 비행 출발 시간
-      timeline: [
-        {'title': '비행기 탑승', 'duration': 30},
-        {'title': '이륙 및 안정', 'duration': 60},
-        {'title': '첫 번째 가능한 활동 (비빔밥 or 볼로기)', 'duration': 90},
-        {'title': '휴식 시간', 'duration': 120},
-        {'title': '영화 감상', 'duration': 90},
-        {'title': '두 번째 식사', 'duration': 60},
-        {'title': '착륙 준비', 'duration': 420},
-      ],
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const FlightPlanPage(),
+          ),
+        );
+      },
+      child: InFlightProgressWidget(
+        departureCode: 'DXB',
+        departureCity: '두바이',
+        arrivalCode: 'INC',
+        arrivalCity: '인천',
+        departureTime: '09:00',
+        arrivalTime: '19:40',
+        totalDurationMinutes: 870, // 14h 30m
+        departureDateTime: DateTime.now(), // 실제로는 비행 출발 시간
+        timeline: [
+          {'title': '비행기 탑승', 'duration': 30},
+          {'title': '이륙 및 안정', 'duration': 60},
+          {'title': '첫 번째 가능한 활동 (비빔밥 or 볼로기)', 'duration': 90},
+          {'title': '휴식 시간', 'duration': 120},
+          {'title': '영화 감상', 'duration': 90},
+          {'title': '두 번째 식사', 'duration': 60},
+          {'title': '착륙 준비', 'duration': 420},
+        ],
+      ),
     );
   }
 
@@ -510,6 +520,12 @@ class _MyFlightPageState extends State<MyFlightPage> {
     return Align(
       alignment: Alignment.bottomCenter,
       child: CustomTabBar(
+        isOnline: !_isOfflineMode,
+        onToggleOffline: () {
+          setState(() {
+            _isOfflineMode = !_isOfflineMode;
+          });
+        },
         currentIndex: _selectedTabIndex,
         onTap: (index) {
           if (index == 0) {

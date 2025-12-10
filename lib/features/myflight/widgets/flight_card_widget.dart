@@ -58,13 +58,17 @@ class FlightCardWidget extends StatelessWidget {
     final double contentHeight =
         (MediaQuery.of(context).size.width - 40) * (247 / 335);
 
-    return SizedBox(
-      height: contentHeight,
-      child: Stack(
+    return GestureDetector(
+      onTap: onTap,
+      child: SizedBox(
+        height: contentHeight,
+        child: Stack(
         clipBehavior: Clip.none,
         children: [
           // 배경 이미지 선택 (isLightMode에 따라 결정)
           // date가 있는 지난 비행의 경우에만 적용
+          // 배경 이미지 선택 (isLightMode에 따라 결정)
+          // date가 있는 지난 비행의 경우에만 SVG 배경 적용
           if (date != null)
             Positioned.fill(
               child: SvgPicture.asset(
@@ -72,6 +76,16 @@ class FlightCardWidget extends StatelessWidget {
                     ? 'assets/images/myflight/ticketbox_white.svg'
                     : 'assets/images/myflight/ticket box.svg',
                 fit: BoxFit.fill,
+              ),
+            )
+          else
+            // 예정된 비행 (date == null)인 경우 단순 배경 적용
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color.fromRGBO(26, 26, 26, 0.50),
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
             ),
 
@@ -372,6 +386,7 @@ class FlightCardWidget extends StatelessWidget {
               ),
             ),
         ],
+      ),
       ),
     );
   }

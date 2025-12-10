@@ -19,12 +19,14 @@ import '../theme/app_text_styles.dart';
 class CustomTabBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
+  final VoidCallback? onToggleOffline; // 오프라인 모드 토글
   final bool isOnline;
 
   const CustomTabBar({
     super.key,
     required this.currentIndex,
     required this.onTap,
+    this.onToggleOffline,
     this.isOnline = true, // 기본값: 온라인
   });
 
@@ -107,29 +109,32 @@ class CustomTabBar extends StatelessWidget {
   /// 글래스 아이콘 (온라인/오프라인 상태)
   /// 크기: 89x40 (내부 패딩 고려하여 실제 38px 높이 사용)
   Widget _buildGlassIcon(BuildContext context) {
-    return SizedBox(
-      width: context.w(89),
-      height: context.h(38),
-      child: Stack(
-        alignment: Alignment.center,
-        clipBehavior: Clip.hardEdge,
-        children: [
-          // 글래스 아이콘 배경 이미지
-          Image.asset(
-            'assets/images/tabbar/Glass.png',
-            width: context.w(89),
-            height: context.h(38),
-            fit: BoxFit.cover,
-          ),
-          // 온라인/오프라인 텍스트 (바디, 흰색)
-          Text(
-            isOnline ? 'Online' : 'Offline',
-            style: AppTextStyles.body.copyWith(
-              color: AppColors.white,
-              fontSize: context.fs(15),
+    return GestureDetector(
+      onTap: onToggleOffline,
+      child: SizedBox(
+        width: context.w(89),
+        height: context.h(38),
+        child: Stack(
+          alignment: Alignment.center,
+          clipBehavior: Clip.hardEdge,
+          children: [
+            // 글래스 아이콘 배경 이미지
+            Image.asset(
+              'assets/images/tabbar/Glass.png',
+              width: context.w(89),
+              height: context.h(38),
+              fit: BoxFit.cover,
             ),
-          ),
-        ],
+            // 온라인/오프라인 텍스트 (바디, 흰색)
+            Text(
+              isOnline ? 'Online' : 'Offline',
+              style: AppTextStyles.body.copyWith(
+                color: AppColors.white,
+                fontSize: context.fs(15),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

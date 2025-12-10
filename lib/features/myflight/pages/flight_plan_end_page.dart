@@ -7,6 +7,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/responsive_extensions.dart';
 import '../../../core/utils/responsive.dart';
 import '../widgets/flight_card_widget.dart';
+import 'review_write_page.dart';
 
 /// 비행 종료 화면
 class FlightPlanEndPage extends StatelessWidget {
@@ -80,11 +81,23 @@ class FlightPlanEndPage extends StatelessWidget {
                           reviewText: '리뷰 작성하고 내 비행 기록하기', // 리뷰 작성 텍스트 (평점 대신)
                           onReviewTap: () {
                             // 리뷰 작성 페이지로 이동
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('리뷰 작성 기능 준비 중입니다.')),
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ReviewWritePage(
+                                  departureCode: departureCode,
+                                  departureCity: departureCity,
+                                  arrivalCode: arrivalCode,
+                                  arrivalCity: arrivalCityName,
+                                  flightNumber: 'AF264', // 더미 데이터 (또는 전달받은 값)
+                                  date: date,
+                                  stopover: '직항', // 더미 데이터
+                                ),
+                              ),
                             );
                           },
                           hasEditNotification: true, // 편집 알림 활성화
+                          isLightMode: true, // 티켓박스 화이트 이미지 사용
                         ),
                       ),
                     ],
