@@ -136,6 +136,8 @@ class _DateSelectionBottomSheetState extends State<DateSelectionBottomSheet> {
     final daysInMonth =
         DateTime(monthDate.year, monthDate.month + 1, 0).day;
     final firstWeekday = monthDate.weekday % 7; // 0 for Sunday, 6 for Saturday
+    final today = DateTime.now();
+    final todayDate = DateTime(today.year, today.month, today.day); // 시간 제거
 
     // Total cells needed: empty slots for start offset + actual days
     final totalCells = firstWeekday + daysInMonth;
@@ -167,12 +169,17 @@ class _DateSelectionBottomSheetState extends State<DateSelectionBottomSheet> {
                     _selectedDate!.month == currentDate.month &&
                     _selectedDate!.day == currentDate.day;
 
+                // 과거 날짜인지 확인 (오늘 포함 미래만 선택 가능)
+                final isPastDate = currentDate.isBefore(todayDate);
+
                 return GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _selectedDate = currentDate;
-                    });
-                  },
+                  onTap: isPastDate
+                      ? null // 과거 날짜는 클릭 불가
+                      : () {
+                          setState(() {
+                            _selectedDate = currentDate;
+                          });
+                        },
                   child: Container(
                     width: context.w(40),
                     height: context.w(40), // Square
@@ -191,7 +198,9 @@ class _DateSelectionBottomSheetState extends State<DateSelectionBottomSheet> {
                           fontWeight: isSelected
                               ? FontWeight.w600
                               : FontWeight.w400,
-                          color: Colors.white,
+                          color: isPastDate
+                              ? Colors.white.withOpacity(0.1) // 과거 날짜: FFFFFF 10%
+                              : Colors.white, // 미래 날짜: FFFFFF 100%
                         ),
                       ),
                     ),

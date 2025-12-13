@@ -7,5 +7,8 @@ class ApiConstants {
   // Endpoints
   static const String airlinesPopularWeekly = '/airlines/popular/weekly';
   static const String airlinesPopular = '/airlines/popular';
+  static const String airlinesSorting = '/airlines/sorting';
   static const String airlinesSearch = '/airlines/search';
+  static const String flightsSearch = '/flights/search';
+  static const String locationsSearch = '/flights/locations';
 }
