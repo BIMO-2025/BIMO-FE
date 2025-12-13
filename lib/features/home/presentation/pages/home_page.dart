@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/custom_tab_bar.dart';
 import '../../../../core/widgets/custom_app_bar.dart';
+import '../../../../core/utils/date_utils.dart' as app_date_utils;
 import '../widgets/search_tab_selector.dart';
 import '../widgets/airline_search_input.dart';
 import '../widgets/destination_search_section.dart';
@@ -9,7 +10,10 @@ import '../widgets/popular_airlines_section.dart';
 import '../widgets/airport_search_bottom_sheet.dart';
 import '../widgets/date_selection_bottom_sheet.dart';
 import 'airline_search_result_page.dart';
+import 'popular_airlines_page.dart';
 import '../../domain/models/airport.dart';
+import '../../data/datasources/airline_api_service.dart';
+import '../../data/models/popular_airline_response.dart';
 import '../../../my/presentation/pages/my_page.dart';
 import '../../../myflight/pages/myflight_page.dart';
 
@@ -31,6 +35,15 @@ class _HomePageState extends State<HomePage> {
   Airport? _departureAirport;
   Airport? _arrivalAirport;
   DateTime? _selectedDate;
+
+  // API Service
+  final AirlineApiService _apiService = AirlineApiService();
+
+  // Popular Airlines State
+  List<AirlineData> _popularAirlines = [];
+  bool _isLoadingAirlines = false;
+  String _weekLabel = '';
+  String? _errorMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -68,9 +81,85 @@ class _HomePageState extends State<HomePage> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _loadPopularAirlines();
+  }
+
+  @override
   void dispose() {
     _airlineSearchController.dispose();
     super.dispose();
+  }
+
+  /// 주차별 인기 항공사 로드
+  Future<void> _loadPopularAirlines() async {
+    setState(() {
+      _isLoadingAirlines = true;
+      _errorMessage = null;
+    });
+
+    try {
+      // 현재 주차 정보 가져오기
+      final weekInfo = app_date_utils.DateUtils.getCurrentWeekInfo();
+
+      // API 호출
+      final List<PopularAirlineResponse> airlines = await _apiService
+          .getPopularAirlinesWeekly(
+            year: weekInfo['year'],
+            month: weekInfo['month'],
+            week: weekInfo['week'],
+            limit: 3,
+          );
+
+      // 응답 데이터를 UI 모델로 변환
+      final List<AirlineData> airlineDataList =
+          airlines.map((airline) {
+            return AirlineData(
+              name: airline.name,
+              rating: airline.rating,
+              logoPath:
+                  airline.logoUrl.isNotEmpty
+                      ? airline.logoUrl
+                      : 'assets/images/home/korean_air_logo.png', // 기본 이미지
+            );
+          }).toList();
+
+      setState(() {
+        _popularAirlines = airlineDataList;
+        _weekLabel = weekInfo['weekLabel'];
+        _isLoadingAirlines = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = '인기 항공사를 불러오는데 실패했습니다: $e';
+        _isLoadingAirlines = false;
+        // 에러 시 기본 데이터 표시
+        _popularAirlines = _getDefaultAirlines();
+        _weekLabel = _getCurrentWeekLabel();
+      });
+    }
+  }
+
+  /// 기본 항공사 데이터 (에러 시 또는 로딩 중)
+  List<AirlineData> _getDefaultAirlines() {
+    return [
+      AirlineData(
+        name: '대한항공',
+        rating: 4.3,
+        logoPath: 'assets/images/home/korean_air_logo.png',
+      ),
+      AirlineData(
+        name: '아시아나항공',
+        rating: 4.3,
+        logoPath: 'assets/images/home/asiana_logo.png',
+      ),
+      AirlineData(
+        name: '티웨이항공',
+        rating: 4.0,
+        logoPath: 'assets/images/home/tway_logo.png',
+      ),
+    ];
   }
 
   /// 메인 바디 영역
@@ -147,29 +236,48 @@ class _HomePageState extends State<HomePage> {
                 }
               },
             ),
-          PopularAirlinesSection(
-            weekLabel: _getCurrentWeekLabel(),
-            airlines: [
-              AirlineData(
-                name: '대한항공',
-                rating: 4.3,
-                logoPath: 'assets/images/home/korean_air_logo.png',
+          if (_isLoadingAirlines)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 50),
+              child: Center(
+                child: CircularProgressIndicator(color: Colors.white),
               ),
-              AirlineData(
-                name: '아시아나항공',
-                rating: 4.3,
-                logoPath: 'assets/images/home/asiana_logo.png',
+            )
+          else if (_errorMessage != null)
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  Text(
+                    _errorMessage!,
+                    style: const TextStyle(color: Colors.red, fontSize: 14),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 10),
+                  ElevatedButton(
+                    onPressed: _loadPopularAirlines,
+                    child: const Text('다시 시도'),
+                  ),
+                ],
               ),
-              AirlineData(
-                name: '티웨이항공',
-                rating: 4.0,
-                logoPath: 'assets/images/home/tway_logo.png',
-              ),
-            ],
-            onMoreTap: () {
-              // TODO: 인기 항공사 전체 목록 화면으로 이동
-            },
-          ),
+            )
+          else
+            PopularAirlinesSection(
+              weekLabel:
+                  _weekLabel.isNotEmpty ? _weekLabel : _getCurrentWeekLabel(),
+              airlines:
+                  _popularAirlines.isNotEmpty
+                      ? _popularAirlines
+                      : _getDefaultAirlines(),
+              onMoreTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const PopularAirlinesPage(),
+                  ),
+                );
+              },
+            ),
         ],
       ),
     );

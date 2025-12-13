@@ -10,6 +10,7 @@ import 'settings_page.dart';
 import 'faq_page.dart';
 import 'announcement_page.dart';
 import 'my_reviews_page.dart';
+import 'sleep_pattern_page.dart';
 
 /// 마이 페이지 (탭 컨텐츠)
 class MyPage extends StatelessWidget {
@@ -69,7 +70,12 @@ class MyPage extends StatelessWidget {
                 MenuItem(
                   title: '수면 패턴 설정',
                   onTap: () {
-                    // TODO: 수면 패턴 설정 화면으로 이동
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SleepPatternPage(),
+                      ),
+                    );
                   },
                 ),
                 SizedBox(height: context.h(10)),
