@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import 'core/theme/app_theme.dart';
 import 'core/network/router/app_router.dart';
 
@@ -15,9 +16,12 @@ Future<void> main() async {
       messagingSenderId: '129141636882',
       projectId: 'bimo-813c3',
       storageBucket: 'bimo-813c3.firebasestorage.app',
-      iosBundleId: 'com.example.bimoFe',
+      iosBundleId: 'com.opensource.bimo',
     ),
   );
+  
+  // Kakao SDK 초기화
+  KakaoSdk.init(nativeAppKey: 'cb8c2dedbefd9ebb03db10733db79cad');
   
   // Set system UI overlay style
   AppTheme.setSystemUIOverlayStyle();

@@ -1,8 +1,11 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import '../../../../core/network/router/route_names.dart';
 import '../../../../core/storage/auth_token_storage.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -44,6 +47,14 @@ class _LoginPageState extends State<LoginPage> {
           return;
         }
 
+        // 유저 정보 저장
+        final AuthTokenStorage storage = AuthTokenStorage();
+        await storage.saveUserInfo(
+          name: googleUser.displayName,
+          email: googleUser.email,
+          photoUrl: googleUser.photoUrl,
+        );
+
         final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
         token = googleAuth.idToken ?? '';
         
@@ -52,9 +63,89 @@ class _LoginPageState extends State<LoginPage> {
         if (token.isEmpty) {
           throw Exception('구글 토큰을 가져오지 못했습니다.');
         }
+      } else if (provider == 'apple') {
+        final credential = await SignInWithApple.getAppleIDCredential(
+          scopes: [
+            AppleIDAuthorizationScopes.email,
+            AppleIDAuthorizationScopes.fullName,
+          ],
+        );
+
+        token = credential.identityToken ?? '';
+        
+        if (token.isEmpty) {
+           throw Exception('Apple 토큰을 가져오지 못했습니다.');
+        }
+
+        // 유저 정보 저장 (참고: Apple은 최초 로그인 시에만 이름/이메일을 줍니다)
+        final AuthTokenStorage storage = AuthTokenStorage();
+        String? name;
+        if (credential.givenName != null || credential.familyName != null) {
+            name = '${credential.givenName ?? ""} ${credential.familyName ?? ""}'.trim();
+        }
+        
+        await storage.saveUserInfo(
+          name: name?.isNotEmpty == true ? name : null,
+          email: credential.email,
+        );
+
       } else {
-        // [Apple/Kakao] 아직 Native SDK 없으므로 Mock Token 사용 (또는 테스트 모드)
-        token = 'MOCK_${provider.toUpperCase()}_TOKEN';
+        // [Kakao] Login Logic
+        // 카카오톡 설치 여부 확인
+        if (await isKakaoTalkInstalled()) {
+          try {
+              await UserApi.instance.loginWithKakaoTalk();
+              print('카카오톡으로 로그인 성공');
+          } catch (error) {
+            print('카카오톡으로 로그인 실패 $error');
+
+            // 사용자가 카카오톡 설치 후 디바이스 권한 요청 화면에서 로그인을 취소한 경우,
+            // 의도적인 로그인 취소로 보고 카카오계정으로 로그인 시도를 하지 않습니다.
+            // (ClientError가 아닌 경우에만 웹 로그인 시도)
+             if (error is PlatformException && error.code == 'CANCELED') {
+                 return;
+             }
+             // 카카오톡에 연결된 카카오계정이 없는 경우, 카카오계정으로 로그인 시도
+             try {
+                await UserApi.instance.loginWithKakaoAccount();
+                print('카카오계정으로 로그인 성공');
+             } catch (error) {
+                print('카카오계정으로 로그인 실패 $error');
+                return;
+             }
+          }
+        } else {
+          try {
+            await UserApi.instance.loginWithKakaoAccount();
+            print('카카오계정으로 로그인 성공');
+          } catch (error) {
+            print('카카오계정으로 로그인 실패 $error');
+            return;
+          }
+        }
+
+        User user = await UserApi.instance.me();
+        
+        // 토큰 가져오기 (OpenID Connect id_token 우선, 없으면 accessToken)
+        OAuthToken? auth = await TokenManagerProvider.instance.manager.getToken();
+        
+        // 백엔드가 ID Token(JWT)을 기대하는 경우를 위해 idToken 우선 사용
+        if (auth?.idToken != null && auth!.idToken!.isNotEmpty) {
+          token = auth.idToken!;
+          print("DEBUG: Using Kakao ID Token (OIDC)");
+        } else {
+          token = auth?.accessToken ?? '';
+          print("DEBUG: Using Kakao Access Token (Validation may fail if backend expects JWT)");
+        }
+        
+        final AuthTokenStorage storage = AuthTokenStorage();
+        await storage.saveUserInfo(
+            name: user.kakaoAccount?.profile?.nickname,
+            email: user.kakaoAccount?.email,
+            photoUrl: user.kakaoAccount?.profile?.profileImageUrl,
+        );
+        
+        print("DEBUG: Sending Kakao Token to Server: $token");
       }
 
       // 2. 백엔드 API 호출

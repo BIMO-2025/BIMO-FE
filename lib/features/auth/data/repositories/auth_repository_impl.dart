@@ -16,7 +16,7 @@ class AuthRepositoryImpl implements AuthRepository {
   }) async {
     try {
       final response = await _apiClient.post(
-        '/auth/$provider/login',
+        'auth/$provider/login',
         data: {
           'token': token,
           'fcm_token': 'dummy_fcm_token', // TODO: 실제 FCM 토큰 연동 필요

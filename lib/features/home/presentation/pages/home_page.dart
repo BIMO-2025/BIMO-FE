@@ -11,6 +11,9 @@ import '../widgets/date_selection_bottom_sheet.dart';
 import 'airline_search_result_page.dart';
 import '../../domain/models/airport.dart';
 import '../../../my/presentation/pages/my_page.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../core/network/router/route_names.dart';
+import '../../../../core/storage/auth_token_storage.dart';
 
 /// 홈 화면 메인 페이지
 class HomePage extends StatefulWidget {
@@ -268,13 +271,32 @@ class _HomePageState extends State<HomePage> {
   /// 나의비행 탭 컨텐츠 (TODO: 구현 필요)
   Widget _buildMyFlightContent() {
     return Center(
-      child: Text(
-        '나의비행 페이지\n(구현 예정)',
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          color: AppTheme.darkTheme.colorScheme.onSurface,
-          fontSize: 18,
-        ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            '나의비행 페이지\n(구현 예정)',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppTheme.darkTheme.colorScheme.onSurface,
+              fontSize: 18,
+            ),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: () async {
+              await AuthTokenStorage().deleteAllTokens();
+              if (context.mounted) {
+                context.go(RouteNames.splash); // or login
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('로그아웃 (Dev)'),
+          ),
+        ],
       ),
     );
   }

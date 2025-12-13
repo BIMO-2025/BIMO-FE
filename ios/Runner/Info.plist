@@ -48,10 +48,18 @@
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.googleusercontent.apps.129141636882-7iu0m24usb4dvimetr0q7fir7lmi05d9</string>
+				<string>com.googleusercontent.apps.129141636882-ho5ia3q8p9rl6ridjegat0hfe7n5qo1n</string>
+				<string>kakaocb8c2dedbefd9ebb03db10733db79cad</string>
 			</array>
 		</dict>
 	</array>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>kakaokompassauth</string>
+		<string>kakaolink</string>
+	</array>
+	<key>GIDClientID</key>
+	<string>129141636882-ho5ia3q8p9rl6ridjegat0hfe7n5qo1n.apps.googleusercontent.com</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
