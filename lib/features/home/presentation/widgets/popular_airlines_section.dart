@@ -285,7 +285,7 @@ class AirlineCard extends StatelessWidget {
                   child: SizedBox(
                     width: context.w(50), // 90 - 20*2 = 50
                     height: context.h(50),
-                    child: Image.asset(airline.logoPath, fit: BoxFit.contain),
+                    child: _buildAirlineLogo(context, airline.logoPath),
                   ),
                 ),
               ],
@@ -294,5 +294,61 @@ class AirlineCard extends StatelessWidget {
         ), // BackdropFilter 닫기
       ), // ClipRRect 닫기
     ); // Transform.rotate 닫기
+  }
+
+  /// 항공사 로고 이미지 빌드 (네트워크 URL 또는 로컬 asset)
+  Widget _buildAirlineLogo(BuildContext context, String logoPath) {
+    // URL인지 확인 (http 또는 https로 시작)
+    final isNetworkImage = logoPath.startsWith('http://') || 
+                          logoPath.startsWith('https://');
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.white, // 흰색 배경
+        borderRadius: BorderRadius.circular(context.w(14)), // 코너 반경 14
+      ),
+      padding: EdgeInsets.all(context.w(8)), // 내부 패딩
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(context.w(6)), // 이미지도 살짝 둥글게
+        child: isNetworkImage
+            ? Image.network(
+                logoPath,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  // 네트워크 이미지 로딩 실패 시 기본 아이콘 표시
+                  return Icon(
+                    Icons.flight,
+                    color: AppColors.white.withOpacity(0.3),
+                    size: context.w(30),
+                  );
+                },
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Center(
+                    child: CircularProgressIndicator(
+                      value: loadingProgress.expectedTotalBytes != null
+                          ? loadingProgress.cumulativeBytesLoaded /
+                              loadingProgress.expectedTotalBytes!
+                          : null,
+                      strokeWidth: 2,
+                      color: AppColors.blue1,
+                    ),
+                  );
+                },
+              )
+            : Image.asset(
+                logoPath,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  // Asset 로딩 실패 시 기본 아이콘 표시
+                  return Icon(
+                    Icons.flight,
+                    color: AppColors.white.withOpacity(0.3),
+                    size: context.w(30),
+                  );
+                },
+              ),
+      ),
+    );
   }
 }

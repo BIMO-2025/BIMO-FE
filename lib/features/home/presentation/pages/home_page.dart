@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/custom_tab_bar.dart';
 import '../../../../core/widgets/custom_app_bar.dart';
-import '../../../../core/utils/date_utils.dart' as app_date_utils;
 import '../widgets/search_tab_selector.dart';
 import '../widgets/airline_search_input.dart';
 import '../widgets/destination_search_section.dart';
@@ -92,7 +91,7 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
-  /// 주차별 인기 항공사 로드
+  /// 전체 인기 항공사 로드 (상위 3개)
   Future<void> _loadPopularAirlines() async {
     setState(() {
       _isLoadingAirlines = true;
@@ -100,17 +99,9 @@ class _HomePageState extends State<HomePage> {
     });
 
     try {
-      // 현재 주차 정보 가져오기
-      final weekInfo = app_date_utils.DateUtils.getCurrentWeekInfo();
-
-      // API 호출
+      // 전체 인기 항공사 API 호출 (limit: 3)
       final List<PopularAirlineResponse> airlines = await _apiService
-          .getPopularAirlinesWeekly(
-            year: weekInfo['year'],
-            month: weekInfo['month'],
-            week: weekInfo['week'],
-            limit: 3,
-          );
+          .getPopularAirlines(limit: 3);
 
       // 응답 데이터를 UI 모델로 변환
       final List<AirlineData> airlineDataList =
@@ -127,7 +118,7 @@ class _HomePageState extends State<HomePage> {
 
       setState(() {
         _popularAirlines = airlineDataList;
-        _weekLabel = weekInfo['weekLabel'];
+        _weekLabel = _getCurrentWeekLabel(); // 현재 주차 라벨 사용
         _isLoadingAirlines = false;
       });
     } catch (e) {
