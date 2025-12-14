@@ -71,11 +71,13 @@ class _AirlineDetailPageState extends State<AirlineDetailPage> {
         print('⚠️ BIMO 요약 API 실패 (mock 데이터 사용): $e');
       }
       
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
       });
     } catch (e) {
       print('⚠️ 전체 API 호출 실패: $e');
+      if (!mounted) return;
       setState(() {
         _errorMessage = null; // 에러 표시 안함, mock 데이터 사용
         _isLoading = false;

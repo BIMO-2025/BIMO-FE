@@ -16,11 +16,11 @@ class AppRouter {
   static GoRouter get router => _router;
 
   static final GoRouter _router = GoRouter(
-    // 테스트: 대한항공 상세 페이지로 시작
-    initialLocation: '/airline-detail',
+    // initialLocation: '/airline-detail',
+    initialLocation: RouteNames.login,
     routes: [
       GoRoute(
-        path: RouteNames.home,
+        path: RouteNames.splash,
         name: 'splash',
         builder: (context, state) => const SplashPage(),
       ),
