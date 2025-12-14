@@ -1,6 +1,6 @@
 /// API 관련 상수
 class ApiConstants {
-  ///  // Base URL
+  /// Base URL
   static const String baseUrl = 'https://nonsubtile-shea-wretched.ngrok-free.dev/';
 
   /// API 타임아웃 (밀리초)
