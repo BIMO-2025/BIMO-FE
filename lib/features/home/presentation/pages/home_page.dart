@@ -14,6 +14,9 @@ import '../../domain/models/airport.dart';
 import '../../data/datasources/airline_api_service.dart';
 import '../../data/models/popular_airline_response.dart';
 import '../../../my/presentation/pages/my_page.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../core/network/router/route_names.dart';
+import '../../../../core/storage/auth_token_storage.dart';
 import '../../../myflight/pages/myflight_page.dart';
 
 /// 홈 화면 메인 페이지
@@ -117,7 +120,12 @@ class _HomePageState extends State<HomePage> {
       }).toList();
 
       setState(() {
-        _popularAirlines = airlineDataList;
+        // 데이터가 없으면 기본 데이터 표시
+        if (airlineDataList.isEmpty) {
+          _popularAirlines = _getDefaultAirlines();
+        } else {
+          _popularAirlines = airlineDataList;
+        }
         _weekLabel = _getCurrentWeekLabel(); // 현재 주차 라벨 사용
         _isLoadingAirlines = false;
       });

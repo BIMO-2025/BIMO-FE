@@ -1,4 +1,4 @@
-package com.example.bimo_fe
+package com.opensource.bimo
 
 import io.flutter.embedding.android.FlutterActivity
 

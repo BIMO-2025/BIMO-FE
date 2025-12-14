@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import '../constants/api_constants.dart';
+import '../storage/auth_token_storage.dart';
 
 /// API 클라이언트 (Dio 인스턴스)
 class ApiClient {
@@ -104,12 +105,13 @@ class ApiClient {
 /// API 인터셉터 (로깅, 인증 토큰 추가 등)
 class _ApiInterceptor extends Interceptor {
   @override
-  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    // TODO: 인증 토큰이 있다면 헤더에 추가
-    // final token = getAuthToken();
-    // if (token != null) {
-    //   options.headers['Authorization'] = 'Bearer $token';
-    // }
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
+    // 인증 토큰 추가
+    final storage = AuthTokenStorage();
+    final token = await storage.getAccessToken();
+    if (token != null) {
+      options.headers['Authorization'] = 'Bearer $token';
+    }
 
     print('🚀 REQUEST[${options.method}] => PATH: ${options.path}');
     super.onRequest(options, handler);
