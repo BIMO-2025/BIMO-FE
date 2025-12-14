@@ -9,6 +9,11 @@ import '../../../core/utils/responsive_extensions.dart';
 import '../models/flight_search_result.dart';
 import '../widgets/flight_card_widget.dart' show DashedLinePainter;
 import 'flight_plan_page.dart';
+import '../../home/presentation/widgets/destination_search_section.dart';
+import '../../home/presentation/widgets/airport_search_bottom_sheet.dart';
+import '../../home/presentation/widgets/date_selection_bottom_sheet.dart';
+import '../../home/domain/models/airport.dart';
+import '../../home/data/datasources/airline_api_service.dart';
 
 /// 비행 등록 페이지
 class AddFlightPage extends StatefulWidget {
@@ -198,8 +203,6 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
   Widget _buildStep1Body() {
     return SingleChildScrollView(
       padding: EdgeInsets.only(
-        left: context.w(20),
-        right: context.w(20),
         top: context.h(82) + context.h(8) + context.h(24) + context.h(16), // 앱바 + 진행바 + 간격(24px) + 텍스트 아래 간격(16px)
         bottom: context.h(100), // 하단 여백
       ),
@@ -207,40 +210,60 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 안내 텍스트
-          _buildInstructionText(),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: context.w(20)),
+            child: _buildInstructionText(),
+          ),
           
           SizedBox(height: context.h(8)),
           
           // 초기화 버튼 (오른쪽 정렬)
-          Align(
-            alignment: Alignment.centerRight,
-            child: GestureDetector(
-              onTap: _resetForm,
-              child: Text(
-                '초기화',
-                style: AppTextStyles.smallBody.copyWith(
-                  color: Colors.white,
-                  decoration: TextDecoration.underline,
-                  decorationColor: Colors.white,
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: context.w(20)),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: GestureDetector(
+                onTap: _resetForm,
+                child: Text(
+                  '초기화',
+                  style: AppTextStyles.smallBody.copyWith(
+                    color: Colors.white,
+                    decoration: TextDecoration.underline,
+                    decorationColor: Colors.white,
+                  ),
                 ),
               ),
             ),
           ),
           
-          SizedBox(height: context.h(8)),
+          SizedBox(height: context.h(0)), // DestinationSearchSection has top margin 8
           
-          // 출발/도착 공항 섹션
-          _buildAirportSection(),
-          
-          SizedBox(height: context.h(8)),
-          
-          // 출발 날짜 섹션
-          _buildDepartureDateSection(),
+          // 출발/도착 공항 및 날짜 섹션 (DestinationSearchSection 재사용)
+          DestinationSearchSection(
+            departureAirport: _departureCity != null 
+                ? '$_departureCity ($_departureCode)' 
+                : '공항 선택',
+            arrivalAirport: _arrivalCity != null 
+                ? '$_arrivalCity ($_arrivalCode)' 
+                : '공항 선택',
+            departureDate: _departureDate != null 
+                ? '${_departureDate!.year}년 ${_departureDate!.month}월 ${_departureDate!.day}일'
+                : '',
+            isDepartureSelected: _departureCode != null,
+            isArrivalSelected: _arrivalCode != null,
+            onDepartureTap: () => _selectAirport(isDeparture: true),
+            onArrivalTap: () => _selectAirport(isDeparture: false),
+            onDateTap: _selectDepartureDate,
+            onSwapAirports: _swapAirports,
+          ),
           
           SizedBox(height: 16),
           
           // 경유편 체크박스
-          _buildLayoverCheckbox(),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: context.w(20)),
+            child: _buildLayoverCheckbox(),
+          ),
         ],
       ),
     );
@@ -870,163 +893,7 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
     );
   }
 
-  /// 출발/도착 공항 섹션
-  Widget _buildAirportSection() {
-    return Container(
-      height: 87,
-      child: Stack(
-        children: [
-          // 출발 공항 (왼쪽)
-          Positioned(
-            left: 0,
-            top: 0,
-            child: _buildAirportField(
-              title: '출발 공항',
-              code: _departureCode,
-              city: _departureCity,
-              onTap: () => _selectAirport(isDeparture: true),
-            ),
-          ),
-          // 도착 공항 (오른쪽)
-          Positioned(
-            right: 0,
-            top: 0,
-            child: _buildAirportField(
-              title: '도착 공항',
-              code: _arrivalCode,
-              city: _arrivalCity,
-              onTap: () => _selectAirport(isDeparture: false),
-            ),
-          ),
-          // 스왑 버튼 (중앙, 박스 위에 얹어짐)
-          Positioned(
-            left: 0,
-            right: 0,
-            top: (87 - 40) / 2, // 수직 중앙
-            child: Center(
-              child: GestureDetector(
-                onTap: _swapAirports,
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.1),
-                      width: 1,
-                    ),
-                  ),
-                  child: ClipOval(
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 7.5, sigmaY: 7.5),
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        child: Center(
-                          child: SvgPicture.asset(
-                            'assets/images/myflight/exchange.svg',
-                            width: 24,
-                            height: 24,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
-  /// 공항 필드
-  Widget _buildAirportField({
-    required String title,
-    required String? code,
-    required String? city,
-    required VoidCallback onTap,
-  }) {
-    final bool hasValue = code != null && city != null;
-    
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: context.w(163.5),
-        height: 87,
-        padding: EdgeInsets.symmetric(
-          horizontal: 20,
-          vertical: 15,
-        ),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              title,
-              style: AppTextStyles.bigBody.copyWith(color: Colors.white),
-            ),
-            SizedBox(height: 8),
-            Text(
-              hasValue ? '$city ($code)' : '선택하세요',
-              style: AppTextStyles.body.copyWith(
-                color: hasValue
-                    ? Colors.white
-                    : Colors.white.withOpacity(0.5),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// 출발 날짜 섹션
-  Widget _buildDepartureDateSection() {
-    final bool hasValue = _departureDate != null;
-    
-    return GestureDetector(
-      onTap: _selectDepartureDate,
-      child: Container(
-        width: double.infinity, // align-self: stretch
-        height: 87,
-        padding: EdgeInsets.symmetric(
-          horizontal: 20,
-          vertical: 15,
-        ),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              '출발 날짜',
-              style: AppTextStyles.bigBody.copyWith(color: Colors.white),
-            ),
-            SizedBox(height: 8),
-            Text(
-              hasValue
-                  ? '${_departureDate!.year}년 ${_departureDate!.month}월 ${_departureDate!.day}일'
-                  : '선택하세요',
-              style: AppTextStyles.body.copyWith(
-                color: hasValue
-                    ? Colors.white
-                    : Colors.white.withOpacity(0.5),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   /// 경유편 체크박스
   Widget _buildLayoverCheckbox() {
@@ -1074,16 +941,25 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
 
   /// 공항 선택
   void _selectAirport({required bool isDeparture}) {
-    // 더미 데이터 설정 (실제로는 공항 선택 화면으로 이동)
-    setState(() {
-      if (isDeparture) {
-        _departureCode = 'DXB';
-        _departureCity = '두바이';
-      } else {
-        _arrivalCode = 'INC';
-        _arrivalCity = '인천';
-      }
-    });
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withOpacity(0.5),
+      isScrollControlled: true,
+      builder: (context) => AirportSearchBottomSheet(
+        onAirportSelected: (Airport airport) {
+          setState(() {
+            if (isDeparture) {
+              _departureCode = airport.airportCode;
+              _departureCity = airport.cityName;
+            } else {
+              _arrivalCode = airport.airportCode;
+              _arrivalCity = airport.cityName;
+            }
+          });
+        },
+      ),
+    );
   }
 
   /// 공항 스왑
@@ -1100,24 +976,12 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
 
   /// 출발 날짜 선택
   Future<void> _selectDepartureDate() async {
-    final DateTime? picked = await showDatePicker(
+    final DateTime? picked = await showModalBottomSheet<DateTime>(
       context: context,
-      initialDate: _departureDate ?? DateTime.now(),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-      builder: (context, child) {
-        return Theme(
-          data: ThemeData.dark().copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: Color(0xFFDDFF66),
-              onPrimary: Colors.black,
-              surface: Color(0xFF1A1A1A),
-              onSurface: Colors.white,
-            ),
-          ),
-          child: child!,
-        );
-      },
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withOpacity(0.5),
+      isScrollControlled: true,
+      builder: (context) => const DateSelectionBottomSheet(),
     );
     
     if (picked != null) {
@@ -1318,80 +1182,56 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
     );
   }
   
-  /// 비행편 검색 (더미 데이터)
-  void _searchFlights() {
-    // 실제로는 API 호출
-    // 경유 체크박스 상태에 따라 다른 결과 반환
+  /// 비행편 검색
+  Future<void> _searchFlights() async {
+    // 필수값 체크
+    if (_departureCode == null || _arrivalCode == null || _departureDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('출발지, 도착지, 날짜를 모두 선택해주세요.')),
+      );
+      return;
+    }
+
     setState(() {
-      if (_hasLayover) {
-        // 경유편이 있는 경우
-        _searchResults = [
-          FlightSearchResult(
-            airlineLogo: 'assets/images/home/korean_air_logo.png',
-            departureCode: _departureCode ?? 'DXB',
-            departureTime: '09:00',
-            arrivalCode: _arrivalCode ?? 'INC',
-            arrivalTime: '19:40',
-            duration: '14h 30m',
-            date: _formatDate(_departureDate ?? DateTime.now()),
-            flightNumber: 'DF445/ER555', // 경유가 있으면 편명 두 개
-            layoverCount: 2,
-            layovers: const [
-              LayoverInfo(duration: '02시간 00분', airportCode: 'SFO'),
-              LayoverInfo(duration: '01시간 49분', airportCode: 'ADD'),
-            ],
-          ),
-          FlightSearchResult(
-            airlineLogo: 'assets/images/home/asiana_logo.png',
-            departureCode: _departureCode ?? 'DXB',
-            departureTime: '11:30',
-            arrivalCode: _arrivalCode ?? 'INC',
-            arrivalTime: '22:10',
-            duration: '14h 40m',
-            date: _formatDate(_departureDate ?? DateTime.now()),
-            flightNumber: 'OZ123/AB456', // 경유가 있으면 편명 두 개
-            layoverCount: 1,
-            layovers: const [
-              LayoverInfo(duration: '01시간 30분', airportCode: 'NRT'),
-            ],
-          ),
-        ];
-      } else {
-        // 직항편만 있는 경우
-        _searchResults = [
-          FlightSearchResult(
-            airlineLogo: 'assets/images/home/korean_air_logo.png',
-            departureCode: _departureCode ?? 'DXB',
-            departureTime: '09:00',
-            arrivalCode: _arrivalCode ?? 'INC',
-            arrivalTime: '19:40',
-            duration: '14h 30m',
-            date: _formatDate(_departureDate ?? DateTime.now()),
-            flightNumber: 'KE123', // 직항이면 편명 하나
-            layoverCount: 0,
-            layovers: null,
-          ),
-          FlightSearchResult(
-            airlineLogo: 'assets/images/home/asiana_logo.png',
-            departureCode: _departureCode ?? 'DXB',
-            departureTime: '11:30',
-            arrivalCode: _arrivalCode ?? 'INC',
-            arrivalTime: '22:10',
-            duration: '14h 40m',
-            date: _formatDate(_departureDate ?? DateTime.now()),
-            flightNumber: 'OZ456', // 직항이면 편명 하나
-            layoverCount: 0,
-            layovers: null,
-          ),
-        ];
-      }
-      // 검색 결과 업데이트 후 필터링된 결과도 업데이트
-      _filteredResults = List.from(_searchResults);
-      // 검색 필드에 입력된 텍스트가 있으면 다시 필터링
-      if (_flightNumberController.text.isNotEmpty) {
-        _filterFlights(_flightNumberController.text);
-      }
+      _isLoading = true; 
     });
+    _rotationController?.repeat(); // 애니메이션 시작
+
+    try {
+      final apiService = AirlineApiService();
+      // 날짜 포맷 YYYY-MM-DD
+      final dateStr = '${_departureDate!.year}-${_departureDate!.month.toString().padLeft(2, '0')}-${_departureDate!.day.toString().padLeft(2, '0')}';
+
+      final response = await apiService.searchFlights(
+        origin: _departureCode!,
+        destination: _arrivalCode!,
+        departureDate: dateStr,
+      );
+
+      setState(() {
+        _searchResults = response.flightOffers
+            .map((json) => FlightSearchResult.fromAmadeusJson(json as Map<String, dynamic>))
+            .toList();
+        
+        // 필터링 적용 (초기에는 전체)
+        _filterFlights(_flightNumberController.text);
+      });
+    } catch (e) {
+      print('Search Error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('비행편 검색 중 오류가 발생했습니다: $e')),
+      );
+      // 에러 시 빈 리스트
+      setState(() {
+        _searchResults = [];
+        _filterFlights('');
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+      _rotationController?.stop(); // 애니메이션 정지
+    }
   }
   
   /// 비행편 필터링

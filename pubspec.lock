@@ -105,8 +105,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.19.1"
-<<<<<<< HEAD
-=======
   convert:
     dependency: transitive
     description:
@@ -115,7 +113,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.1.2"
->>>>>>> dev
   cross_file:
     dependency: transitive
     description:
@@ -180,8 +177,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.4"
-<<<<<<< HEAD
-=======
   file:
     dependency: transitive
     description:
@@ -190,7 +185,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "7.0.1"
->>>>>>> dev
   file_selector_linux:
     dependency: transitive
     description:
@@ -223,8 +217,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.9.3+4"
-<<<<<<< HEAD
-=======
   firebase_auth:
     dependency: "direct main"
     description:
@@ -273,7 +265,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.3.0"
->>>>>>> dev
   flutter:
     dependency: "direct main"
     description: flutter
@@ -295,8 +286,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.31"
-<<<<<<< HEAD
-=======
   flutter_secure_storage:
     dependency: "direct main"
     description:
@@ -345,7 +334,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.1.2"
->>>>>>> dev
   flutter_svg:
     dependency: "direct main"
     description:
@@ -508,8 +496,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.2.2"
-<<<<<<< HEAD
-=======
   js:
     dependency: transitive
     description:
@@ -550,7 +536,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.9.3"
->>>>>>> dev
   leak_tracker:
     dependency: transitive
     description:

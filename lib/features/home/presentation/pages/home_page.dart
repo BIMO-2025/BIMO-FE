@@ -462,6 +462,10 @@ class _HomePageState extends State<HomePage> {
       child: CustomTabBar(
         currentIndex: _selectedIndex,
         onTap: (index) {
+          if (index == 1) {
+            context.go(RouteNames.my);
+            return;
+          }
           setState(() {
             _selectedIndex = index;
           });

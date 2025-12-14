@@ -23,7 +23,6 @@ class PastFlightsListPage extends StatelessWidget {
           children: [
             // 본문: 스크롤 가능한 리스트
             Positioned.fill(
-              top: context.h(82), // 앱 바 높이
               child: pastFlights.isEmpty
                   ? _buildEmptyState(context)
                   : _buildFlightsList(context, pastFlights),
@@ -61,7 +60,7 @@ class PastFlightsListPage extends StatelessWidget {
           // 뒤로가기 버튼 (왼쪽)
           Positioned(
             left: context.w(20),
-            top: context.h(8),
+            top: context.h(21),
             child: GestureDetector(
               onTap: () => Navigator.pop(context),
               child: Container(
@@ -93,11 +92,16 @@ class PastFlightsListPage extends StatelessWidget {
             ),
           ),
           // 타이틀 (중앙)
-          Center(
-            child: Text(
-              '지난 비행',
-              style: AppTextStyles.medium.copyWith(
-                color: Colors.white,
+          Positioned(
+            left: 0,
+            right: 0,
+            top: context.h(31),
+            child: Center(
+              child: Text(
+                '지난 비행',
+                style: AppTextStyles.large.copyWith(
+                  color: Colors.white,
+                ),
               ),
             ),
           ),
@@ -112,7 +116,7 @@ class PastFlightsListPage extends StatelessWidget {
       padding: EdgeInsets.only(
         left: context.w(40),
         right: context.w(40),
-        top: context.h(20),
+        top: context.h(82) + context.h(20),
         bottom: context.h(100),
       ),
       itemCount: flights.length,
