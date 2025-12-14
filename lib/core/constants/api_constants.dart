@@ -1,10 +1,6 @@
 /// API 관련 상수
 class ApiConstants {
-  // 베이스 URL
-  static const String baseUrl =
-      'https://myron-effaceable-patiently.ngrok-free.dev';
 
-<<<<<<< HEAD
   /// 백엔드 Base URL
   static const String baseUrl = 'https://myron-effaceable-patiently.ngrok-free.dev/';
 
@@ -15,7 +11,6 @@ class ApiConstants {
   /// API 엔드포인트
   static const String _apiPrefix = '';
 
-  // 인증 관련
   // 인증 관련
   static const String login = '${_apiPrefix}auth/login';
   static const String logout = '${_apiPrefix}auth/logout';
@@ -35,11 +30,8 @@ class ApiConstants {
   static const String reviews = '$_apiPrefix/reviews';
   static const String myReviews = '$_apiPrefix/reviews/my';
 
-  // TODO: 실제 백엔드 API 스펙에 맞춰 엔드포인트 수정 필요
-=======
-  // Endpoints
+  // Endpoints (Merged from Dev)
   static const String airlinesPopularWeekly = '/airlines/popular/weekly';
   static const String airlinesPopular = '/airlines/popular';
   static const String airlinesSearch = '/airlines/search';
->>>>>>> cbe30da4baa3ab86f74a1ea6822f5b192d6b1f7a
 }
