@@ -407,12 +407,12 @@ class _AirlineSearchResultPageState extends State<AirlineSearchResultPage> {
             height: context.w(50),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(context.w(12)),
+              borderRadius: BorderRadius.circular(context.w(14)), // 14로 변경
             ),
             padding: EdgeInsets.all(context.w(8)),
-            child: Image.asset(
-              airline.logoPath,
-              fit: BoxFit.contain,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(context.w(6)),
+              child: _buildLogoImage(airline.logoPath),
             ),
           ),
         ],
@@ -423,5 +423,37 @@ class _AirlineSearchResultPageState extends State<AirlineSearchResultPage> {
   String _formatNumber(int number) {
     return number.toString().replaceAllMapped(
         RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},');
+  }
+
+  /// 로고 이미지 빌드 (네트워크 URL 또는 로컬 asset)
+  Widget _buildLogoImage(String logoPath) {
+    final isNetworkImage = logoPath.startsWith('http://') || 
+                          logoPath.startsWith('https://');
+
+    if (isNetworkImage) {
+      return Image.network(
+        logoPath,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          return Icon(
+            Icons.flight,
+            color: Colors.grey.withOpacity(0.3),
+            size: 24,
+          );
+        },
+      );
+    } else {
+      return Image.asset(
+        logoPath,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          return Icon(
+            Icons.flight,
+            color: Colors.grey.withOpacity(0.3),
+            size: 24,
+          );
+        },
+      );
+    }
   }
 }

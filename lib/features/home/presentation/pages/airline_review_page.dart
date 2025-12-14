@@ -403,12 +403,12 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
             );
           },
           child: Container(
-            padding: EdgeInsets.all(context.w(20)),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1A1A1A),
-              borderRadius: BorderRadius.circular(context.w(16)),
-            ),
-            child: Column(
+          padding: EdgeInsets.all(context.w(20)),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A1A1A),
+            borderRadius: BorderRadius.circular(context.w(16)),
+          ),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // User Info

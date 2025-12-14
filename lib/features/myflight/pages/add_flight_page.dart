@@ -1,0 +1,1430 @@
+import 'dart:ui';
+import 'dart:math' as math;
+import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/app_text_styles.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/responsive_extensions.dart';
+import '../models/flight_search_result.dart';
+import '../widgets/flight_card_widget.dart' show DashedLinePainter;
+import 'flight_plan_page.dart';
+
+/// 비행 등록 페이지
+class AddFlightPage extends StatefulWidget {
+  const AddFlightPage({super.key});
+
+  @override
+  State<AddFlightPage> createState() => _AddFlightPageState();
+}
+
+class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProviderStateMixin {
+  // 현재 단계 (1, 2, 3)
+  int _currentStep = 1;
+  
+  // 출발지/도착지
+  String? _departureCode;
+  String? _departureCity;
+  String? _arrivalCode;
+  String? _arrivalCity;
+  
+  // 출발 날짜
+  DateTime? _departureDate;
+  
+  // 경유편 여부
+  bool _hasLayover = false;
+  
+  // 검색 관련 (2단계)
+  final TextEditingController _flightNumberController = TextEditingController();
+  List<FlightSearchResult> _searchResults = [];
+  List<FlightSearchResult> _filteredResults = []; // 필터링된 검색 결과
+  FlightSearchResult? _selectedFlight; // 선택된 비행편
+  
+  // 로딩 상태
+  bool _isLoading = false;
+  AnimationController? _rotationController;
+  
+  // 3단계: 좌석 등급 및 비행 목표
+  String? _selectedSeatClass; // 선택된 좌석 등급
+  String? _selectedFlightGoal; // 선택된 비행 목표
+  
+  @override
+  void initState() {
+    super.initState();
+    _rotationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    );
+  }
+  
+  @override
+  void dispose() {
+    _flightNumberController.dispose();
+    _rotationController?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // 로딩 중일 때는 앱 바와 버튼 없이 로딩 화면만 표시
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: AppTheme.darkTheme.scaffoldBackgroundColor,
+        body: _buildLoadingScreen(),
+      );
+    }
+    
+    return Scaffold(
+      backgroundColor: AppTheme.darkTheme.scaffoldBackgroundColor,
+      extendBody: true,
+      body: SafeArea(
+        bottom: false,
+        child: Stack(
+          children: [
+            // 본문 영역
+            Positioned.fill(
+              child: _buildBody(),
+            ),
+            // 커스텀 헤더
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: _buildHeader(),
+            ),
+            // 진행 바 (앱바 아래 8px)
+            Positioned(
+              top: context.h(82) + context.h(8),
+              left: context.w(20),
+              right: context.w(20),
+              child: _buildProgressBar(),
+            ),
+            // 다음 버튼 (하단)
+            Positioned(
+              bottom: context.h(50),
+              left: context.w(20),
+              right: context.w(20),
+              child: _buildNextButton(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 헤더 (뒤로가기 + 타이틀)
+  Widget _buildHeader() {
+    return Container(
+      height: context.h(82),
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFF1A1A1A), // 위쪽: #1A1A1A (100%)
+            Color(0x001A1A1A), // 아래쪽: rgba(26, 26, 26, 0) (0%)
+          ],
+        ),
+      ),
+      child: Stack(
+        children: [
+          // 뒤로가기 버튼 (왼쪽)
+          Positioned(
+            left: context.w(20),
+            top: context.h(21),
+            child: GestureDetector(
+              onTap: _handleBackButton,
+              child: Container(
+                width: 40,
+                height: 40,
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.05),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.1),
+                    width: 1,
+                  ),
+                ),
+                child: ClipOval(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+                    child: Center(
+                      child: Image.asset(
+                        'assets/images/myflight/back.png',
+                        width: 24,
+                        height: 24,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // 타이틀 (중앙)
+          Positioned(
+            left: 0,
+            right: 0,
+            top: context.h(31),
+            child: Center(
+              child: Text(
+                '비행 등록',
+                style: AppTextStyles.large.copyWith(color: Colors.white),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 메인 바디 영역
+  Widget _buildBody() {
+    // 단계에 따라 다른 UI 표시
+    if (_currentStep == 1) {
+      return _buildStep1Body();
+    } else if (_currentStep == 2) {
+      return _buildStep2Body();
+    } else if (_currentStep == 3) {
+      return _buildStep3Body();
+    } else {
+      return _buildStep1Body(); // 기본값
+    }
+  }
+  
+  /// 1단계 바디 (공항/날짜 선택)
+  Widget _buildStep1Body() {
+    return SingleChildScrollView(
+      padding: EdgeInsets.only(
+        left: context.w(20),
+        right: context.w(20),
+        top: context.h(82) + context.h(8) + context.h(24) + context.h(16), // 앱바 + 진행바 + 간격(24px) + 텍스트 아래 간격(16px)
+        bottom: context.h(100), // 하단 여백
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 안내 텍스트
+          _buildInstructionText(),
+          
+          SizedBox(height: context.h(8)),
+          
+          // 초기화 버튼 (오른쪽 정렬)
+          Align(
+            alignment: Alignment.centerRight,
+            child: GestureDetector(
+              onTap: _resetForm,
+              child: Text(
+                '초기화',
+                style: AppTextStyles.smallBody.copyWith(
+                  color: Colors.white,
+                  decoration: TextDecoration.underline,
+                  decorationColor: Colors.white,
+                ),
+              ),
+            ),
+          ),
+          
+          SizedBox(height: context.h(8)),
+          
+          // 출발/도착 공항 섹션
+          _buildAirportSection(),
+          
+          SizedBox(height: context.h(8)),
+          
+          // 출발 날짜 섹션
+          _buildDepartureDateSection(),
+          
+          SizedBox(height: 16),
+          
+          // 경유편 체크박스
+          _buildLayoverCheckbox(),
+        ],
+      ),
+    );
+  }
+  
+  /// 2단계 바디 (비행편 검색 및 선택)
+  Widget _buildStep2Body() {
+    return SingleChildScrollView(
+      padding: EdgeInsets.only(
+        left: context.w(20),
+        right: context.w(20),
+        top: context.h(82) + context.h(8) + context.h(24) + context.h(16), // 앱바 + 진행바 + 간격(24px) + 텍스트 아래 간격(16px)
+        bottom: context.h(100), // 하단 여백
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 안내 텍스트 (2단계용)
+          _buildStep2InstructionText(),
+          
+          const SizedBox(height: 16),
+          
+          // 검색 필드 및 경유편 체크박스
+          _buildSearchSection(),
+          
+          const SizedBox(height: 16),
+          
+          // 비행편 목록
+          if (_filteredResults.isNotEmpty)
+            ..._filteredResults.map((flight) => Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: _buildFlightSearchCard(flight),
+            )),
+        ],
+      ),
+    );
+  }
+  
+  /// 3단계 바디 (좌석 등급 및 비행 목표 선택)
+  Widget _buildStep3Body() {
+    // 더미 데이터: 좌석 등급 목록 (실제로는 비행 정보에서 받아와야 함)
+    final List<String> seatClasses = ['이코노미', '프리미엄 이코노미', '비즈니스', '퍼스트'];
+    
+    // 비행 목표 목록
+    final List<String> flightGoals = ['시차적응', '학습/업무 집중', '완전한 휴식'];
+    
+    return SingleChildScrollView(
+      padding: EdgeInsets.only(
+        left: context.w(20),
+        right: context.w(20),
+        top: context.h(82) + context.h(8) + context.h(24) + context.h(16), // 앱바 + 진행바 + 간격(24px) + 텍스트 아래 간격(16px)
+        bottom: context.h(100), // 하단 여백
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 좌석 등급 선택 섹션
+          Text(
+            '탑승하실 좌석 등급을 선택해 주세요.',
+            style: AppTextStyles.bigBody.copyWith(color: Colors.white),
+          ),
+          const SizedBox(height: 16),
+          // 좌석 등급 선택 버튼들 (가로 스크롤)
+          SizedBox(
+            height: 33, // 버튼 높이 고정
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: seatClasses.length,
+              separatorBuilder: (context, index) => const SizedBox(width: 10),
+              itemBuilder: (context, index) {
+                final seatClass = seatClasses[index];
+                final isSelected = _selectedSeatClass == seatClass;
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedSeatClass = seatClass;
+                    });
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(5),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? AppColors.blue1 // B1 컬러
+                          : Colors.white.withOpacity(0.1), // 흰색 10%
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Center(
+                      child: Text(
+                        seatClass,
+                        style: AppTextStyles.body.copyWith(
+                          color: isSelected
+                              ? Colors.white // 파란색 박스 안 글씨는 흰색
+                              : Colors.white.withOpacity(0.5), // 흰색 10% 박스 안 글씨는 흰색 50%
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 32),
+          // 비행 목표 선택 섹션
+          Text(
+            '이번 비행의 주된 목표는 무엇인가요?',
+            style: AppTextStyles.bigBody.copyWith(color: Colors.white),
+          ),
+          const SizedBox(height: 16),
+          // 비행 목표 선택 버튼들 (가로 스크롤)
+          SizedBox(
+            height: 33, // 버튼 높이 고정
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: flightGoals.length,
+              separatorBuilder: (context, index) => const SizedBox(width: 10),
+              itemBuilder: (context, index) {
+                final flightGoal = flightGoals[index];
+                final isSelected = _selectedFlightGoal == flightGoal;
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedFlightGoal = flightGoal;
+                    });
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(5),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? AppColors.blue1 // B1 컬러
+                          : Colors.white.withOpacity(0.1), // 흰색 10%
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Center(
+                      child: Text(
+                        flightGoal,
+                        style: AppTextStyles.body.copyWith(
+                          color: isSelected
+                              ? Colors.white // 파란색 박스 안 글씨는 흰색
+                              : Colors.white.withOpacity(0.5), // 흰색 10% 박스 안 글씨는 흰색 50%
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 진행 표시 바
+  Widget _buildProgressBar() {
+    // 진행도 계산 (0% = 첫 단계, 33% = 두 번째 단계, 66% = 세 번째 단계, 100% = 완료)
+    // 첫 단계는 0% (아예 안 채워짐)
+    final double progress = _currentStep == 1 
+        ? 0.0 
+        : (_currentStep - 1) / 3.0; // 2단계: 33%, 3단계: 66%
+    
+    final double barWidth = context.w(335); // 전체 너비
+    final double filledWidth = barWidth * progress; // 채워진 너비
+    final double airplanePosition = (filledWidth - context.w(12)).clamp(0.0, barWidth - context.w(24)); // 비행기 위치 (채워진 끝에, 최소 0)
+    
+    return Container(
+      height: context.h(24), // 비행기 아이콘 높이 고려
+      width: barWidth,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // 배경 바 (흰색, opacity 0.5)
+          Positioned(
+            left: 0,
+            top: context.h(10), // 비행기 아이콘 중앙에 맞춤
+            child: Container(
+              width: barWidth,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(40),
+              ),
+            ),
+          ),
+          // 채워진 바 (파란색)
+          if (filledWidth > 0)
+            Positioned(
+              left: 0,
+              top: context.h(10),
+              child: Container(
+                width: filledWidth,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0080FF), // B1 컬러
+                  borderRadius: BorderRadius.circular(40),
+                ),
+              ),
+            ),
+          // 비행기 아이콘 (진행에 따라 이동)
+          Positioned(
+            left: airplanePosition, // 비행기 왼쪽 위치
+            top: 0,
+            child: Image.asset(
+              'assets/images/myflight/airplane.png',
+              width: 24,
+              height: 24,
+              color: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 안내 텍스트 (1단계)
+  Widget _buildInstructionText() {
+    return Text(
+      '탑승하실 항공편 정보를 입력해 주세요.\nBIMO가 최적의 비행 플랜을 준비해 드릴게요.',
+      style: AppTextStyles.bigBody.copyWith(color: Colors.white),
+    );
+  }
+  
+  /// 안내 텍스트 (2단계)
+  Widget _buildStep2InstructionText() {
+    return RichText(
+      text: TextSpan(
+        style: AppTextStyles.bigBody.copyWith(color: Colors.white),
+        children: [
+          const TextSpan(text: '조회된 비행편이 맞는지 확인해 주세요.\n'),
+          TextSpan(
+            text: '원하는 결과가 안 나오나요? 경유편이 있는지 확인해 주세요.',
+            style: AppTextStyles.bigBody.copyWith(
+              color: Colors.white.withOpacity(0.5),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  /// 검색 섹션 (검색 필드 + 경유편 체크박스)
+  Widget _buildSearchSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 검색 필드 (전체 너비)
+        Container(
+          width: double.infinity,
+          height: 50,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+              children: [
+                SvgPicture.asset(
+                  'assets/images/myflight/search.svg',
+                  width: 24,
+                  height: 24,
+                ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextField(
+                  controller: _flightNumberController,
+                  style: AppTextStyles.body.copyWith(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: '편명을 입력해 주세요.',
+                    hintStyle: AppTextStyles.body.copyWith(
+                      color: Colors.white.withOpacity(0.5),
+                    ),
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  onChanged: (value) {
+                    _filterFlights(value);
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16), // 검색 필드 아래 16px 간격
+        // 경유편 체크박스 (오른쪽 정렬)
+        Align(
+          alignment: Alignment.centerRight,
+          child: _buildLayoverCheckboxCompact(),
+        ),
+      ],
+    );
+  }
+  
+  /// 경유편 체크박스 (컴팩트 버전, 2단계용)
+  Widget _buildLayoverCheckboxCompact() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        GestureDetector(
+          onTap: () {
+            setState(() {
+              _hasLayover = !_hasLayover;
+              // 경유 체크박스 상태 변경 시 검색 결과 다시 불러오기
+              if (_currentStep == 2) {
+                _searchFlights();
+              }
+            });
+          },
+          child: Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: _hasLayover
+                  ? AppColors.blue1
+                  : Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: _hasLayover
+                ? Center(
+                    child: Image.asset(
+                      'assets/images/myflight/check.png',
+                      width: 10,
+                      height: 8,
+                      color: Colors.white,
+                    ),
+                  )
+                : null,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          '경유편이 있어요',
+          style: AppTextStyles.body.copyWith(color: Colors.white),
+        ),
+      ],
+    );
+  }
+  
+  /// 뒤로 가기 버튼 처리
+  void _handleBackButton() {
+    if (_currentStep > 1) {
+      setState(() {
+        _currentStep--;
+      });
+    } else {
+      Navigator.pop(context);
+    }
+  }
+  
+  /// 비행편 검색 결과 카드
+  Widget _buildFlightSearchCard(FlightSearchResult flight) {
+    final bool isSelected = _selectedFlight == flight;
+    
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedFlight = isSelected ? null : flight;
+        });
+      },
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+          Column(
+            children: [
+              // 상단: 항공사 로고 + 출발/도착 정보
+              Row(
+                children: [
+                  // 항공사 로고
+                  Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: Image.asset(
+                        flight.airlineLogo,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Icon(Icons.flight, color: Colors.blue);
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  // 출발 정보
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        flight.departureCode,
+                        style: AppTextStyles.bigBody.copyWith(
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 0), // 공항 약자와 시간 간격 0
+                      Text(
+                        flight.departureTime,
+                        style: AppTextStyles.smallBody.copyWith(
+                          color: Colors.white.withOpacity(0.5),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 16),
+                  // 중앙: 점선 + 비행기 + 시간
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // 점선 + 비행기
+                        Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            // 점선과 원
+                            Row(
+                              children: [
+                                // 왼쪽 원
+                                Container(
+                                  width: 9,
+                                  height: 9,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                // 점선
+                                Expanded(
+                                  child: CustomPaint(
+                                    size: const Size(double.infinity, 1),
+                                    painter: DashedLinePainter(
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                                // 오른쪽 원
+                                Container(
+                                  width: 9,
+                                  height: 9,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            // 비행기 아이콘
+                            Image.asset(
+                              'assets/images/myflight/airplane.png',
+                              width: 20,
+                              height: 20,
+                              color: Colors.white,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        // 비행 시간
+                        Text(
+                          flight.duration,
+                          style: AppTextStyles.smallBody.copyWith(
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  // 도착 정보
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        flight.arrivalCode,
+                        style: AppTextStyles.bigBody.copyWith(
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 0), // 공항 약자와 시간 간격 0
+                      Text(
+                        flight.arrivalTime,
+                        style: AppTextStyles.smallBody.copyWith(
+                          color: Colors.white.withOpacity(0.5),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16), // 상단 섹션과 구분선 사이
+              const SizedBox(height: 1), // 구분선 높이
+              const SizedBox(height: 10), // 구분선과 하단 섹션 사이 간격
+              // 하단: 날짜, 편명, 경유 여부
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 날짜
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '날짜',
+                          style: AppTextStyles.smallBody.copyWith(
+                            color: Colors.white.withOpacity(0.5),
+                          ),
+                        ),
+                        const SizedBox(height: 8), // 하단 세 가지 간격 8
+                        Text(
+                          flight.date,
+                          style: AppTextStyles.smallBody.copyWith(color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8), // 하단 세 가지 간격 8
+                  // 편명
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '편명',
+                          style: AppTextStyles.smallBody.copyWith(
+                            color: Colors.white.withOpacity(0.5),
+                          ),
+                        ),
+                        const SizedBox(height: 8), // 하단 세 가지 간격 8
+                        Text(
+                          flight.flightNumber,
+                          style: AppTextStyles.smallBody.copyWith(color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8), // 하단 세 가지 간격 8
+                  // 경유 여부
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          flight.hasLayover
+                              ? '경유 여부 (${flight.layoverCount}번)'
+                              : '경유 여부',
+                          style: AppTextStyles.smallBody.copyWith(
+                            color: Colors.white.withOpacity(0.5),
+                          ),
+                        ),
+                        const SizedBox(height: 8), // 하단 세 가지 간격 8
+                        // 경유가 있으면 경유 정보 표시, 없으면 "직항"
+                        flight.hasLayover
+                            ? Column(
+                                mainAxisAlignment: MainAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  ...flight.layovers!.map((layover) => Padding(
+                                        padding: const EdgeInsets.only(bottom: 4),
+                                        child: Text(
+                                          '${layover.duration} ${layover.airportCode}',
+                                          style: AppTextStyles.smallBody.copyWith(
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      )),
+                                ],
+                              )
+                            : Text(
+                                '직항',
+                                style: AppTextStyles.smallBody.copyWith(
+                                  color: Colors.white,
+                                ),
+                              ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10), // 하단 섹션 아래 패딩 10px
+            ],
+          ),
+          // 구분선 (흰색 10%, 패딩 무시하고 끝까지)
+          Positioned(
+            left: -20,
+            right: -20,
+            top: 66, // 상단 섹션 높이 (로고 50 + 여백 16)
+            child: Container(
+              height: 1,
+              color: Colors.white.withOpacity(0.1),
+            ),
+          ),
+        ],
+            ),
+          ),
+          // 테두리 (outline, 패딩 밖에 그려짐)
+          if (isSelected)
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.5),
+                    width: 1,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// 출발/도착 공항 섹션
+  Widget _buildAirportSection() {
+    return Container(
+      height: 87,
+      child: Stack(
+        children: [
+          // 출발 공항 (왼쪽)
+          Positioned(
+            left: 0,
+            top: 0,
+            child: _buildAirportField(
+              title: '출발 공항',
+              code: _departureCode,
+              city: _departureCity,
+              onTap: () => _selectAirport(isDeparture: true),
+            ),
+          ),
+          // 도착 공항 (오른쪽)
+          Positioned(
+            right: 0,
+            top: 0,
+            child: _buildAirportField(
+              title: '도착 공항',
+              code: _arrivalCode,
+              city: _arrivalCity,
+              onTap: () => _selectAirport(isDeparture: false),
+            ),
+          ),
+          // 스왑 버튼 (중앙, 박스 위에 얹어짐)
+          Positioned(
+            left: 0,
+            right: 0,
+            top: (87 - 40) / 2, // 수직 중앙
+            child: Center(
+              child: GestureDetector(
+                onTap: _swapAirports,
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.05),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.1),
+                      width: 1,
+                    ),
+                  ),
+                  child: ClipOval(
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 7.5, sigmaY: 7.5),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        child: Center(
+                          child: SvgPicture.asset(
+                            'assets/images/myflight/exchange.svg',
+                            width: 24,
+                            height: 24,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 공항 필드
+  Widget _buildAirportField({
+    required String title,
+    required String? code,
+    required String? city,
+    required VoidCallback onTap,
+  }) {
+    final bool hasValue = code != null && city != null;
+    
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: context.w(163.5),
+        height: 87,
+        padding: EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 15,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              title,
+              style: AppTextStyles.bigBody.copyWith(color: Colors.white),
+            ),
+            SizedBox(height: 8),
+            Text(
+              hasValue ? '$city ($code)' : '선택하세요',
+              style: AppTextStyles.body.copyWith(
+                color: hasValue
+                    ? Colors.white
+                    : Colors.white.withOpacity(0.5),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 출발 날짜 섹션
+  Widget _buildDepartureDateSection() {
+    final bool hasValue = _departureDate != null;
+    
+    return GestureDetector(
+      onTap: _selectDepartureDate,
+      child: Container(
+        width: double.infinity, // align-self: stretch
+        height: 87,
+        padding: EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 15,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              '출발 날짜',
+              style: AppTextStyles.bigBody.copyWith(color: Colors.white),
+            ),
+            SizedBox(height: 8),
+            Text(
+              hasValue
+                  ? '${_departureDate!.year}년 ${_departureDate!.month}월 ${_departureDate!.day}일'
+                  : '선택하세요',
+              style: AppTextStyles.body.copyWith(
+                color: hasValue
+                    ? Colors.white
+                    : Colors.white.withOpacity(0.5),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 경유편 체크박스
+  Widget _buildLayoverCheckbox() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        GestureDetector(
+          onTap: () {
+            setState(() {
+              _hasLayover = !_hasLayover;
+            });
+          },
+          child: Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: _hasLayover
+                  ? AppColors.blue1 // B1 컬러
+                  : Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: _hasLayover
+                  ? null
+                  : null, // 체크 안 되면 테두리 없음
+            ),
+            child: _hasLayover
+                ? Center(
+                    child: Image.asset(
+                      'assets/images/myflight/check.png',
+                      width: 10,
+                      height: 8,
+                      color: Colors.white,
+                    ),
+                  )
+                : null,
+          ),
+        ),
+        SizedBox(width: 8),
+        Text(
+          '경유편이 있어요',
+          style: AppTextStyles.body.copyWith(color: Colors.white),
+        ),
+      ],
+    );
+  }
+
+  /// 공항 선택
+  void _selectAirport({required bool isDeparture}) {
+    // 더미 데이터 설정 (실제로는 공항 선택 화면으로 이동)
+    setState(() {
+      if (isDeparture) {
+        _departureCode = 'DXB';
+        _departureCity = '두바이';
+      } else {
+        _arrivalCode = 'INC';
+        _arrivalCity = '인천';
+      }
+    });
+  }
+
+  /// 공항 스왑
+  void _swapAirports() {
+    setState(() {
+      final tempCode = _departureCode;
+      final tempCity = _departureCity;
+      _departureCode = _arrivalCode;
+      _departureCity = _arrivalCity;
+      _arrivalCode = tempCode;
+      _arrivalCity = tempCity;
+    });
+  }
+
+  /// 출발 날짜 선택
+  Future<void> _selectDepartureDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _departureDate ?? DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.dark().copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: Color(0xFFDDFF66),
+              onPrimary: Colors.black,
+              surface: Color(0xFF1A1A1A),
+              onSurface: Colors.white,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    
+    if (picked != null) {
+      setState(() {
+        _departureDate = picked;
+      });
+    }
+  }
+
+  /// 다음 버튼
+  Widget _buildNextButton() {
+    final bool isEnabled = _isNextButtonEnabled();
+    final String buttonText = _currentStep == 3 ? '확인 및 플랜 생성' : '다음';
+    
+    return GestureDetector(
+      onTap: isEnabled ? _goToNext : null,
+      child: Opacity(
+        opacity: isEnabled ? 1.0 : 0.5,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(30),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+            child: Container(
+              width: 335,
+              height: 50,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.1),
+                  width: 1,
+                ),
+              ),
+              child: Center(
+                child: Text(
+                  buttonText,
+                  style: AppTextStyles.body.copyWith(
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+  
+  /// 다음 버튼 활성화 여부 확인
+         bool _isNextButtonEnabled() {
+           if (_currentStep == 1) {
+             // 1단계: 공항과 날짜가 모두 선택되어야 함
+             return _departureCode != null &&
+                 _departureCity != null &&
+                 _arrivalCode != null &&
+                 _arrivalCity != null &&
+                 _departureDate != null;
+           } else if (_currentStep == 2) {
+             // 2단계: 비행편이 선택되어야 함
+             return _selectedFlight != null;
+           } else if (_currentStep == 3) {
+             // 3단계: 좌석 등급과 비행 목표가 모두 선택되어야 함
+             return _selectedSeatClass != null && _selectedFlightGoal != null;
+           }
+           return false;
+         }
+
+  /// 다음 페이지로 이동
+  void _goToNext() {
+    if (_currentStep == 1) {
+      // 1단계에서 2단계로 이동
+      setState(() {
+        _currentStep = 2;
+        // 비행편 검색 실행
+        _searchFlights();
+      });
+    } else if (_currentStep == 2) {
+      // 2단계에서 3단계로 이동
+      setState(() {
+        _currentStep = 3;
+      });
+    } else if (_currentStep == 3) {
+      // 3단계에서 로딩 화면 표시
+      setState(() {
+        _isLoading = true;
+      });
+      _rotationController?.repeat();
+      
+      // 3초 후 로딩 종료 및 비행 플랜 페이지로 이동 (실제로는 API 호출 완료 후)
+      Future.delayed(const Duration(seconds: 3), () {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+          _rotationController?.stop();
+          // 비행 플랜 페이지로 이동
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const FlightPlanPage(),
+            ),
+          );
+        }
+      });
+    }
+  }
+  
+  /// 로딩 화면
+  Widget _buildLoadingScreen() {
+    return Container(
+      color: AppTheme.darkTheme.scaffoldBackgroundColor,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 회전하는 비행기 아이콘 (잔상 효과)
+            _buildRotatingAirplane(),
+            const SizedBox(height: 8), // 로딩 컨테이너와 글자 간격 8px
+            // 안내 텍스트
+            Text(
+              '최적의 비행 플랜을\n생성 중입니다',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.large.copyWith(color: Colors.white),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  /// 회전하는 비행기 아이콘 (원형 궤적 따라 이동)
+  Widget _buildRotatingAirplane() {
+    if (_rotationController == null) return const SizedBox();
+    
+    // 비행기 아이콘 크기 (34x34)
+    const double airplaneSize = 34.0;
+    // 원형 경로의 반지름 (CircularProgressIndicator의 실제 반지름)
+    const double circleRadius = 33.0;
+    // 컨테이너 크기 (원형 경로 + 비행기 아이콘 크기 고려)
+    const double containerSize = (circleRadius + airplaneSize / 2) * 2;
+    
+    return SizedBox(
+      width: containerSize,
+      height: containerSize,
+      child: Stack(
+        alignment: Alignment.center,
+        clipBehavior: Clip.none,
+        children: [
+          // CircularProgressIndicator로 원형 진행 표시 (그라데이션 포함)
+          AnimatedBuilder(
+            animation: _rotationController!,
+            builder: (context, child) {
+              return SizedBox(
+                width: circleRadius * 2,
+                height: circleRadius * 2,
+                child: CircularProgressIndicator(
+                  value: _rotationController!.value,
+                  strokeWidth: 2.0,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  backgroundColor: Colors.white.withOpacity(0.2),
+                ),
+              );
+            },
+          ),
+          // 비행기 아이콘 (궤적 위에 배치)
+          AnimatedBuilder(
+            animation: _rotationController!,
+            builder: (context, child) {
+              // CircularProgressIndicator는 12시 방향(-π/2)에서 시작하여 시계 방향으로 진행
+              final startAngle = -math.pi / 2;
+              final angle = startAngle + (_rotationController!.value * 2 * math.pi);
+              final centerX = containerSize / 2;
+              final centerY = containerSize / 2;
+              
+              // 비행기 아이콘 중심 위치 계산 (원형 경로 위)
+              final x = centerX + circleRadius * math.cos(angle);
+              final y = centerY + circleRadius * math.sin(angle);
+              
+              return Positioned(
+                left: x - airplaneSize / 2, // 비행기 아이콘 중심 기준
+                top: y - airplaneSize / 2,
+                child: Transform.rotate(
+                  angle: angle + math.pi / 2, // 비행기가 궤적을 따라 향하도록
+                  child: Image.asset(
+                    'assets/images/myflight/airplane.png',
+                    width: airplaneSize,
+                    height: airplaneSize,
+                    color: Colors.white,
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+  
+  /// 비행편 검색 (더미 데이터)
+  void _searchFlights() {
+    // 실제로는 API 호출
+    // 경유 체크박스 상태에 따라 다른 결과 반환
+    setState(() {
+      if (_hasLayover) {
+        // 경유편이 있는 경우
+        _searchResults = [
+          FlightSearchResult(
+            airlineLogo: 'assets/images/home/korean_air_logo.png',
+            departureCode: _departureCode ?? 'DXB',
+            departureTime: '09:00',
+            arrivalCode: _arrivalCode ?? 'INC',
+            arrivalTime: '19:40',
+            duration: '14h 30m',
+            date: _formatDate(_departureDate ?? DateTime.now()),
+            flightNumber: 'DF445/ER555', // 경유가 있으면 편명 두 개
+            layoverCount: 2,
+            layovers: const [
+              LayoverInfo(duration: '02시간 00분', airportCode: 'SFO'),
+              LayoverInfo(duration: '01시간 49분', airportCode: 'ADD'),
+            ],
+          ),
+          FlightSearchResult(
+            airlineLogo: 'assets/images/home/asiana_logo.png',
+            departureCode: _departureCode ?? 'DXB',
+            departureTime: '11:30',
+            arrivalCode: _arrivalCode ?? 'INC',
+            arrivalTime: '22:10',
+            duration: '14h 40m',
+            date: _formatDate(_departureDate ?? DateTime.now()),
+            flightNumber: 'OZ123/AB456', // 경유가 있으면 편명 두 개
+            layoverCount: 1,
+            layovers: const [
+              LayoverInfo(duration: '01시간 30분', airportCode: 'NRT'),
+            ],
+          ),
+        ];
+      } else {
+        // 직항편만 있는 경우
+        _searchResults = [
+          FlightSearchResult(
+            airlineLogo: 'assets/images/home/korean_air_logo.png',
+            departureCode: _departureCode ?? 'DXB',
+            departureTime: '09:00',
+            arrivalCode: _arrivalCode ?? 'INC',
+            arrivalTime: '19:40',
+            duration: '14h 30m',
+            date: _formatDate(_departureDate ?? DateTime.now()),
+            flightNumber: 'KE123', // 직항이면 편명 하나
+            layoverCount: 0,
+            layovers: null,
+          ),
+          FlightSearchResult(
+            airlineLogo: 'assets/images/home/asiana_logo.png',
+            departureCode: _departureCode ?? 'DXB',
+            departureTime: '11:30',
+            arrivalCode: _arrivalCode ?? 'INC',
+            arrivalTime: '22:10',
+            duration: '14h 40m',
+            date: _formatDate(_departureDate ?? DateTime.now()),
+            flightNumber: 'OZ456', // 직항이면 편명 하나
+            layoverCount: 0,
+            layovers: null,
+          ),
+        ];
+      }
+      // 검색 결과 업데이트 후 필터링된 결과도 업데이트
+      _filteredResults = List.from(_searchResults);
+      // 검색 필드에 입력된 텍스트가 있으면 다시 필터링
+      if (_flightNumberController.text.isNotEmpty) {
+        _filterFlights(_flightNumberController.text);
+      }
+    });
+  }
+  
+  /// 비행편 필터링
+  void _filterFlights(String searchText) {
+    setState(() {
+      if (searchText.isEmpty) {
+        // 검색어가 없으면 모든 결과 표시
+        _filteredResults = List.from(_searchResults);
+      } else {
+        // 검색어가 있으면 편명에 포함된 결과만 필터링
+        _filteredResults = _searchResults.where((flight) {
+          return flight.flightNumber.toLowerCase().contains(searchText.toLowerCase());
+        }).toList();
+      }
+    });
+  }
+  
+  /// 날짜 포맷팅
+  String _formatDate(DateTime date) {
+    final weekdays = ['월', '화', '수', '목', '금', '토', '일'];
+    final weekday = weekdays[date.weekday - 1];
+    return '${date.year}.${date.month.toString().padLeft(2, '0')}.${date.day.toString().padLeft(2, '0')}. ($weekday)';
+  }
+
+  /// 폼 초기화
+  void _resetForm() {
+    setState(() {
+      _departureCode = null;
+      _departureCity = null;
+      _arrivalCode = null;
+      _arrivalCity = null;
+      _departureDate = null;
+      _hasLayover = false;
+    });
+  }
+}
+

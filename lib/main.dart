@@ -4,6 +4,7 @@ import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import 'core/theme/app_theme.dart';
 import 'core/network/router/app_router.dart';
 
+<<<<<<< HEAD
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
@@ -11,6 +12,9 @@ Future<void> main() async {
   AppTheme.setSystemUIOverlayStyle();
   
   // 앱 실행 (초기화보다 먼저 실행하여 흰 화면 방지)
+=======
+void main() {
+>>>>>>> cbe30da4baa3ab86f74a1ea6822f5b192d6b1f7a
   runApp(const MyApp());
   
   // 백그라운드에서 서비스 초기화 시도

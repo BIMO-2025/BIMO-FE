@@ -81,4 +81,13 @@ class AppTextStyles {
     height: 1.2, // 120%
     letterSpacing: -0.26, // -2% of 13
   );
+
+  /// Button Text - 15pt, Medium (500), 120% line height, -0.225px letter spacing
+  /// 버튼 텍스트용
+  static TextStyle get buttonText => _basePretendard.copyWith(
+    fontSize: 15,
+    fontWeight: FontWeight.w500, // Medium
+    height: 1.2, // 120%
+    letterSpacing: -0.225,
+  );
 }

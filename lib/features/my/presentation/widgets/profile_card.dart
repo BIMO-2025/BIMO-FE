@@ -56,10 +56,10 @@ class ProfileCard extends StatelessWidget {
                 },
               ),
             ),
-            
+
             // 이미지 오른쪽 16 간격
             SizedBox(width: context.w(16)),
-            
+
             // 이름 & 이메일
             Expanded(
               child: Column(
@@ -87,13 +87,14 @@ class ProfileCard extends StatelessWidget {
                 ],
               ),
             ),
-            
+
             // 들어가기 화살표 아이콘 (24x24)
             // Y축 중앙 정렬, 오른쪽 끝에서 내부패딩만큼 안쪽
-            Icon(
-              Icons.chevron_right,
-              size: context.w(24),
-              color: AppColors.white,
+            Image.asset(
+              'assets/images/my/right arrow.png',
+              width: context.w(24),
+              height: context.h(24),
+              fit: BoxFit.contain,
             ),
           ],
         ),
@@ -101,5 +102,3 @@ class ProfileCard extends StatelessWidget {
     );
   }
 }
-
-

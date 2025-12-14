@@ -49,14 +49,17 @@ class PopularAirlinesSection extends StatelessWidget {
                 padding: EdgeInsets.only(
                   right: context.w(20), // 화면 오른쪽에서 20px 패딩
                 ),
-                child: SizedBox(
-                  width: context.w(24),
-                  height: context.h(24),
-                  child: Image.asset(
-                    'assets/images/home/chevron_right.png',
+                child: GestureDetector(
+                  onTap: onMoreTap,
+                  child: SizedBox(
                     width: context.w(24),
                     height: context.h(24),
-                    fit: BoxFit.contain,
+                    child: Image.asset(
+                      'assets/images/home/chevron_right.png',
+                      width: context.w(24),
+                      height: context.h(24),
+                      fit: BoxFit.contain,
+                    ),
                   ),
                 ),
               ),
@@ -66,7 +69,9 @@ class PopularAirlinesSection extends StatelessWidget {
           Padding(
             padding: EdgeInsets.symmetric(horizontal: context.w(20)),
             child: SizedBox(
-              height: context.h(14 + 90 * 3 + 12 * 2 - 34), // 제목 간격 + 카드들 높이 + 간격 - 티웨이 올라간 거리
+              height: context.h(
+                14 + 90 * 3 + 12 * 2 - 34,
+              ), // 제목 간격 + 카드들 높이 + 간격 - 티웨이 올라간 거리
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
@@ -78,7 +83,14 @@ class PopularAirlinesSection extends StatelessWidget {
                     _buildAirlineCard(context, 1, airlines[1], 1.5, -21),
                   // 티웨이 (맨 앞, 블러 효과)
                   if (airlines.length > 2)
-                    _buildAirlineCard(context, 2, airlines[2], -1.5, -42, hasBlur: true),
+                    _buildAirlineCard(
+                      context,
+                      2,
+                      airlines[2],
+                      -1.5,
+                      -42,
+                      hasBlur: true,
+                    ),
                 ],
               ),
             ),
@@ -98,7 +110,11 @@ class PopularAirlinesSection extends StatelessWidget {
     bool hasBlur = false,
   }) {
     return Positioned(
-      top: context.h(14) + (index * context.h(90)) + (index * context.h(12)) + offsetY,
+      top:
+          context.h(14) +
+          (index * context.h(90)) +
+          (index * context.h(12)) +
+          offsetY,
       left: 0,
       right: 0,
       child: AirlineCard(
@@ -158,118 +174,181 @@ class AirlineCard extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(context.w(12)),
         child: BackdropFilter(
-          filter: hasBlur ? ImageFilter.blur(sigmaX: 40, sigmaY: 40) : ImageFilter.blur(sigmaX: 0, sigmaY: 0),
+          filter:
+              hasBlur
+                  ? ImageFilter.blur(sigmaX: 40, sigmaY: 40)
+                  : ImageFilter.blur(sigmaX: 0, sigmaY: 0),
           child: Container(
             width: context.w(335),
             height: context.h(90), // 고정 높이 90
             decoration: BoxDecoration(
               color:
-                  isSelected ? AppColors.blue1 : AppColors.white.withOpacity(0.1),
+                  isSelected
+                      ? AppColors.blue1
+                      : AppColors.white.withOpacity(0.1),
               borderRadius: BorderRadius.circular(context.w(12)),
-        ),
-        child: Stack(
-          clipBehavior: Clip.hardEdge,
-          children: [
-            // 텍스트 영역 박스 (120x41, 왼쪽 패딩 20, 상하 중앙 정렬)
-            Positioned(
-              left: context.w(20), // 왼쪽 패딩 20
-              top: context.h((90 - 41) / 2), // 상하 중앙 정렬: (90 - 41) / 2 = 24.5
-              child: SizedBox(
-                width: context.w(120),
-                height: context.h(41),
-                child: Stack(
-                  clipBehavior: Clip.hardEdge,
-                  children: [
-                    // 순위 번호 (박스 맨 상단, 왼쪽 6px)
-                    Positioned(
-                      left: context.w(6),
-                      top: 0,
-                      child: SizedBox(
-                        width: context.w(16),
-                        height: context.h(25),
-                        child: Text(
-                          '$rank',
-                          style: TextStyle(
-                            fontFamily: 'Pretendard',
-                            fontSize: context.fs(25),
-                            fontWeight: FontWeight.w600, // SemiBold
-                            height: 1.0, // 100% line height
-                            letterSpacing: -context.fs(0.5), // -2% of 25
-                            color: AppColors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                    // 항공사 이름 (숫자 오른쪽 16px, 같은 줄)
-                    Positioned(
-                      left:
-                          context.w(6) +
-                          context.w(16) +
-                          context.w(16), // 왼쪽(6) + 숫자 박스(16) + 간격(16)
-                      top: 0, // 같은 줄
-                      child: Text(
-                        airline.name,
-                        style: AppTextStyles.bigBody.copyWith(
-                          fontSize: context.fs(15), // 반응형
-                          color: AppColors.white, // 화이트 100%
-                        ),
-                      ),
-                    ),
-                    // 평점 (항공사 이름 아래 4px, 항공사 이름과 같은 x축)
-                    // BigBody: 15pt, line-height 150% = 항공사 이름 높이
-                    Positioned(
-                      left:
-                          context.w(6) +
-                          context.w(16) +
-                          context.w(16), // 항공사 이름과 같은 x축
-                      top:
-                          context.fs(15) * 1.5 +
-                          context.h(4), // 항공사 이름 높이 + 4px 아래
-                      child: RichText(
-                        text: TextSpan(
-                          style: AppTextStyles.smallBody.copyWith(
-                            fontSize: context.fs(13), // 반응형
-                          ),
-                          children: [
-                            TextSpan(
-                              text: '${airline.rating}',
-                              style: AppTextStyles.smallBody.copyWith(
-                                fontSize: context.fs(13),
-                                color: AppColors.white, // 화이트 100%
+            ),
+            child: Stack(
+              clipBehavior: Clip.hardEdge,
+              children: [
+                // 텍스트 영역 박스 (120x41, 왼쪽 패딩 20, 상하 중앙 정렬)
+                Positioned(
+                  left: context.w(20), // 왼쪽 패딩 20
+                  top: context.h(
+                    (90 - 41) / 2,
+                  ), // 상하 중앙 정렬: (90 - 41) / 2 = 24.5
+                  child: SizedBox(
+                    width: context.w(120),
+                    height: context.h(41),
+                    child: Stack(
+                      clipBehavior: Clip.hardEdge,
+                      children: [
+                        // 순위 번호 (박스 맨 상단, 왼쪽 6px)
+                        Positioned(
+                          left: context.w(6),
+                          top: 0,
+                          child: SizedBox(
+                            width: context.w(16),
+                            height: context.h(25),
+                            child: Text(
+                              '$rank',
+                              style: TextStyle(
+                                fontFamily: 'Pretendard',
+                                fontSize: context.fs(25),
+                                fontWeight: FontWeight.w600, // SemiBold
+                                height: 1.0, // 100% line height
+                                letterSpacing: -context.fs(0.5), // -2% of 25
+                                color: AppColors.white,
                               ),
                             ),
-                            TextSpan(
-                              text: '/5.0',
-                              style: AppTextStyles.smallBody.copyWith(
-                                fontSize: context.fs(13),
-                                color: AppColors.white.withOpacity(
-                                  0.5,
-                                ), // 화이트 50%
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
+                        // 항공사 이름 (숫자 오른쪽 16px, 같은 줄)
+                        Positioned(
+                          left:
+                              context.w(6) +
+                              context.w(16) +
+                              context.w(16), // 왼쪽(6) + 숫자 박스(16) + 간격(16)
+                          top: 0, // 같은 줄
+                          child: Text(
+                            airline.name,
+                            style: AppTextStyles.bigBody.copyWith(
+                              fontSize: context.fs(15), // 반응형
+                              color: AppColors.white, // 화이트 100%
+                            ),
+                          ),
+                        ),
+                        // 평점 (항공사 이름 아래 4px, 항공사 이름과 같은 x축)
+                        // BigBody: 15pt, line-height 150% = 항공사 이름 높이
+                        Positioned(
+                          left:
+                              context.w(6) +
+                              context.w(16) +
+                              context.w(16), // 항공사 이름과 같은 x축
+                          top:
+                              context.fs(15) * 1.5 +
+                              context.h(4), // 항공사 이름 높이 + 4px 아래
+                          child: RichText(
+                            text: TextSpan(
+                              style: AppTextStyles.smallBody.copyWith(
+                                fontSize: context.fs(13), // 반응형
+                              ),
+                              children: [
+                                TextSpan(
+                                  text: '${airline.rating}',
+                                  style: AppTextStyles.smallBody.copyWith(
+                                    fontSize: context.fs(13),
+                                    color: AppColors.white, // 화이트 100%
+                                  ),
+                                ),
+                                TextSpan(
+                                  text: '/5.0',
+                                  style: AppTextStyles.smallBody.copyWith(
+                                    fontSize: context.fs(13),
+                                    color: AppColors.white.withOpacity(
+                                      0.5,
+                                    ), // 화이트 50%
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
+                // 항공사 로고 (상하 20px 패딩, 오른쪽 20px 패딩, 맨 오른쪽)
+                Positioned(
+                  right: context.w(20), // 컨테이너 오른쪽에서 20px (패딩)
+                  top: context.h(20), // 상단 20px 패딩
+                  child: SizedBox(
+                    width: context.w(50), // 90 - 20*2 = 50
+                    height: context.h(50),
+                    child: _buildAirlineLogo(context, airline.logoPath),
+                  ),
+                ),
+              ],
             ),
-            // 항공사 로고 (상하 20px 패딩, 오른쪽 20px 패딩, 맨 오른쪽)
-            Positioned(
-              right: context.w(20), // 컨테이너 오른쪽에서 20px (패딩)
-              top: context.h(20), // 상단 20px 패딩
-              child: SizedBox(
-                width: context.w(50), // 90 - 20*2 = 50
-                height: context.h(50),
-                child: Image.asset(airline.logoPath, fit: BoxFit.contain),
-              ),
-            ),
-          ],
-        ),
-      ), // Container 닫기
+          ), // Container 닫기
         ), // BackdropFilter 닫기
       ), // ClipRRect 닫기
     ); // Transform.rotate 닫기
+  }
+
+  /// 항공사 로고 이미지 빌드 (네트워크 URL 또는 로컬 asset)
+  Widget _buildAirlineLogo(BuildContext context, String logoPath) {
+    // URL인지 확인 (http 또는 https로 시작)
+    final isNetworkImage = logoPath.startsWith('http://') || 
+                          logoPath.startsWith('https://');
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.white, // 흰색 배경
+        borderRadius: BorderRadius.circular(context.w(14)), // 코너 반경 14
+      ),
+      padding: EdgeInsets.all(context.w(8)), // 내부 패딩
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(context.w(6)), // 이미지도 살짝 둥글게
+        child: isNetworkImage
+            ? Image.network(
+                logoPath,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  // 네트워크 이미지 로딩 실패 시 기본 아이콘 표시
+                  return Icon(
+                    Icons.flight,
+                    color: AppColors.white.withOpacity(0.3),
+                    size: context.w(30),
+                  );
+                },
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Center(
+                    child: CircularProgressIndicator(
+                      value: loadingProgress.expectedTotalBytes != null
+                          ? loadingProgress.cumulativeBytesLoaded /
+                              loadingProgress.expectedTotalBytes!
+                          : null,
+                      strokeWidth: 2,
+                      color: AppColors.blue1,
+                    ),
+                  );
+                },
+              )
+            : Image.asset(
+                logoPath,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  // Asset 로딩 실패 시 기본 아이콘 표시
+                  return Icon(
+                    Icons.flight,
+                    color: AppColors.white.withOpacity(0.3),
+                    size: context.w(30),
+                  );
+                },
+              ),
+      ),
+    );
   }
 }

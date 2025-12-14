@@ -13,13 +13,13 @@ import '../theme/app_colors.dart';
 class CustomAppBar extends StatelessWidget {
   final bool hasUnreadNotifications;
   final VoidCallback? onNotificationTap;
-  final bool showLogo;
+  final bool showLogo; // 로고 표시 여부
 
   const CustomAppBar({
     super.key,
     this.hasUnreadNotifications = false,
     this.onNotificationTap,
-    this.showLogo = true,
+    this.showLogo = true, // 기본값: 로고 표시
   });
 
   @override
@@ -27,9 +27,19 @@ class CustomAppBar extends StatelessWidget {
     return Container(
       height: context.h(82),
       width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFF1A1A1A), // 위쪽: #1A1A1A (100%)
+            Color(0x001A1A1A), // 아래쪽: rgba(26, 26, 26, 0) (0%)
+          ],
+        ),
+      ),
       child: Stack(
         children: [
-          // 왼쪽: 로고
+          // 왼쪽: 로고 (선택적 표시)
           if (showLogo)
             Positioned(
               left: context.w(20), // 왼쪽 패딩 20px
