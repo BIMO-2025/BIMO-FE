@@ -386,13 +386,14 @@ class _HomePageState extends State<HomePage> {
       final formattedDate =
           '${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}';
 
-      // 항공편 검색 API 호출 (성공할 때까지 무한 재시도)
+      // 항공편 검색 API 호출 (최대 5번 재시도)
+      const maxRetries = 5;
       int attempt = 0;
       bool success = false;
 
-      while (!success) {
+      while (!success && attempt < maxRetries) {
         attempt++;
-        print('🔄 검색 시도 $attempt');
+        print('🔄 검색 시도 $attempt/$maxRetries');
 
         try {
           final response = await _apiService.searchFlights(
@@ -443,6 +444,21 @@ class _HomePageState extends State<HomePage> {
           }
         } catch (e) {
           print('❌ 검색 시도 $attempt 실패: $e');
+          
+          // 마지막 시도였다면 에러 처리
+          if (attempt >= maxRetries) {
+            if (mounted) Navigator.pop(context); // 로딩 다이얼로그 닫기
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('항공편 검색에 실패했습니다.\n잠시 후 다시 시도해주세요.'),
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            }
+            return;
+          }
+          
           // 1초 대기 후 재시도
           await Future.delayed(const Duration(seconds: 1));
         }

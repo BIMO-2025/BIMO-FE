@@ -131,23 +131,29 @@ class _AirlineSearchResultPageState extends State<AirlineSearchResultPage> {
     if (_departureAirport == null || 
         _arrivalAirport == null || 
         _selectedDate == null) {
-      setState(() {
-        _errorMessage = '출발지, 도착지, 날짜를 모두 선택해주세요.';
-        _isLoading = false;
-        _searchResults = [];
-      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('출발지, 도착지, 날짜를 모두 선택해주세요.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+    // 로딩 다이얼로그 표시
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(color: Colors.white),
+      ),
+    );
 
-    const maxRetries = 3; // 최대 재시도 횟수
+    const maxRetries = 5; // 최대 재시도 횟수
     int attempt = 0;
+    bool success = false;
 
-    while (attempt < maxRetries) {
+    while (!success && attempt < maxRetries) {
       try {
         attempt++;
         print('🔄 검색 시도 $attempt/$maxRetries');
@@ -181,26 +187,52 @@ class _AirlineSearchResultPageState extends State<AirlineSearchResultPage> {
             }
           }
 
+          // 성공!
+          success = true;
+          
+          // 로딩 다이얼로그 닫기
+          if (mounted) Navigator.pop(context);
+          
           setState(() {
             _searchResults = airlineResults;
             _isLoading = false;
+            _errorMessage = null;
           });
           return; // 성공하면 종료
         } else {
+          // 결과가 없음
+          success = true;
+          
+          // 로딩 다이얼로그 닫기
+          if (mounted) Navigator.pop(context);
+          
           setState(() {
             _searchResults = [];
             _isLoading = false;
+            _errorMessage = null;
           });
           return; // 결과가 없어도 종료
         }
       } catch (e) {
         print('❌ 검색 시도 $attempt 실패: $e');
         
+        // 마지막 시도였다면 에러 처리
         if (attempt >= maxRetries) {
-          // 모든 재시도 실패
+          // 로딩 다이얼로그 닫기
+          if (mounted) Navigator.pop(context);
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('항공편 검색에 실패했습니다.\n잠시 후 다시 시도해주세요.'),
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
+          
           setState(() {
-            _errorMessage = '항공편 검색에 실패했습니다.\n잠시 후 다시 시도해주세요.';
             _isLoading = false;
+            _errorMessage = '항공편 검색에 실패했습니다.';
             _searchResults = [];
           });
           return;
@@ -228,6 +260,7 @@ class _AirlineSearchResultPageState extends State<AirlineSearchResultPage> {
         // API 데이터와 mock 데이터 병합
         return Airline(
           name: apiAirline.name,
+          code: apiAirline.code, // 항공사 코드 추가
           englishName: mockAirline.englishName,
           rating: apiAirline.rating,
           reviewCount: apiAirline.reviewCount,

@@ -101,14 +101,17 @@ class _AirportSearchBottomSheetState extends State<AirportSearchBottomSheet> {
       
       final response = await _apiService.searchLocations(keyword: searchKeyword);
       
-      // LocationItem을 Airport 모델로 변환
-      final airports = response.locations.map<Airport>((location) {
+      // LocationItem을 Airport 모델로 변환 (AIRPORT만 필터링)
+      final airports = response.locations
+          .where((location) => location.subType == 'AIRPORT') // AIRPORT만 필터링
+          .map<Airport>((location) {
         return Airport(
-          cityName: location.name,
-          airportName: location.name, // API에서 airportName이 따로 없으므로 name 사용
-          airportCode: location.iataCode,
-          country: '', // API 응답에 country 정보 없음
-          locationType: location.subType, // "AIRPORT" or "CITY"
+          cityName: location.address?.cityName ?? location.name,
+          cityCode: location.address?.cityCode ?? '',
+          airportName: location.name, // 공항 이름
+          airportCode: location.iataCode, // 공항 코드
+          country: location.address?.countryName ?? '',
+          locationType: location.subType, // "AIRPORT"
         );
       }).toList();
 

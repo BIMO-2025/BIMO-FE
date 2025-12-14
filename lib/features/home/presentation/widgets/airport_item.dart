@@ -20,7 +20,7 @@ class AirportItem extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // City name with location icon
+            // 도시 이름 (도시 코드)
             Row(
               children: [
                 Icon(
@@ -30,7 +30,9 @@ class AirportItem extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  airport.cityName,
+                  airport.cityCode.isNotEmpty
+                      ? '${airport.cityName} (${airport.cityCode})'
+                      : airport.cityName,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 16,
@@ -39,20 +41,8 @@ class AirportItem extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 4),
-            // Airport code and location type
-            Padding(
-              padding: const EdgeInsets.only(left: 28),
-              child: Text(
-                '${airport.airportCode} · ${airport.locationType}',
-                style: TextStyle(
-                  color: Colors.grey[500],
-                  fontSize: 13,
-                ),
-              ),
-            ),
             const SizedBox(height: 8),
-            // Airport name with airplane icon
+            // 공항 이름 (수평 스크롤 가능)
             Padding(
               padding: const EdgeInsets.only(left: 28),
               child: Row(
@@ -64,11 +54,16 @@ class AirportItem extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text(
-                      airport.airportName,
-                      style: TextStyle(
-                        color: Colors.grey[500],
-                        fontSize: 13,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Text(
+                        airport.airportName,
+                        maxLines: 1,
+                        style: TextStyle(
+                          color: Colors.grey[400],
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                   ),
@@ -76,7 +71,7 @@ class AirportItem extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 4),
-            // Airport code again
+            // 공항 코드
             Padding(
               padding: const EdgeInsets.only(left: 52),
               child: Text(
