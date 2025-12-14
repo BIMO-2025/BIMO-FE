@@ -11,7 +11,12 @@ class RouteNames {
   static const String signUp = '/sign-up';
 
   // Main Routes
+  static const String nicknameSetup = '/nickname-setup';
   static const String home = '/home';
+  static const String my = '/my';
  
+  static const List<String> bottomNavRoutes = [
+    home,
+    my,
+  ];
 }
-

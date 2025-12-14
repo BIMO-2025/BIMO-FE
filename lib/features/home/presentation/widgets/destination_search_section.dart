@@ -11,6 +11,9 @@ class DestinationSearchSection extends StatelessWidget {
   final VoidCallback? onArrivalTap;
   final VoidCallback? onDateTap;
   final VoidCallback? onSwapAirports;
+  final VoidCallback? onSearchTap; // Added
+  final bool isDepartureSelected;
+  final bool isArrivalSelected;
 
   const DestinationSearchSection({
     super.key,
@@ -21,6 +24,9 @@ class DestinationSearchSection extends StatelessWidget {
     this.onArrivalTap,
     this.onDateTap,
     this.onSwapAirports,
+    this.onSearchTap, // Added
+    this.isDepartureSelected = false,
+    this.isArrivalSelected = false,
   });
 
   @override
@@ -49,6 +55,7 @@ class DestinationSearchSection extends StatelessWidget {
                         context,
                         label: '출발 공항',
                         airport: departureAirport,
+                        isSelected: isDepartureSelected,
                       ),
                     ),
                   ),
@@ -61,6 +68,7 @@ class DestinationSearchSection extends StatelessWidget {
                         context,
                         label: '도착 공항',
                         airport: arrivalAirport,
+                        isSelected: isArrivalSelected,
                       ),
                     ),
                   ),
@@ -87,68 +95,65 @@ class DestinationSearchSection extends StatelessWidget {
             ],
           ),
           SizedBox(height: context.h(8)), // 공항 카드 아래 8px
-          // 출발 날짜 카드
-          GestureDetector(
-            onTap: onDateTap,
-            child: Container(
-              width: context.w(335),
-              height: context.h(87),
-              padding: EdgeInsets.only(
-                left: context.w(20),
-                top: context.h(15),
-                right: context.w(20),
-                bottom: context.h(15),
-              ),
-              decoration: BoxDecoration(
-                color: AppColors.white.withOpacity(0.1), // FFFFFF 10%
-                borderRadius: BorderRadius.circular(context.w(14)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 라벨 (출발 날짜)
-                  Text(
-                    '출발 날짜',
-                    style: TextStyle(
-                      fontFamily: 'Pretendard',
-                      fontSize: context.fs(15), // BigBody
-                      fontWeight: FontWeight.w600, // SemiBold
-                      height: 1.5, // 150% line height
-                      letterSpacing: -context.fs(0.3), // -2% of 15
-                      color: AppColors.white, // FFFFFF 100%
-                    ),
+          // Date Card
+        GestureDetector(
+          onTap: onDateTap,
+          child: Container(
+            width: context.w(335),
+            height: context.h(87),
+            padding: EdgeInsets.symmetric(
+              horizontal: context.w(20),
+              vertical: context.h(15),
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.white.withOpacity(0.1), // FFFFFF 10%
+              borderRadius: BorderRadius.circular(context.w(14)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Label
+                Text(
+                  '출발 날짜',
+                  style: TextStyle(
+                    fontFamily: 'Pretendard',
+                    fontSize: context.fs(15), // BigBody
+                    fontWeight: FontWeight.w600, // SemiBold
+                    height: 1.5, // 150%
+                    letterSpacing: -context.fs(0.3), // -2%
+                    color: AppColors.white,
                   ),
-                  SizedBox(height: context.h(10)), // 라벨 아래 10px
-                  // 날짜 정보 (플레이스홀더 또는 선택된 날짜)
-                  Text(
-                    departureDate.isEmpty 
-                        ? _getDefaultDate() 
-                        : departureDate,
-                    style: TextStyle(
-                      fontFamily: 'Pretendard',
-                      fontSize: context.fs(13), // Body
-                      fontWeight: FontWeight.w400, // Regular
-                      height: 1.5, // 150% line height
-                      letterSpacing: -context.fs(0.26), // -2% of 13
-                      color: departureDate.isEmpty
-                          ? AppColors.white.withOpacity(0.5) // 플레이스홀더: FFFFFF 50%
-                          : AppColors.white, // 선택된 날짜: FFFFFF 100%
-                    ),
+                ),
+                SizedBox(height: context.h(10)),
+                // Date Value or Placeholder
+                Text(
+                  departureDate.isEmpty ? '날짜를 선택해주세요' : departureDate,
+                  style: TextStyle(
+                    fontFamily: 'Pretendard',
+                    fontSize: context.fs(13), // Body
+                    fontWeight: FontWeight.w400, // Regular
+                    height: 1.5,
+                    letterSpacing: -context.fs(0.26),
+                    color: departureDate.isEmpty
+                        ? AppColors.white.withOpacity(0.5)
+                        : AppColors.white,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 
   /// 공항 카드 위젯 (출발/도착)
   Widget _buildAirportCard(
     BuildContext context, {
     required String label,
     required String airport,
+    required bool isSelected,
   }) {
     return Container(
       width: context.w(163.5),
@@ -186,7 +191,9 @@ class DestinationSearchSection extends StatelessWidget {
               fontWeight: FontWeight.w400, // Regular
               height: 1.5, // 150% line height
               letterSpacing: -context.fs(0.26), // -2% of 13
-              color: AppColors.white.withOpacity(0.5), // FFFFFF 50%
+              color: isSelected
+                  ? AppColors.white // 선택됨: FFFFFF 100%
+                  : AppColors.white.withOpacity(0.5), // 선택 안됨: FFFFFF 50%
             ),
           ),
         ],
@@ -200,3 +207,7 @@ class DestinationSearchSection extends StatelessWidget {
     return '${now.year}년 ${now.month}월 ${now.day}일';
   }
 }
+
+
+
+

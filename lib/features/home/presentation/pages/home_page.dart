@@ -6,6 +6,17 @@ import '../widgets/search_tab_selector.dart';
 import '../widgets/airline_search_input.dart';
 import '../widgets/destination_search_section.dart';
 import '../widgets/popular_airlines_section.dart';
+import '../widgets/airport_search_bottom_sheet.dart';
+import '../widgets/date_selection_bottom_sheet.dart';
+import 'airline_search_result_page.dart';
+import 'popular_airlines_page.dart';
+import '../../domain/models/airport.dart';
+import '../../data/datasources/airline_api_service.dart';
+import '../../data/models/popular_airline_response.dart';
+import '../../../my/presentation/pages/my_page.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../core/network/router/route_names.dart';
+import '../../../../core/storage/auth_token_storage.dart';
 import '../../../myflight/pages/myflight_page.dart';
 
 /// 홈 화면 메인 페이지
@@ -22,6 +33,20 @@ class _HomePageState extends State<HomePage> {
   final TextEditingController _airlineSearchController =
       TextEditingController();
 
+  // Selected airports
+  Airport? _departureAirport;
+  Airport? _arrivalAirport;
+  DateTime? _selectedDate;
+
+  // API Service
+  final AirlineApiService _apiService = AirlineApiService();
+
+  // Popular Airlines State
+  List<AirlineData> _popularAirlines = [];
+  bool _isLoadingAirlines = false;
+  String _weekLabel = '';
+  String? _errorMessage;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -37,6 +62,7 @@ class _HomePageState extends State<HomePage> {
               onNotificationTap: () {
                 // TODO: 알림 화면으로 이동
               },
+              showLogo: _selectedIndex != 2, // 마이페이지가 아닐 때만 로고 표시
             ),
             // 본문 영역
             Expanded(
@@ -57,13 +83,101 @@ class _HomePageState extends State<HomePage> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _loadPopularAirlines();
+  }
+
+  @override
   void dispose() {
     _airlineSearchController.dispose();
     super.dispose();
   }
 
+  /// 평점 순 정렬된 항공사 로드 (상위 3개)
+  Future<void> _loadPopularAirlines() async {
+    setState(() {
+      _isLoadingAirlines = true;
+      _errorMessage = null;
+    });
+
+    try {
+      // 평점 순 정렬 항공사 API 호출
+      final List<dynamic> airlines = await _apiService.getSortedAirlines();
+
+      // 상위 3개만 선택
+      final top3 = airlines.take(3).toList();
+
+      // 응답 데이터를 UI 모델로 변환
+      final List<AirlineData> airlineDataList = top3.map((airline) {
+        return AirlineData(
+          name: airline.name,
+          rating: airline.rating,
+          logoPath: airline.logoUrl.isNotEmpty
+              ? airline.logoUrl
+              : 'assets/images/home/korean_air_logo.png', // 기본 이미지
+        );
+      }).toList();
+
+      setState(() {
+        // 데이터가 없으면 기본 데이터 표시
+        if (airlineDataList.isEmpty) {
+          _popularAirlines = _getDefaultAirlines();
+        } else {
+          _popularAirlines = airlineDataList;
+        }
+        _weekLabel = _getCurrentWeekLabel(); // 현재 주차 라벨 사용
+        _isLoadingAirlines = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = '인기 항공사를 불러오는데 실패했습니다: $e';
+        _isLoadingAirlines = false;
+        // 에러 시 기본 데이터 표시
+        _popularAirlines = _getDefaultAirlines();
+        _weekLabel = _getCurrentWeekLabel();
+      });
+    }
+  }
+
+  /// 기본 항공사 데이터 (에러 시 또는 로딩 중)
+  List<AirlineData> _getDefaultAirlines() {
+    return [
+      AirlineData(
+        name: '대한항공',
+        rating: 4.3,
+        logoPath: 'assets/images/home/korean_air_logo.png',
+      ),
+      AirlineData(
+        name: '아시아나항공',
+        rating: 4.3,
+        logoPath: 'assets/images/home/asiana_logo.png',
+      ),
+      AirlineData(
+        name: '티웨이항공',
+        rating: 4.0,
+        logoPath: 'assets/images/home/tway_logo.png',
+      ),
+    ];
+  }
+
   /// 메인 바디 영역
   Widget _buildBody() {
+    // 탭 인덱스에 따라 다른 페이지 표시
+    switch (_selectedIndex) {
+      case 0: // 홈 탭
+        return _buildHomeContent();
+      case 1: // 나의비행 탭
+        return _buildMyFlightContent();
+      case 2: // 마이 탭
+        return const MyPage();
+      default:
+        return _buildHomeContent();
+    }
+  }
+
+  /// 홈 탭 컨텐츠
+  Widget _buildHomeContent() {
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -75,53 +189,270 @@ class _HomePageState extends State<HomePage> {
                 _searchTabIndex = index;
               });
             },
+            onSearchTap: () => _navigateToSearchResult(),
           ),
           if (_searchTabIndex == 0)
             AirlineSearchInput(controller: _airlineSearchController)
           else
             DestinationSearchSection(
-              departureAirport: '인천 (INC)',
-              arrivalAirport: '파리 (CDG)',
-              departureDate: '', // 빈 문자열로 현재 날짜 플레이스홀더 표시
+              departureAirport:
+                  _departureAirport != null
+                      ? '${_departureAirport!.cityName} (${_departureAirport!.airportCode})'
+                      : '인천 (INC)',
+              arrivalAirport:
+                  _arrivalAirport != null
+                      ? '${_arrivalAirport!.cityName} (${_arrivalAirport!.airportCode})'
+                      : '파리 (CDG)',
+              isDepartureSelected: _departureAirport != null,
+              isArrivalSelected: _arrivalAirport != null,
+              departureDate:
+                  _selectedDate != null
+                      ? '${_selectedDate!.year}년 ${_selectedDate!.month}월 ${_selectedDate!.day}일'
+                      : '',
               onDepartureTap: () {
-                // TODO: 출발 공항 선택 화면으로 이동
+                _showAirportSearchBottomSheet(isDeparture: true);
               },
               onArrivalTap: () {
-                // TODO: 도착 공항 선택 화면으로 이동
+                _showAirportSearchBottomSheet(isDeparture: false);
               },
               onDateTap: () {
-                // TODO: 날짜 선택 화면으로 이동
+                _showDateSelectionBottomSheet();
               },
               onSwapAirports: () {
-                // TODO: 출발/도착 공항 교체
+                if (_departureAirport != null && _arrivalAirport != null) {
+                  setState(() {
+                    final temp = _departureAirport;
+                    _departureAirport = _arrivalAirport;
+                    _arrivalAirport = temp;
+                  });
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('출발지와 도착지를 모두 선택해주세요.'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
               },
             ),
-          PopularAirlinesSection(
-            weekLabel: '[10월 1주]',
-            airlines: [
-              AirlineData(
-                name: '대한항공',
-                rating: 4.3,
-                logoPath: 'assets/images/home/korean_air_logo.png',
+          if (_isLoadingAirlines)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 50),
+              child: Center(
+                child: CircularProgressIndicator(color: Colors.white),
               ),
-              AirlineData(
-                name: '아시아나항공',
-                rating: 4.3,
-                logoPath: 'assets/images/home/asiana_logo.png',
+            )
+          else if (_errorMessage != null)
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  Text(
+                    _errorMessage!,
+                    style: const TextStyle(color: Colors.red, fontSize: 14),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 10),
+                  ElevatedButton(
+                    onPressed: _loadPopularAirlines,
+                    child: const Text('다시 시도'),
+                  ),
+                ],
               ),
-              AirlineData(
-                name: '티웨이항공',
-                rating: 4.0,
-                logoPath: 'assets/images/home/tway_logo.png',
-              ),
-            ],
-            onMoreTap: () {
-              // TODO: 인기 항공사 전체 목록 화면으로 이동
-            },
-          ),
+            )
+          else
+            PopularAirlinesSection(
+              weekLabel:
+                  _weekLabel.isNotEmpty ? _weekLabel : _getCurrentWeekLabel(),
+              airlines:
+                  _popularAirlines.isNotEmpty
+                      ? _popularAirlines
+                      : _getDefaultAirlines(),
+              onMoreTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const PopularAirlinesPage(),
+                  ),
+                );
+              },
+            ),
         ],
       ),
     );
+  }
+
+  /// 현재 날짜의 주차 라벨 생성 (예: "[11월 4주]")
+  String _getCurrentWeekLabel() {
+    final now = DateTime.now();
+    final firstDayOfMonth = DateTime(now.year, now.month, 1);
+    // DateTime.weekday: Mon=1, ... Sat=6, Sun=7
+    // % 7 -> Sun=0, Mon=1, ... Sat=6
+    final firstDayWeekday = firstDayOfMonth.weekday % 7;
+    final weekNumber = ((now.day + firstDayWeekday) / 7).ceil();
+    return '[${now.month}월 ${weekNumber}주]';
+  }
+
+  /// 공항 검색 바텀시트 표시
+  void _showAirportSearchBottomSheet({required bool isDeparture}) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withOpacity(0.5), // 50% black overlay
+      isScrollControlled: true,
+      builder:
+          (context) => AirportSearchBottomSheet(
+            onAirportSelected: (airport) {
+              setState(() {
+                if (isDeparture) {
+                  _departureAirport = airport;
+                } else {
+                  _arrivalAirport = airport;
+                }
+              });
+            },
+          ),
+    );
+  }
+
+  /// 날짜 선택 바텀시트 표시
+  Future<void> _showDateSelectionBottomSheet() async {
+    final result = await showModalBottomSheet<DateTime>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withOpacity(0.5),
+      isScrollControlled: true,
+      builder: (context) => const DateSelectionBottomSheet(),
+    );
+
+    if (result != null) {
+      setState(() {
+        _selectedDate = result;
+      });
+    }
+  }
+
+  /// 검색 결과 화면으로 이동
+  Future<void> _navigateToSearchResult() async {
+    // 유효성 검사
+    if (_searchTabIndex == 0) {
+      // 항공사 검색 탭 - 즉시 이동
+      if (_airlineSearchController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('검색할 항공사를 입력해주세요.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+      
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AirlineSearchResultPage(
+            initialTabIndex: _searchTabIndex,
+            departureAirport: _departureAirport,
+            arrivalAirport: _arrivalAirport,
+            selectedDate: _selectedDate,
+            airlineQuery: _airlineSearchController.text,
+          ),
+        ),
+      );
+    } else {
+      // 목적지 검색 탭 - API 호출 후 이동
+      if (_departureAirport == null ||
+          _arrivalAirport == null ||
+          _selectedDate == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('출발지, 도착지, 날짜를 모두 선택해주세요.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+
+      // 로딩 다이얼로그 표시
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(color: Colors.white),
+        ),
+      );
+
+      // 날짜 포맷
+      final formattedDate =
+          '${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}';
+
+      // 항공편 검색 API 호출 (성공할 때까지 무한 재시도)
+      int attempt = 0;
+      bool success = false;
+
+      while (!success) {
+        attempt++;
+        print('🔄 검색 시도 $attempt');
+
+        try {
+          final response = await _apiService.searchFlights(
+            origin: _departureAirport!.airportCode,
+            destination: _arrivalAirport!.airportCode,
+            departureDate: formattedDate,
+            adults: 1,
+          );
+
+          // 항공사 정보 조회
+          final List<PopularAirlineResponse> airlineResults = [];
+          if (response.airlines.isNotEmpty) {
+            for (final airlineInfo in response.airlines) {
+              try {
+                final results = await _apiService.searchAirlines(
+                  query: airlineInfo.airlineName,
+                );
+                if (results.isNotEmpty) {
+                  airlineResults.add(results.first);
+                }
+              } catch (e) {
+                print('항공사 정보 조회 실패: ${airlineInfo.airlineName} - $e');
+              }
+            }
+          }
+
+          // 성공!
+          success = true;
+          
+          // 로딩 다이얼로그 닫기
+          if (mounted) Navigator.pop(context);
+
+          // 결과 페이지로 이동 (검색 결과 전달)
+          if (mounted) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => AirlineSearchResultPage(
+                  initialTabIndex: _searchTabIndex,
+                  departureAirport: _departureAirport,
+                  arrivalAirport: _arrivalAirport,
+                  selectedDate: _selectedDate,
+                  airlineQuery: '',
+                  initialSearchResults: airlineResults, // 검색 결과 전달
+                ),
+              ),
+            );
+          }
+        } catch (e) {
+          print('❌ 검색 시도 $attempt 실패: $e');
+          // 1초 대기 후 재시도
+          await Future.delayed(const Duration(seconds: 1));
+        }
+      }
+    }
+  }
+
+  /// 나의비행 탭 컨텐츠 (TODO: 구현 필요)
+  Widget _buildMyFlightContent() {
+    return const MyFlightPage();
   }
 
   /// 하단 네비게이션 바
@@ -131,18 +462,6 @@ class _HomePageState extends State<HomePage> {
       child: CustomTabBar(
         currentIndex: _selectedIndex,
         onTap: (index) {
-          if (index == 0) {
-            // Already here
-          } else if (index == 1) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const MyFlightPage()),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('준비 중인 기능입니다.')),
-            );
-          }
           setState(() {
             _selectedIndex = index;
           });
