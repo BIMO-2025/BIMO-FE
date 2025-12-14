@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../../core/widgets/base_bottom_sheet.dart';
 import '../../../../core/utils/responsive_extensions.dart';
-import '../../data/mock_airports.dart';
+import '../../data/datasources/airline_api_service.dart';
+import '../../data/airport_mapper.dart';
 import '../../domain/models/airport.dart';
 import 'airport_item.dart';
 
@@ -20,31 +22,107 @@ class AirportSearchBottomSheet extends StatefulWidget {
 
 class _AirportSearchBottomSheetState extends State<AirportSearchBottomSheet> {
   final TextEditingController _searchController = TextEditingController();
+  final AirlineApiService _apiService = AirlineApiService();
+  
   List<Airport> _filteredAirports = []; // Start with empty list
+  bool _isLoading = false;
+  String? _errorMessage;
+  
+  Timer? _debounce;
 
   @override
   void initState() {
     super.initState();
-    _searchController.addListener(_filterAirports);
+    _searchController.addListener(_onSearchChanged);
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
-  void _filterAirports() {
-    setState(() {
-      final query = _searchController.text;
-      if (query.isEmpty) {
-        _filteredAirports = []; // Empty list when no search text
-      } else {
-        _filteredAirports = mockAirports
-            .where((airport) => airport.matchesQuery(query))
-            .toList();
-      }
+  /// 검색어 변경 시 호출 (디바운싱 적용)
+  void _onSearchChanged() {
+    // 기존 타이머 취소
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    
+    final query = _searchController.text.trim();
+    
+    if (query.isEmpty) {
+      setState(() {
+        _filteredAirports = [];
+        _errorMessage = null;
+      });
+      return;
+    }
+    
+    // 500ms 후에 검색 실행 (디바운싱)
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      _searchAirports(query);
     });
+  }
+
+  /// 공항 검색 API 호출
+  Future<void> _searchAirports(String keyword) async {
+    // 최소 길이 검증
+    if (keyword.length < 2) {
+      setState(() {
+        _filteredAirports = [];
+        _isLoading = false;
+        _errorMessage = null;
+      });
+      return;
+    }
+    
+    // 미완성 한글 필터링 (자음/모음만 있는 경우)
+    if (RegExp(r'[ㄱ-ㅎㅏ-ㅣ]').hasMatch(keyword)) {
+      print('⚠️ 미완성 한글 감지: $keyword');
+      setState(() {
+        _filteredAirports = [];
+        _isLoading = false;
+        _errorMessage = null;
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      // 한글 키워드를 공항 코드로 변환
+      final searchKeyword = AirportMapper.convertSearchKeyword(keyword);
+      
+      print('🔍 원본 검색어: $keyword');
+      print('🔍 변환된 검색어: $searchKeyword');
+      
+      final response = await _apiService.searchLocations(keyword: searchKeyword);
+      
+      // LocationItem을 Airport 모델로 변환
+      final airports = response.locations.map<Airport>((location) {
+        return Airport(
+          cityName: location.name,
+          airportName: location.name, // API에서 airportName이 따로 없으므로 name 사용
+          airportCode: location.iataCode,
+          country: '', // API 응답에 country 정보 없음
+          locationType: location.subType, // "AIRPORT" or "CITY"
+        );
+      }).toList();
+
+      setState(() {
+        _filteredAirports = airports;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = '검색 중 오류가 발생했습니다';
+        _isLoading = false;
+        _filteredAirports = [];
+      });
+    }
   }
 
   @override
@@ -134,23 +212,37 @@ class _AirportSearchBottomSheetState extends State<AirportSearchBottomSheet> {
             ),
           ),
           SizedBox(height: context.h(16)),
-          // Airport list
+          // Airport list (로딩/에러/결과)
           Expanded(
-            child: _filteredAirports.isEmpty
-                ? const SizedBox.shrink()
-                : ListView.builder(
-                    itemCount: _filteredAirports.length,
-                    itemBuilder: (context, index) {
-                      final airport = _filteredAirports[index];
-                      return AirportItem(
-                        airport: airport,
-                        onTap: () {
-                          widget.onAirportSelected(airport);
-                          Navigator.pop(context);
-                        },
-                      );
-                    },
-                  ),
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  )
+                : _errorMessage != null
+                    ? Center(
+                        child: Text(
+                          _errorMessage!,
+                          style: const TextStyle(
+                            color: Colors.red,
+                            fontSize: 14,
+                          ),
+                        ),
+                      )
+                    : _filteredAirports.isEmpty
+                        ? const SizedBox.shrink()
+                        : ListView.builder(
+                            itemCount: _filteredAirports.length,
+                            itemBuilder: (context, index) {
+                              final airport = _filteredAirports[index];
+                              return AirportItem(
+                                airport: airport,
+                                onTap: () {
+                                  widget.onAirportSelected(airport);
+                                  Navigator.pop(context);
+                                },
+                              );
+                            },
+                          ),
           ),
         ],
       ),

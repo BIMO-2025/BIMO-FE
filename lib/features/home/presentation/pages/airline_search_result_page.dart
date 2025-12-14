@@ -4,6 +4,9 @@ import '../../../../core/utils/responsive_extensions.dart';
 import '../../domain/models/airline.dart';
 import '../../domain/models/airport.dart';
 import '../../data/mock_airlines.dart';
+import '../../data/datasources/airline_api_service.dart';
+import '../../data/models/popular_airline_response.dart';
+import '../../data/airline_mapper.dart';
 import '../widgets/search_tab_selector.dart';
 import '../widgets/airline_search_input.dart';
 import '../widgets/destination_search_section.dart';
@@ -17,6 +20,7 @@ class AirlineSearchResultPage extends StatefulWidget {
   final Airport? arrivalAirport;
   final DateTime? selectedDate;
   final String? airlineQuery;
+  final List<PopularAirlineResponse>? initialSearchResults; // 초기 검색 결과
 
   const AirlineSearchResultPage({
     super.key,
@@ -25,6 +29,7 @@ class AirlineSearchResultPage extends StatefulWidget {
     this.arrivalAirport,
     this.selectedDate,
     this.airlineQuery,
+    this.initialSearchResults, // 추가
   });
 
   @override
@@ -44,20 +49,35 @@ class _AirlineSearchResultPageState extends State<AirlineSearchResultPage> {
   // Sort state
   int _selectedSortIndex = 0; // 0: 평점 높은 순, 1: 리뷰 많은 순
 
+  // API Service
+  final AirlineApiService _apiService = AirlineApiService();
+  
+  // API 상태 관리
+  bool _isLoading = false;
+  String? _errorMessage;
+  List<PopularAirlineResponse> _searchResults = [];
+
   @override
   void initState() {
     super.initState();
     _searchTabIndex = widget.initialTabIndex;
     _airlineSearchController =
         TextEditingController(text: widget.airlineQuery);
-    _airlineSearchController.addListener(() {
-      setState(() {});
-    });
 
     // Initialize local state
     _departureAirport = widget.departureAirport;
     _arrivalAirport = widget.arrivalAirport;
     _selectedDate = widget.selectedDate;
+
+    // 초기 검색 결과가 있으면 사용 (홈에서 전달받은 경우)
+    if (widget.initialSearchResults != null &&
+        widget.initialSearchResults!.isNotEmpty) {
+      _searchResults = widget.initialSearchResults!;
+      _isLoading = false;
+    } else if (widget.airlineQuery != null && widget.airlineQuery!.isNotEmpty) {
+      // 초기 검색어가 있으면 API 호출 (항공사 검색)
+      _searchAirlines();
+    }
   }
 
   @override
@@ -66,21 +86,163 @@ class _AirlineSearchResultPageState extends State<AirlineSearchResultPage> {
     super.dispose();
   }
 
+  /// 항공사 검색 API 호출
+  Future<void> _searchAirlines() async {
+    final query = _airlineSearchController.text.trim();
+    
+    if (query.isEmpty) {
+      setState(() {
+        _searchResults = [];
+        _isLoading = false;
+        _errorMessage = null;
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      // 한글 키워드를 항공사 코드로 변환
+      final searchKeyword = AirlineMapper.convertSearchKeyword(query);
+      
+      print('🔍 원본 검색어: $query');
+      print('🔍 변환된 검색어: $searchKeyword');
+      
+      final results = await _apiService.searchAirlines(query: searchKeyword);
+      setState(() {
+        _searchResults = results;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = '검색 중 오류가 발생했습니다: $e';
+        _isLoading = false;
+        _searchResults = [];
+      });
+    }
+  }
+
+  /// 목적지 기반 항공편 검색 API 호출 (재시도 포함)
+  Future<void> _searchFlights() async {
+    // 필수 파라미터 확인
+    if (_departureAirport == null || 
+        _arrivalAirport == null || 
+        _selectedDate == null) {
+      setState(() {
+        _errorMessage = '출발지, 도착지, 날짜를 모두 선택해주세요.';
+        _isLoading = false;
+        _searchResults = [];
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    const maxRetries = 3; // 최대 재시도 횟수
+    int attempt = 0;
+
+    while (attempt < maxRetries) {
+      try {
+        attempt++;
+        print('🔄 검색 시도 $attempt/$maxRetries');
+
+        // 날짜 포맷: YYYY-MM-DD
+        final formattedDate = 
+            '${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}';
+
+        final response = await _apiService.searchFlights(
+          origin: _departureAirport!.airportCode,
+          destination: _arrivalAirport!.airportCode,
+          departureDate: formattedDate,
+          adults: 1,
+        );
+
+        // 성공! airlines 리스트를 사용하여 항공사 정보 조회
+        if (response.airlines.isNotEmpty) {
+          // 각 항공사 이름으로 검색하여 상세 정보 가져오기
+          final List<PopularAirlineResponse> airlineResults = [];
+          for (final airlineInfo in response.airlines) {
+            try {
+              // airlineName만 추출하여 검색
+              final results = await _apiService.searchAirlines(
+                query: airlineInfo.airlineName,
+              );
+              if (results.isNotEmpty) {
+                airlineResults.add(results.first);
+              }
+            } catch (e) {
+              print('항공사 정보 조회 실패: ${airlineInfo.airlineName} - $e');
+            }
+          }
+
+          setState(() {
+            _searchResults = airlineResults;
+            _isLoading = false;
+          });
+          return; // 성공하면 종료
+        } else {
+          setState(() {
+            _searchResults = [];
+            _isLoading = false;
+          });
+          return; // 결과가 없어도 종료
+        }
+      } catch (e) {
+        print('❌ 검색 시도 $attempt 실패: $e');
+        
+        if (attempt >= maxRetries) {
+          // 모든 재시도 실패
+          setState(() {
+            _errorMessage = '항공편 검색에 실패했습니다.\n잠시 후 다시 시도해주세요.';
+            _isLoading = false;
+            _searchResults = [];
+          });
+          return;
+        }
+        
+        // 재시도 전 대기 (1초)
+        await Future.delayed(const Duration(seconds: 1));
+      }
+    }
+  }
+
   List<Airline> _getFilteredAirlines() {
     List<Airline> result;
-    if (_searchTabIndex == 0) {
-      final query = _airlineSearchController.text.trim();
-      if (query.isEmpty) {
-        result = List.from(mockAirlines);
-      } else {
-        result = mockAirlines.where((airline) {
-          return airline.name.contains(query) ||
-              airline.englishName.toLowerCase().contains(query.toLowerCase());
-        }).toList();
-      }
+    
+    // API 결과가 있으면 사용 (항공사 검색 또는 목적지 검색 모두)
+    if (_searchResults.isNotEmpty) {
+      // API 응답을 Airline 모델로 변환
+      result = _searchResults.map<Airline>((apiAirline) {
+        // mock 데이터에서 매칭되는 항공사 찾기 (상세 정보용)
+        final mockAirline = mockAirlines.firstWhere(
+          (mock) => mock.name == apiAirline.name,
+          orElse: () => mockAirlines.first, // 없으면 기본값
+        );
+        
+        // API 데이터와 mock 데이터 병합
+        return Airline(
+          name: apiAirline.name,
+          englishName: mockAirline.englishName,
+          rating: apiAirline.rating,
+          reviewCount: apiAirline.reviewCount,
+          logoPath: apiAirline.logoUrl.isNotEmpty 
+              ? apiAirline.logoUrl 
+              : mockAirline.logoPath,
+          imagePath: mockAirline.imagePath,
+          tags: mockAirline.tags,
+          detailRating: mockAirline.detailRating,
+          reviewSummary: mockAirline.reviewSummary,
+          basicInfo: mockAirline.basicInfo,
+        );
+      }).toList();
     } else {
-      // 목적지 검색인 경우 일단 전체 노출 (추후 필터링 로직 추가 가능)
-      result = List.from(mockAirlines);
+      result = [];
     }
 
     // Sort logic
@@ -203,21 +365,63 @@ class _AirlineSearchResultPageState extends State<AirlineSearchResultPage> {
 
             SizedBox(height: context.h(16)),
 
-            // 3. Result List
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              padding: EdgeInsets.symmetric(horizontal: context.w(20)),
-              itemCount: filteredAirlines.length,
-              itemBuilder: (context, index) {
-                final airline = filteredAirlines[index];
-                // Mocking route info based on index/airline for demo
-                final isDirect = airline.name == '대한항공' || airline.name == '에어프랑스';
-                final routeInfo = isDirect ? '직항' : '아디스아바바 경유';
-                
-                return _buildAirlineResultCard(context, airline, routeInfo, isDirect);
-              },
-            ),
+            // 3. Result List (로딩/에러/결과)
+            if (_isLoading && _searchTabIndex == 0)
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: context.h(50)),
+                child: const Center(
+                  child: CircularProgressIndicator(color: Colors.white),
+                ),
+              )
+            else if (_errorMessage != null && _searchTabIndex == 0)
+              Padding(
+                padding: EdgeInsets.all(context.w(20)),
+                child: Center(
+                  child: Column(
+                    children: [
+                      Text(
+                        _errorMessage!,
+                        style: const TextStyle(color: Colors.red, fontSize: 14),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: context.h(12)),
+                      ElevatedButton(
+                        onPressed: _searchAirlines,
+                        child: const Text('다시 시도'),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else if (filteredAirlines.isEmpty && _searchTabIndex == 0)
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: context.h(50)),
+                child: Center(
+                  child: Text(
+                    '검색 결과가 없습니다.',
+                    style: TextStyle(
+                      fontFamily: 'Pretendard',
+                      fontSize: context.fs(15),
+                      color: const Color(0xFF8E8E93),
+                    ),
+                  ),
+                ),
+              )
+            else
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: EdgeInsets.symmetric(horizontal: context.w(20)),
+                itemCount: filteredAirlines.length,
+                itemBuilder: (context, index) {
+                  final airline = filteredAirlines[index];
+                  // Mocking route info based on index/airline for demo
+                  final isDirect = airline.name == '대한항공' || airline.name == '에어프랑스';
+                  final routeInfo = isDirect ? '직항' : '아디스아바바 경유';
+                  
+                  return _buildAirlineResultCard(context, airline, routeInfo, isDirect);
+                },
+              ),
             SizedBox(height: context.h(40)),
           ],
         ),
@@ -234,6 +438,14 @@ class _AirlineSearchResultPageState extends State<AirlineSearchResultPage> {
             setState(() {
               _searchTabIndex = index;
             });
+          },
+          onSearchTap: () {
+            // 돋보기 버튼 클릭 시 검색 실행
+            if (_searchTabIndex == 0) {
+              _searchAirlines(); // 항공사 검색
+            } else {
+              _searchFlights(); // 목적지 기반 항공편 검색
+            }
           },
         ),
         if (_searchTabIndex == 0)

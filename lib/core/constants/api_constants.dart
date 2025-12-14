@@ -1,6 +1,5 @@
 /// API 관련 상수
 class ApiConstants {
-
   /// 백엔드 Base URL
   static const String baseUrl = 'https://myron-effaceable-patiently.ngrok-free.dev/';
 
@@ -30,8 +29,11 @@ class ApiConstants {
   static const String reviews = '$_apiPrefix/reviews';
   static const String myReviews = '$_apiPrefix/reviews/my';
 
-  // Endpoints (Merged from Dev)
+  // 항공사 검색 관련 (feature/home에서 추가)
   static const String airlinesPopularWeekly = 'airlines/popular/weekly';
   static const String airlinesPopular = 'airlines/popular';
+  static const String airlinesSorting = 'airlines/sorting';
   static const String airlinesSearch = 'airlines/search';
+  static const String flightsSearch = 'flights/search';
+  static const String locationsSearch = 'flights/locations';
 }
