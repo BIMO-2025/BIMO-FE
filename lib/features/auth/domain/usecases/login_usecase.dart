@@ -9,10 +9,12 @@ class LoginUseCase {
   Future<AuthResult> call({
     required String provider,
     required String token,
+    String? email,
   }) async {
     return await repository.login(
       provider: provider,
       token: token,
+      email: email,
     );
   }
 }

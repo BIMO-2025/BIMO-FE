@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 import 'route_names.dart';
 import '../../../features/onboarding/pages/splash_page.dart';
 import '../../../features/onboarding/pages/onboarding_page.dart';
+import '../../../features/auth/presentation/pages/nickname_setup_page.dart';
 import '../../../features/home/presentation/pages/home_page.dart';
 import '../../../features/auth/presentation/pages/login_page.dart';
 
@@ -41,6 +42,16 @@ class AppRouter {
         path: RouteNames.home,
         name: 'home',
         builder: (context, state) => const HomePage(),
+      ),
+      GoRoute(
+        path: RouteNames.nicknameSetup,
+        builder: (context, state) {
+           final extra = state.extra as Map<String, dynamic>?;
+           return NicknameSetupPage(
+             userId: extra?['userId'] ?? '',
+             prefillNickname: extra?['nickname'],
+           );
+        },
       ),
     ],
   );

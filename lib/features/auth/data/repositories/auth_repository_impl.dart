@@ -13,17 +13,21 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<AuthResult> login({
     required String provider,
     required String token,
+    String? email,
   }) async {
     try {
       final response = await _apiClient.post(
         'auth/$provider/login',
         data: {
           'token': token,
+          if (email != null) 'email': email,
           'fcm_token': 'dummy_fcm_token', // TODO: 실제 FCM 토큰 연동 필요
         },
       );
 
       final data = response.data;
+      print('✅ AuthRepository: Login Response Data: $data');
+
       final accessToken = data['access_token'];
       final tokenType = data['token_type'];
       final user = data['user'];
@@ -35,14 +39,14 @@ class AuthRepositoryImpl implements AuthRepository {
       }
 
       return AuthResult(
-        accessToken: accessToken,
-        tokenType: tokenType,
+        accessToken: accessToken ?? '', // null safety 처리
+        tokenType: tokenType ?? 'Bearer',
         user: user,
       );
-    } on DioException catch (e) {
+    } catch (e) {
       // 에러 처리
-      print('로그인 실패: ${e.message}');
-      if (e.response != null) {
+      print('로그인 실패 (Repository): $e');
+      if (e is DioException && e.response != null) {
         print('응답 데이터: ${e.response?.data}');
       }
       rethrow;

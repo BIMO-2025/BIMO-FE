@@ -8,6 +8,7 @@ class AuthTokenStorage {
   static const _userNameKey = 'USER_NAME';
   static const _userEmailKey = 'USER_EMAIL';
   static const _userPhotoUrlKey = 'USER_PHOTO_URL';
+  static const _userIdKey = 'USER_ID';
 
   /// 액세스 토큰 저장
   Future<void> saveAccessToken(String token) async {
@@ -20,10 +21,11 @@ class AuthTokenStorage {
   }
 
   /// 사용자 정보 저장
-  Future<void> saveUserInfo({String? name, String? email, String? photoUrl}) async {
+  Future<void> saveUserInfo({String? name, String? email, String? photoUrl, String? userId}) async {
     if (name != null) await _storage.write(key: _userNameKey, value: name);
     if (email != null) await _storage.write(key: _userEmailKey, value: email);
     if (photoUrl != null) await _storage.write(key: _userPhotoUrlKey, value: photoUrl);
+    if (userId != null) await _storage.write(key: _userIdKey, value: userId);
   }
 
   /// 액세스 토큰 조회
@@ -41,10 +43,12 @@ class AuthTokenStorage {
     final name = await _storage.read(key: _userNameKey);
     final email = await _storage.read(key: _userEmailKey);
     final photoUrl = await _storage.read(key: _userPhotoUrlKey);
+    final userId = await _storage.read(key: _userIdKey);
     return {
       'name': name,
       'email': email,
       'photoUrl': photoUrl,
+      'userId': userId,
     };
   }
 
@@ -55,5 +59,6 @@ class AuthTokenStorage {
     await _storage.delete(key: _userNameKey);
     await _storage.delete(key: _userEmailKey);
     await _storage.delete(key: _userPhotoUrlKey);
+    await _storage.delete(key: _userIdKey);
   }
 }

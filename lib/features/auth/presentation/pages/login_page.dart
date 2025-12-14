@@ -5,7 +5,9 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth; // 충돌 방지 alias
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
+import '../../../../core/network/router/app_router.dart';
 import '../../../../core/network/router/route_names.dart';
 import '../../../../core/storage/auth_token_storage.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -26,6 +28,7 @@ class _LoginPageState extends State<LoginPage> {
   bool _isLoading = false;
 
   /// 소셜 로그인 처리
+  /// 소셜 로그인 처리
   Future<void> _login(String provider) async {
     if (_isLoading) return;
 
@@ -35,6 +38,8 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       String token = '';
+      String? email; // 이메일 변수 상위 스코프 선언
+      String? name; // 이름 변수 상위 스코프 선언
 
       // [Google Login] 실제 SDK 연동
       if (provider == 'google') {
@@ -50,10 +55,12 @@ class _LoginPageState extends State<LoginPage> {
         // 유저 정보 저장
         final AuthTokenStorage storage = AuthTokenStorage();
         await storage.saveUserInfo(
-          name: googleUser.displayName,
+          // name: googleUser.displayName, // 닉네임 설정 전에는 저장 안 함
           email: googleUser.email,
           photoUrl: googleUser.photoUrl,
         );
+
+        email = googleUser.email; // 구글 이메일 저장
 
         final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
         token = googleAuth.idToken ?? '';
@@ -71,7 +78,38 @@ class _LoginPageState extends State<LoginPage> {
           ],
         );
 
-        token = credential.identityToken ?? '';
+        // authorizationCode를 우선적으로 사용해봅니다. (서버 구현에 따라 다름)
+        // 보통 서버에서 Apple Auth Key로 검증하려면 authorizationCode가 필요할 수 있습니다.
+        token = credential.identityToken ?? ''; 
+        
+        print("DEBUG: Apple Identity Token: ${credential.identityToken}");
+        print("DEBUG: Apple Auth Code: ${credential.authorizationCode}");
+
+        // [New] Firebase Auth 연동
+        if (credential.identityToken != null && credential.authorizationCode != null) {
+          try {
+            final appleProvider = firebase_auth.OAuthProvider('apple.com');
+            final appleCredential = appleProvider.credential(
+              idToken: credential.identityToken,
+              accessToken: credential.authorizationCode,
+            );
+
+            await firebase_auth.FirebaseAuth.instance.signInWithCredential(appleCredential);
+            final firebaseUser = firebase_auth.FirebaseAuth.instance.currentUser;
+            
+            if (firebaseUser != null) {
+              final firebaseToken = await firebaseUser.getIdToken();
+              print("✅ Firebase Auth Login Success! Token: $firebaseToken");
+              if (firebaseToken != null) {
+                 token = firebaseToken; // 백엔드로 보낼 토큰을 파이어베이스 토큰으로 교체
+              }
+              
+            }
+          } catch (e) {
+            print("❌ Firebase Auth Failed: $e");
+            // 파이어베이스 실패 시엔 기존 애플 토큰으로 진행 시도 (혹은 여기서 return)
+          }
+        }
         
         if (token.isEmpty) {
            throw Exception('Apple 토큰을 가져오지 못했습니다.');
@@ -79,13 +117,23 @@ class _LoginPageState extends State<LoginPage> {
 
         // 유저 정보 저장 (참고: Apple은 최초 로그인 시에만 이름/이메일을 줍니다)
         final AuthTokenStorage storage = AuthTokenStorage();
-        String? name;
-        if (credential.givenName != null || credential.familyName != null) {
+        
+        // 이름 정보가 없으면 credential에서 다시 시도 (Apple Login 특성상)
+        if (name == null && (credential.givenName != null || credential.familyName != null)) {
             name = '${credential.givenName ?? ""} ${credential.familyName ?? ""}'.trim();
         }
         
+        // 여전히 이메일이 없으면 credential에서 다시 시도
+        if (email == null) {
+          email = credential.email;
+        }
+
+        if (email == null) {
+          email = credential.email;
+        }
+
         await storage.saveUserInfo(
-          name: name?.isNotEmpty == true ? name : null,
+          // name: name?.isNotEmpty == true ? name : null, // 닉네임 설정 전에는 저장 안 함
           email: credential.email,
         );
 
@@ -94,6 +142,12 @@ class _LoginPageState extends State<LoginPage> {
         // 카카오톡 설치 여부 확인
         if (await isKakaoTalkInstalled()) {
           try {
+              // 기존 로그인 상태 해제 (권한 재요청을 위해)
+              try {
+                await UserApi.instance.logout();
+                print('카카오 로그아웃 성공 (재로그인 시도)');
+              } catch (_) {}
+
               await UserApi.instance.loginWithKakaoTalk();
               print('카카오톡으로 로그인 성공');
           } catch (error) {
@@ -116,6 +170,11 @@ class _LoginPageState extends State<LoginPage> {
           }
         } else {
           try {
+            // 기존 로그인 상태 해제
+            try {
+              await UserApi.instance.logout();
+            } catch (_) {}
+
             await UserApi.instance.loginWithKakaoAccount();
             print('카카오계정으로 로그인 성공');
           } catch (error) {
@@ -130,47 +189,80 @@ class _LoginPageState extends State<LoginPage> {
         OAuthToken? auth = await TokenManagerProvider.instance.manager.getToken();
         
         // 백엔드가 ID Token(JWT)을 기대하는 경우를 위해 idToken 우선 사용
-        if (auth?.idToken != null && auth!.idToken!.isNotEmpty) {
-          token = auth.idToken!;
-          print("DEBUG: Using Kakao ID Token (OIDC)");
-        } else {
+        // if (auth?.idToken != null && auth!.idToken!.isNotEmpty) {
+        //   token = auth.idToken!;
+        //   print("DEBUG: Using Kakao ID Token (OIDC)");
+        // } else {
           token = auth?.accessToken ?? '';
-          print("DEBUG: Using Kakao Access Token (Validation may fail if backend expects JWT)");
-        }
+          print("DEBUG: Using Kakao Access Token (Fallback)");
+        // }
         
         final AuthTokenStorage storage = AuthTokenStorage();
         await storage.saveUserInfo(
-            name: user.kakaoAccount?.profile?.nickname,
+            // name: user.kakaoAccount?.profile?.nickname, // 닉네임 설정 전에는 저장 안 함
             email: user.kakaoAccount?.email,
             photoUrl: user.kakaoAccount?.profile?.profileImageUrl,
         );
         
+        print("DEBUG: Kakao User Info -> Email: ${user.kakaoAccount?.email}, Nickname: ${user.kakaoAccount?.profile?.nickname}");
+        print("DEBUG: Kakao User Scopes -> ${user.kakaoAccount?.toJson()}");
+
+        // 이메일이 없는 경우 (동의 항목 미설정 등) 임시 이메일 생성
+        email = user.kakaoAccount?.email;
+        if (email == null || email.isEmpty) {
+          final tempId = user.id.toString();
+          email = 'kakao_temp_$tempId@bimo.temp';
+          print("WARNING: Email missing. Using temporary email: $email");
+        }
+
         print("DEBUG: Sending Kakao Token to Server: $token");
+        print("DEBUG: Sending Email: $email");
       }
 
       // 2. 백엔드 API 호출
-      await _loginUseCase(
+      final authResult = await _loginUseCase(
         provider: provider,
         token: token,
+        // Apple은 토큰 내부에 이메일 정보가 포함되어 있고, 명시적으로 보내면 서버에서 401 에러가 발생함
+        // Kakao는 토큰에 없을 수 있어서 임시 이메일을 보냄
+        email: provider == 'apple' ? null : email, 
       );
-
-      if (!mounted) return;
-
-      // 3. 성공 시 홈으로 이동
-      context.go(RouteNames.home);
       
+      print('✅ Login Successful! Checking User Profile...');
+      
+      // 3. 닉네임 설정 여부 확인 및 이동
+      final user = authResult.user;
+      final displayName = user?['display_name'];
+      final userId = user?['uid']; // 혹은 id, user_id 등 백엔드 응답 키 확인 필요
+
+      print('✅ Login Successful! User: $displayName');
+
+      // 저장소에 userId와 최신 닉네임 저장 (앱 재시작 시 체크용)
+      // 주의: 닉네임 설정이 완료되기 전까지는 name을 저장하지 않음으로써,
+      // 앱 재시작 시 Splash에서 닉네임 설정을 강제할 수 있도록 함.
+      final storage = AuthTokenStorage();
+      await storage.saveUserInfo(
+        userId: userId,
+        // name: displayName, // <-- 여기서 저장하지 않음!
+        email: email, 
+      );
+      
+      // 3. 닉네임 설정 페이지로 이동 (통일)
+      // 닉네임이 있어도 설정 페이지로 이동하여 확인/수정하도록 함
+      AppRouter.router.push(
+        RouteNames.nicknameSetup, 
+        extra: {
+          'userId': userId ?? '',
+          'nickname': displayName,
+        },
+      );
     } catch (e) {
       // 401 에러(토큰 유효하지 않음)는 테스트 상황에서 정상이므로,
       // 테스트 모드로 간주하고 강제로 로그인을 성공시킵니다.
       
-      if (!mounted) return;
-
       print('API Error (Expected in Test): $e');
 
-      // --- [TEST MODE] 강제 로그인 처리 (Google 실패 시에도 적용할지 여부는 선택) ---
-      // 실제 구글 로그인을 시도했으나 서버에서 401을 주면 (아직 백엔드 검증 로직이 미완성이거나 등등)
-      // 일단 테스트 모드로 넘길 수도 있습니다.
-      // 여기서는 "사용자가 원한 진짜 성공"을 위해 에러를 띄웁니다.
+      if (!mounted) return;
       
       ScaffoldMessenger.of(context).showSnackBar(
          SnackBar(

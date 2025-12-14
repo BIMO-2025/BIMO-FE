@@ -42,10 +42,23 @@ class _SplashPageState extends State<SplashPage> {
     try {
       final storage = AuthTokenStorage();
       final accessToken = await storage.getAccessToken();
+      final userInfo = await storage.getUserInfo();
+      final userId = userInfo['userId'];
+      final userName = userInfo['name'];
 
       if (accessToken != null) {
-        // 토큰이 있으면 홈으로 이동
-        context.go(RouteNames.home);
+        // 토큰은 있는데 닉네임(이름)이 없으면 닉네임 설정 페이지로 이동
+        // (로그인 중간에 앱을 끈 경우)
+        if (userName == null || userName.isEmpty) {
+           print('ℹ️ Splash: 닉네임 미설정 유저 -> 설정 페이지로 이동');
+           context.go(
+             RouteNames.nicknameSetup, 
+             extra: {'userId': userId ?? ''}, // 여기서는 prefill은 불가 (저장 안 했으므로)
+           );
+        } else {
+           // 정상 로그인 상태
+           context.go(RouteNames.home);
+        }
       } else {
         // 토큰이 없으면 온보딩으로 이동
         context.go(RouteNames.onboarding);

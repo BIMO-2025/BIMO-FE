@@ -19,9 +19,9 @@ class ApiConstants {
   static const String register = '${_apiPrefix}auth/register';
 
   // 사용자 관련
-  static const String userProfile = '$_apiPrefix/user/profile';
-  static const String updateNickname = '$_apiPrefix/user/nickname';
-  static const String checkNickname = '$_apiPrefix/user/nickname/check';
+  static const String userProfile = '${_apiPrefix}user/profile';
+  static const String updateNickname = '${_apiPrefix}user/nickname';
+  static const String checkNickname = '${_apiPrefix}user/nickname/check';
 
   // 항공사 관련
   static const String airlines = '$_apiPrefix/airlines';

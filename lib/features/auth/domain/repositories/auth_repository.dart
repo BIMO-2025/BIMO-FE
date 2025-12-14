@@ -5,5 +5,6 @@ abstract class AuthRepository {
   Future<AuthResult> login({
     required String provider,
     required String token,
+    String? email,
   });
 }
