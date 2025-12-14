@@ -7,6 +7,7 @@ import '../models/airline_sorting_response.dart';
 import '../models/airline_detail_response.dart';
 import '../models/airline_info_response.dart';
 import '../models/airline_summary_response.dart';
+import '../models/airline_reviews_response.dart';
 
 /// 항공사 API 서비스
 class AirlineApiService {
@@ -415,6 +416,55 @@ class AirlineApiService {
       throw _handleDioError(e);
     } catch (e, stackTrace) {
       print('❌ 예상치 못한 에러 (BIMO 요약): $e');
+      print('❌ 스택 트레이스: $stackTrace');
+      throw Exception('Unexpected error: $e');
+    }
+  }
+
+  /// 항공사 리뷰 목록 조회
+  ///
+  /// [airlineCode] 항공사 코드 (예: "KE", "AF", "SQ")
+  /// [sort] 정렬 옵션 (latest, recommended, rating_high, rating_low)
+  /// [limit] 조회할 리뷰 개수 (기본값: 20, 최대: 100)
+  /// [offset] 오프셋 (기본값: 0)
+  Future<AirlineReviewsResponse> getAirlineReviews({
+    required String airlineCode,
+    String sort = 'latest',
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    try {
+      final url = '${ApiConstants.baseUrl}${ApiConstants.airlinesReviews}/$airlineCode/reviews';
+      print('🚀 API 호출 (리뷰 목록): $url?sort=$sort&limit=$limit&offset=$offset');
+
+      final response = await _dio.get(
+        '${ApiConstants.airlinesReviews}/$airlineCode/reviews',
+        queryParameters: {
+          'sort': sort,
+          'limit': limit,
+          'offset': offset,
+        },
+      );
+
+      print('✅ 응답 성공 (리뷰 목록): ${response.statusCode}');
+      print('📄 응답 데이터 (리뷰 목록): ${response.data}');
+
+      if (response.statusCode == 200) {
+        return AirlineReviewsResponse.fromJson(
+          response.data as Map<String, dynamic>,
+        );
+      } else {
+        throw Exception(
+          'Failed to get airline reviews: ${response.statusCode}',
+        );
+      }
+    } on DioException catch (e) {
+      print('❌ DioException 발생 (리뷰 목록): ${e.type}');
+      print('❌ 에러 메시지: ${e.message}');
+      print('❌ 응답: ${e.response?.data}');
+      throw _handleDioError(e);
+    } catch (e, stackTrace) {
+      print('❌ 예상치 못한 에러 (리뷰 목록): $e');
       print('❌ 스택 트레이스: $stackTrace');
       throw Exception('Unexpected error: $e');
     }

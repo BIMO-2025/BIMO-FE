@@ -219,14 +219,14 @@ class _AirlineDetailPageState extends State<AirlineDetailPage> {
             height: context.h(110),
             margin: EdgeInsets.symmetric(horizontal: context.w(20)),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(context.w(16)),
+              borderRadius: BorderRadius.circular(14), // 14로 고정
               color: isPngLogo 
                   ? Colors.white  // PNG 로고는 흰색 배경
                   : const Color(0xFF1A1A1A), // 일반 이미지는 어두운 배경
             ),
             child: imageUrl != null
                 ? ClipRRect(
-                    borderRadius: BorderRadius.circular(context.w(16)),
+                    borderRadius: BorderRadius.circular(14), // 14로 고정
                     child: Image.network(
                       imageUrl,
                       fit: isPngLogo ? BoxFit.contain : BoxFit.cover, // PNG는 contain, 일반은 cover
