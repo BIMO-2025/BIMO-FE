@@ -382,81 +382,69 @@ class _HomePageState extends State<HomePage> {
         ),
       );
 
-      try {
-        // 날짜 포맷
-        final formattedDate =
-            '${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}';
+      // 날짜 포맷
+      final formattedDate =
+          '${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}';
 
-        // 항공편 검색 API 호출 (성공할 때까지 무한 재시도)
-        int attempt = 0;
-        bool success = false;
+      // 항공편 검색 API 호출 (성공할 때까지 무한 재시도)
+      int attempt = 0;
+      bool success = false;
 
-        while (!success) {
-          attempt++;
-          print('🔄 검색 시도 $attempt');
+      while (!success) {
+        attempt++;
+        print('🔄 검색 시도 $attempt');
 
-          try {
-            final response = await _apiService.searchFlights(
-              origin: _departureAirport!.airportCode,
-              destination: _arrivalAirport!.airportCode,
-              departureDate: formattedDate,
-              adults: 1,
-            );
+        try {
+          final response = await _apiService.searchFlights(
+            origin: _departureAirport!.airportCode,
+            destination: _arrivalAirport!.airportCode,
+            departureDate: formattedDate,
+            adults: 1,
+          );
 
-            // 항공사 정보 조회
-            final List<PopularAirlineResponse> airlineResults = [];
-            if (response.airlines.isNotEmpty) {
-              for (final airlineInfo in response.airlines) {
-                try {
-                  final results = await _apiService.searchAirlines(
-                    query: airlineInfo.airlineName,
-                  );
-                  if (results.isNotEmpty) {
-                    airlineResults.add(results.first);
-                  }
-                } catch (e) {
-                  print('항공사 정보 조회 실패: ${airlineInfo.airlineName} - $e');
+          // 항공사 정보 조회
+          final List<PopularAirlineResponse> airlineResults = [];
+          if (response.airlines.isNotEmpty) {
+            for (final airlineInfo in response.airlines) {
+              try {
+                final results = await _apiService.searchAirlines(
+                  query: airlineInfo.airlineName,
+                );
+                if (results.isNotEmpty) {
+                  airlineResults.add(results.first);
                 }
+              } catch (e) {
+                print('항공사 정보 조회 실패: ${airlineInfo.airlineName} - $e');
               }
             }
-
-            // 성공!
-            success = true;
-            
-            // 로딩 다이얼로그 닫기
-            if (mounted) Navigator.pop(context);
-
-            // 결과 페이지로 이동 (검색 결과 전달)
-            if (mounted) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => AirlineSearchResultPage(
-                    initialTabIndex: _searchTabIndex,
-                    departureAirport: _departureAirport,
-                    arrivalAirport: _arrivalAirport,
-                    selectedDate: _selectedDate,
-                    airlineQuery: '',
-                    initialSearchResults: airlineResults, // 검색 결과 전달
-                  ),
-                ),
-              );
-            }
-          } catch (e) {
-            print('❌ 검색 시도 $attempt 실패: $e');
-            // 1초 대기 후 재시도
-            await Future.delayed(const Duration(seconds: 1));
           }
-        }
-      } catch (e) {
-        if (mounted) Navigator.pop(context); // 로딩 다이얼로그 닫기
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('오류가 발생했습니다: $e'),
-              duration: const Duration(seconds: 3),
-            ),
-          );
+
+          // 성공!
+          success = true;
+          
+          // 로딩 다이얼로그 닫기
+          if (mounted) Navigator.pop(context);
+
+          // 결과 페이지로 이동 (검색 결과 전달)
+          if (mounted) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => AirlineSearchResultPage(
+                  initialTabIndex: _searchTabIndex,
+                  departureAirport: _departureAirport,
+                  arrivalAirport: _arrivalAirport,
+                  selectedDate: _selectedDate,
+                  airlineQuery: '',
+                  initialSearchResults: airlineResults, // 검색 결과 전달
+                ),
+              ),
+            );
+          }
+        } catch (e) {
+          print('❌ 검색 시도 $attempt 실패: $e');
+          // 1초 대기 후 재시도
+          await Future.delayed(const Duration(seconds: 1));
         }
       }
     }
