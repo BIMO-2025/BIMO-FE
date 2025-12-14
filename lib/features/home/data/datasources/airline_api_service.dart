@@ -110,6 +110,12 @@ class AirlineApiService {
         );
       }
     } on DioException catch (e) {
+      // 404는 데이터 없음으로 처리하여 빈 리스트 반환 (또는 UI에서 기본값 표시하도록 유도)
+      if (e.response?.statusCode == 404) {
+        print('⚠️ 인기 항공사 데이터 없음 (404) -> 빈 리스트 반환');
+        return [];
+      }
+      
       print('❌ DioException 발생 (전체 인기 항공사): ${e.type}');
       print('❌ 에러 메시지: ${e.message}');
       print('❌ 응답: ${e.response?.data}');

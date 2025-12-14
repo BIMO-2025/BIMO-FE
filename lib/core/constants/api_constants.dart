@@ -31,7 +31,7 @@ class ApiConstants {
   static const String myReviews = '$_apiPrefix/reviews/my';
 
   // Endpoints (Merged from Dev)
-  static const String airlinesPopularWeekly = '/airlines/popular/weekly';
-  static const String airlinesPopular = '/airlines/popular';
-  static const String airlinesSearch = '/airlines/search';
+  static const String airlinesPopularWeekly = 'airlines/popular/weekly';
+  static const String airlinesPopular = 'airlines/popular';
+  static const String airlinesSearch = 'airlines/search';
 }

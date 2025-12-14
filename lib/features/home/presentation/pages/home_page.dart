@@ -120,7 +120,12 @@ class _HomePageState extends State<HomePage> {
           }).toList();
 
       setState(() {
-        _popularAirlines = airlineDataList;
+        // 데이터가 없으면 기본 데이터 표시
+        if (airlineDataList.isEmpty) {
+          _popularAirlines = _getDefaultAirlines();
+        } else {
+          _popularAirlines = airlineDataList;
+        }
         _weekLabel = _getCurrentWeekLabel(); // 현재 주차 라벨 사용
         _isLoadingAirlines = false;
       });
