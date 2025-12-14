@@ -44,35 +44,38 @@ class DestinationSearchSection extends StatelessWidget {
           Stack(
             alignment: Alignment.center,
             children: [
-              // 출발/도착 공항 카드 Row
-              Row(
-                children: [
-                  // 출발 공항 카드
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: onDepartureTap,
-                      child: _buildAirportCard(
-                        context,
-                        label: '출발 공항',
-                        airport: departureAirport,
-                        isSelected: isDepartureSelected,
+              // 출발/도착 공항 카드 Row (IntrinsicHeight로 높이 동기화)
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // 출발 공항 카드
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: onDepartureTap,
+                        child: _buildAirportCard(
+                          context,
+                          label: '출발 공항',
+                          airport: departureAirport,
+                          isSelected: isDepartureSelected,
+                        ),
                       ),
                     ),
-                  ),
-                  SizedBox(width: context.w(10)), // 카드 사이 간격 10
-                  // 도착 공항 카드
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: onArrivalTap,
-                      child: _buildAirportCard(
-                        context,
-                        label: '도착 공항',
-                        airport: arrivalAirport,
-                        isSelected: isArrivalSelected,
+                    SizedBox(width: context.w(10)), // 카드 사이 간격 10
+                    // 도착 공항 카드
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: onArrivalTap,
+                        child: _buildAirportCard(
+                          context,
+                          label: '도착 공항',
+                          airport: arrivalAirport,
+                          isSelected: isArrivalSelected,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               // Swap 아이콘 (중앙)
               GestureDetector(
@@ -156,8 +159,9 @@ class DestinationSearchSection extends StatelessWidget {
     required bool isSelected,
   }) {
     return Container(
-      width: context.w(163.5),
-      height: context.h(87),
+      constraints: BoxConstraints(
+        minHeight: context.h(87), // 최소 높이 87
+      ),
       padding: EdgeInsets.symmetric(
         horizontal: context.w(20),
         vertical: context.h(15),
@@ -168,6 +172,7 @@ class DestinationSearchSection extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           // 라벨 (출발 공항 / 도착 공항)
           Text(
@@ -182,7 +187,7 @@ class DestinationSearchSection extends StatelessWidget {
             ),
           ),
           SizedBox(height: context.h(10)), // 라벨 아래 10px
-          // 공항 정보 (인천 (INC))
+          // 공항 정보 (인천 (INC)) - 자동 줄바꿈
           Text(
             airport,
             style: TextStyle(

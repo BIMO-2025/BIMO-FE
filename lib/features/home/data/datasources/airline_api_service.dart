@@ -4,6 +4,10 @@ import '../models/popular_airline_response.dart';
 import '../models/flight_search_response.dart';
 import '../models/location_search_response.dart';
 import '../models/airline_sorting_response.dart';
+import '../models/airline_detail_response.dart';
+import '../models/airline_info_response.dart';
+import '../models/airline_summary_response.dart';
+import '../models/airline_reviews_response.dart';
 
 /// 항공사 API 서비스
 class AirlineApiService {
@@ -234,11 +238,14 @@ class AirlineApiService {
     try {
       final url = '${ApiConstants.baseUrl}${ApiConstants.locationsSearch}';
       print('🚀 API 호출: $url');
-      print('📦 파라미터: keyword=$keyword');
+      print('📦 파라미터: keyword=$keyword, subType=AIRPORT');
 
       final response = await _dio.get(
         ApiConstants.locationsSearch,
-        queryParameters: {'keyword': keyword},
+        queryParameters: {
+          'keyword': keyword,
+          'subType': 'AIRPORT', // 공항만 검색
+        },
       );
 
       print('✅ 응답 성공: ${response.statusCode}');
@@ -295,6 +302,169 @@ class AirlineApiService {
       throw _handleDioError(e);
     } catch (e, stackTrace) {
       print('❌ 예상치 못한 에러 (정렬 항공사): $e');
+      print('❌ 스택 트레이스: $stackTrace');
+      throw Exception('Unexpected error: $e');
+    }
+  }
+
+  /// 항공사 세부 정보 조회
+  ///
+  /// [airlineCode] 항공사 코드 (예: "KE", "AF", "SQ")
+  Future<AirlineInfoResponse> getAirlineDetail({
+    required String airlineCode,
+  }) async {
+    try {
+      final url = '${ApiConstants.baseUrl}${ApiConstants.airlinesDetail}/$airlineCode';
+      print('🚀 API 호출: $url');
+
+      final response = await _dio.get(
+        '${ApiConstants.airlinesDetail}/$airlineCode',
+      );
+
+      print('✅ 응답 성공: ${response.statusCode}');
+      print('📄 응답 데이터: ${response.data}');
+
+      if (response.statusCode == 200) {
+        return AirlineInfoResponse.fromJson(
+          response.data as Map<String, dynamic>,
+        );
+      } else {
+        throw Exception(
+          'Failed to get airline detail: ${response.statusCode}',
+        );
+      }
+    } on DioException catch (e) {
+      print('❌ DioException 발생 (항공사 세부 정보): ${e.type}');
+      print('❌ 에러 메시지: ${e.message}');
+      print('❌ 응답: ${e.response?.data}');
+      throw _handleDioError(e);
+    } catch (e, stackTrace) {
+      print('❌ 예상치 못한 에러 (항공사 세부 정보): $e');
+      print('❌ 스택 트레이스: $stackTrace');
+      throw Exception('Unexpected error: $e');
+    }
+  }
+
+  /// 항공사 통계 정보 조회 (세부 평점)
+  ///
+  /// [airlineCode] 항공사 코드 (예: "KE", "AF", "SQ")
+  Future<AirlineDetailResponse> getAirlineStatistics({
+    required String airlineCode,
+  }) async {
+    try {
+      final url = '${ApiConstants.baseUrl}${ApiConstants.airlinesStatistics}/$airlineCode/statistics';
+      print('🚀 API 호출 (통계): $url');
+
+      final response = await _dio.get(
+        '${ApiConstants.airlinesStatistics}/$airlineCode/statistics',
+      );
+
+      print('✅ 응답 성공 (통계): ${response.statusCode}');
+      print('📄 응답 데이터 (통계): ${response.data}');
+
+      if (response.statusCode == 200) {
+        return AirlineDetailResponse.fromJson(
+          response.data as Map<String, dynamic>,
+        );
+      } else {
+        throw Exception(
+          'Failed to get airline statistics: ${response.statusCode}',
+        );
+      }
+    } on DioException catch (e) {
+      print('❌ DioException 발생 (항공사 통계): ${e.type}');
+      print('❌ 에러 메시지: ${e.message}');
+      print('❌ 응답: ${e.response?.data}');
+      throw _handleDioError(e);
+    } catch (e, stackTrace) {
+      print('❌ 예상치 못한 에러 (항공사 통계): $e');
+      print('❌ 스택 트레이스: $stackTrace');
+      throw Exception('Unexpected error: $e');
+    }
+  }
+
+  /// BIMO 요약 조회
+  ///
+  /// [airlineCode] 항공사 코드 (예: "KE", "AF", "SQ")
+  Future<AirlineSummaryResponse> getAirlineSummary({
+    required String airlineCode,
+  }) async {
+    try {
+      final url = '${ApiConstants.baseUrl}${ApiConstants.airlinesSummary}/$airlineCode/summary';
+      print('🚀 API 호출 (BIMO 요약): $url');
+
+      final response = await _dio.get(
+        '${ApiConstants.airlinesSummary}/$airlineCode/summary',
+      );
+
+      print('✅ 응답 성공 (BIMO 요약): ${response.statusCode}');
+      print('📄 응답 데이터 (BIMO 요약): ${response.data}');
+
+      if (response.statusCode == 200) {
+        return AirlineSummaryResponse.fromJson(
+          response.data as Map<String, dynamic>,
+        );
+      } else {
+        throw Exception(
+          'Failed to get airline summary: ${response.statusCode}',
+        );
+      }
+    } on DioException catch (e) {
+      print('❌ DioException 발생 (BIMO 요약): ${e.type}');
+      print('❌ 에러 메시지: ${e.message}');
+      print('❌ 응답: ${e.response?.data}');
+      throw _handleDioError(e);
+    } catch (e, stackTrace) {
+      print('❌ 예상치 못한 에러 (BIMO 요약): $e');
+      print('❌ 스택 트레이스: $stackTrace');
+      throw Exception('Unexpected error: $e');
+    }
+  }
+
+  /// 항공사 리뷰 목록 조회
+  ///
+  /// [airlineCode] 항공사 코드 (예: "KE", "AF", "SQ")
+  /// [sort] 정렬 옵션 (latest, recommended, rating_high, rating_low)
+  /// [limit] 조회할 리뷰 개수 (기본값: 20, 최대: 100)
+  /// [offset] 오프셋 (기본값: 0)
+  Future<AirlineReviewsResponse> getAirlineReviews({
+    required String airlineCode,
+    String sort = 'latest',
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    try {
+      final url = '${ApiConstants.baseUrl}${ApiConstants.airlinesReviews}/$airlineCode/reviews';
+      print('🚀 API 호출 (리뷰 목록): $url?sort=$sort&limit=$limit&offset=$offset');
+
+      final response = await _dio.get(
+        '${ApiConstants.airlinesReviews}/$airlineCode/reviews',
+        queryParameters: {
+          'sort': sort,
+          'limit': limit,
+          'offset': offset,
+        },
+      );
+
+      print('✅ 응답 성공 (리뷰 목록): ${response.statusCode}');
+      print('📄 응답 데이터 (리뷰 목록): ${response.data}');
+
+      if (response.statusCode == 200) {
+        return AirlineReviewsResponse.fromJson(
+          response.data as Map<String, dynamic>,
+        );
+      } else {
+        throw Exception(
+          'Failed to get airline reviews: ${response.statusCode}',
+        );
+      }
+    } on DioException catch (e) {
+      print('❌ DioException 발생 (리뷰 목록): ${e.type}');
+      print('❌ 에러 메시지: ${e.message}');
+      print('❌ 응답: ${e.response?.data}');
+      throw _handleDioError(e);
+    } catch (e, stackTrace) {
+      print('❌ 예상치 못한 에러 (리뷰 목록): $e');
       print('❌ 스택 트레이스: $stackTrace');
       throw Exception('Unexpected error: $e');
     }

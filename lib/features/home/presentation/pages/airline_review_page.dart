@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/responsive_extensions.dart';
 import '../../domain/models/airline.dart';
+import '../../data/datasources/airline_api_service.dart';
+import '../../data/models/airline_reviews_response.dart';
 import 'review_detail_page.dart';
 import '../widgets/review_filter_bottom_sheet.dart';
 
@@ -18,11 +20,18 @@ class AirlineReviewPage extends StatefulWidget {
 }
 
 class _AirlineReviewPageState extends State<AirlineReviewPage> {
+  final AirlineApiService _apiService = AirlineApiService();
+  
   bool _isFilterActive = false;
   String _selectedSort = '최신순';
   final List<String> _sortOptions = ['최신순', '추천순', '평점 높은 순', '평점 낮은 순'];
+  
+  // API 데이터
+  bool _isLoading = true;
+  List<ReviewItem> _apiReviews = [];
+  AirlineReviewsResponse? _reviewsResponse;
 
-  // Mock Data for Reviews
+  // Mock Data for Reviews (fallback)
   final List<Review> _reviews = [
     Review(
       nickname: '여행조아',
@@ -55,6 +64,53 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
       ],
     ),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadReviews();
+  }
+
+  Future<void> _loadReviews() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final response = await _apiService.getAirlineReviews(
+        airlineCode: widget.airline.code,
+        sort: _getSortParam(_selectedSort),
+        limit: 20,
+        offset: 0,
+      );
+
+      setState(() {
+        _reviewsResponse = response;
+        _apiReviews = response.reviews;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('⚠️ 리뷰 API 실패, mock 데이터 사용: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  String _getSortParam(String sortOption) {
+    switch (sortOption) {
+      case '최신순':
+        return 'latest';
+      case '추천순':
+        return 'recommended';
+      case '평점 높은 순':
+        return 'rating_high';
+      case '평점 낮은 순':
+        return 'rating_low';
+      default:
+        return 'latest';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -106,6 +162,18 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
   }
 
   Widget _buildRatingHeader(BuildContext context) {
+    // API 데이터 우선 사용
+    final rating = _reviewsResponse?.overallRating ?? widget.airline.rating;
+    final reviewCount = _reviewsResponse?.totalReviews ?? widget.airline.reviewCount;
+    
+    // 세부 평점 매핑 (API 데이터가 있으면 사용, 없으면 Mock 데이터 사용)
+    final avgRatings = _reviewsResponse?.averageRatings;
+    final seatComfort = avgRatings?['seatComfort'] ?? widget.airline.detailRating.seatComfort;
+    final foodAndBeverage = avgRatings?['inflightMeal'] ?? widget.airline.detailRating.foodAndBeverage;
+    final service = avgRatings?['service'] ?? widget.airline.detailRating.service;
+    final cleanliness = avgRatings?['cleanliness'] ?? widget.airline.detailRating.cleanliness;
+    final punctuality = avgRatings?['checkIn'] ?? widget.airline.detailRating.punctuality; // checkIn을 시간 준수/수속으로 매핑
+
     return Container(
       margin: EdgeInsets.all(context.w(20)),
       padding: EdgeInsets.all(context.w(20)),
@@ -119,7 +187,7 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                '${widget.airline.rating}',
+                '${rating.toStringAsFixed(1)}',
                 style: TextStyle(
                   fontFamily: 'Pretendard',
                   fontSize: context.fs(24),
@@ -138,7 +206,7 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
               ),
               SizedBox(width: context.w(8)),
               Text(
-                '(${_formatNumber(widget.airline.reviewCount)})',
+                '(${_formatNumber(reviewCount)})',
                 style: TextStyle(
                   fontFamily: 'Pretendard',
                   fontSize: context.fs(14),
@@ -149,7 +217,6 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
               SizedBox(width: context.w(12)),
               Row(
                 children: List.generate(5, (index) {
-                  double rating = widget.airline.rating;
                   double roundedRating = (rating * 2).round() / 2;
                   
                   IconData icon;
@@ -176,11 +243,11 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
             ],
           ),
           SizedBox(height: context.h(20)),
-          _buildDetailRatingRow(context, '좌석 편안함', widget.airline.detailRating.seatComfort),
-          _buildDetailRatingRow(context, '기내식 및 음료', widget.airline.detailRating.foodAndBeverage),
-          _buildDetailRatingRow(context, '서비스', widget.airline.detailRating.service),
-          _buildDetailRatingRow(context, '청결도', widget.airline.detailRating.cleanliness),
-          _buildDetailRatingRow(context, '시간 준수도 및 수속', widget.airline.detailRating.punctuality),
+          _buildDetailRatingRow(context, '좌석 편안함', seatComfort),
+          _buildDetailRatingRow(context, '기내식 및 음료', foodAndBeverage),
+          _buildDetailRatingRow(context, '서비스', service),
+          _buildDetailRatingRow(context, '청결도', cleanliness),
+          _buildDetailRatingRow(context, '시간 준수도 및 수속', punctuality),
         ],
       ),
     );
@@ -320,6 +387,7 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
                   setState(() {
                     _selectedSort = option;
                   });
+                  _loadReviews(); // API 재호출
                 },
                 child: Padding(
                   padding: EdgeInsets.only(right: context.w(12)),
@@ -385,99 +453,147 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
   }
 
   Widget _buildReviewList(BuildContext context) {
+    if (_isLoading) {
+      return Center(
+        child: Padding(
+          padding: EdgeInsets.all(context.w(40)),
+          child: CircularProgressIndicator(color: AppColors.yellow1),
+        ),
+      );
+    }
+    
+    // API 데이터를 Review 객체로 변환
+    List<Review> displayReviews = [];
+    
+    if (_apiReviews.isNotEmpty) {
+      // API 데이터를 Mock Review 형식으로 변환
+      displayReviews = _apiReviews.map((apiReview) {
+        return Review(
+          nickname: apiReview.userNickname,
+          profileImage: 'assets/images/search/user_img.png', // 기본 이미지
+          rating: apiReview.overallRating,
+          date: '', // API에 날짜 없음
+          likes: 0, // API에 좋아요 없음
+          tags: apiReview.route.isNotEmpty ? [apiReview.route] : [], // 경로를 태그로
+          content: apiReview.text,
+          images: [], // API에 이미지 없음
+        );
+      }).toList();
+    } else {
+      // API 데이터 없으면 Mock 데이터 사용
+      displayReviews = _reviews;
+    }
+    
     return ListView.separated(
-      padding: EdgeInsets.all(context.w(20)), // 원래대로 복구
+      padding: EdgeInsets.all(context.w(20)),
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: _reviews.length,
+      itemCount: displayReviews.length,
       separatorBuilder: (context, index) => SizedBox(height: context.h(12)),
       itemBuilder: (context, index) {
-        final review = _reviews[index];
-        return GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ReviewDetailPage(review: review),
-              ),
-            );
-          },
-          child: Container(
-          padding: EdgeInsets.all(context.w(20)),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1A1A1A),
-            borderRadius: BorderRadius.circular(context.w(16)),
+        final review = displayReviews[index];
+        return _buildReviewCard(context, review);
+      },
+    );
+  }
+
+  // 통합 리뷰 카드 (Mock UI 유지)
+  Widget _buildReviewCard(BuildContext context, Review review) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ReviewDetailPage(review: review),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // User Info
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: context.w(16),
-                        backgroundColor: const Color(0xFF333333),
-                        backgroundImage: AssetImage(review.profileImage),
-                      ),
-                      SizedBox(width: context.w(8)),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            review.nickname,
-                            style: TextStyle(
-                              fontFamily: 'Pretendard',
-                              fontSize: context.fs(14),
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                          SizedBox(height: context.h(2)),
-                          Row(
-                            children: [
-                              Icon(Icons.star, color: Colors.white, size: context.w(12)),
-                              SizedBox(width: context.w(2)),
-                              Text(
-                                '${review.rating}',
-                                style: TextStyle(
-                                  fontFamily: 'Pretendard',
-                                  fontSize: context.fs(12),
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              Text(
-                                '/5.0',
-                                style: TextStyle(
-                                  fontFamily: 'Pretendard',
-                                  fontSize: context.fs(12),
-                                  fontWeight: FontWeight.w400,
-                                  color: const Color(0xFF8E8E93),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  Text(
-                    '좋아요 ${review.likes}',
-                    style: TextStyle(
-                      fontFamily: 'Pretendard',
-                      fontSize: context.fs(13),
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.yellow1,
+        );
+      },
+      child: Container(
+        padding: EdgeInsets.all(context.w(20)),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1A1A),
+          borderRadius: BorderRadius.circular(context.w(16)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // User Info
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: context.w(16),
+                      backgroundColor: const Color(0xFF333333),
+                      backgroundImage: review.profileImage.startsWith('http') 
+                          ? NetworkImage(review.profileImage) 
+                          : AssetImage(review.profileImage) as ImageProvider,
+                      onBackgroundImageError: (_, __) {}, 
+                      child: review.profileImage.isEmpty 
+                          ? Text(
+                              review.nickname.isNotEmpty ? review.nickname[0] : 'U',
+                              style: TextStyle(color: Colors.white),
+                            )
+                          : null,
                     ),
+                    SizedBox(width: context.w(8)),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          review.nickname,
+                          style: TextStyle(
+                            fontFamily: 'Pretendard',
+                            fontSize: context.fs(14),
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                        SizedBox(height: context.h(2)),
+                        Row(
+                          children: [
+                            Icon(Icons.star, color: Colors.white, size: context.w(12)),
+                            SizedBox(width: context.w(2)),
+                            Text(
+                              '${review.rating}',
+                              style: TextStyle(
+                                fontFamily: 'Pretendard',
+                                fontSize: context.fs(12),
+                                fontWeight: FontWeight.w500,
+                                color: Colors.white,
+                              ),
+                            ),
+                            Text(
+                              '/5.0',
+                              style: TextStyle(
+                                fontFamily: 'Pretendard',
+                                fontSize: context.fs(12),
+                                fontWeight: FontWeight.w400,
+                                color: const Color(0xFF8E8E93),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                Text(
+                  '좋아요 ${review.likes}',
+                  style: TextStyle(
+                    fontFamily: 'Pretendard',
+                    fontSize: context.fs(13),
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.yellow1,
                   ),
-                ],
-              ),
-              SizedBox(height: context.h(12)),
-              
-              // Tags
+                ),
+              ],
+            ),
+            SizedBox(height: context.h(12)),
+            
+            // Tags
+            if (review.tags.isNotEmpty) ...[
               Row(
                 children: review.tags.map((tag) {
                   return Container(
@@ -503,11 +619,13 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
                 }).toList(),
               ),
               SizedBox(height: context.h(12)),
+            ],
 
-              // Photos
+            // Photos
+            if (review.images.isNotEmpty) ...[
               SizedBox(
                 height: context.w(80),
-                width: context.w(315), // 콘텐츠 영역(295) + 오른쪽 확장(20)
+                width: context.w(315),
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   padding: EdgeInsets.zero,
@@ -520,28 +638,37 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(context.w(8)),
                         color: const Color(0xFF333333),
-                        // image: DecorationImage(...)
+                        image: DecorationImage(
+                          image: review.images[index].startsWith('http')
+                              ? NetworkImage(review.images[index])
+                              : AssetImage(review.images[index]) as ImageProvider,
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     );
                   },
                 ),
               ),
               SizedBox(height: context.h(12)),
+            ],
 
-              // Content
-              RichText(
-                text: TextSpan(
-                  style: TextStyle(
-                    fontFamily: 'Pretendard',
-                    fontSize: context.fs(14),
-                    fontWeight: FontWeight.w400,
-                    color: const Color(0xFFCCCCCC),
-                    height: 1.5,
+            // Content
+            RichText(
+              text: TextSpan(
+                style: TextStyle(
+                  fontFamily: 'Pretendard',
+                  fontSize: context.fs(14),
+                  fontWeight: FontWeight.w400,
+                  color: const Color(0xFFCCCCCC),
+                  height: 1.5,
+                ),
+                children: [
+                  TextSpan(
+                    text: review.content.length > 400 
+                        ? '${review.content.substring(0, 400)}...' 
+                        : review.content,
                   ),
-                  children: [
-                    TextSpan(
-                      text: review.content.replaceAll('...더보기', ''),
-                    ),
+                  if (review.content.length > 400)
                     WidgetSpan(
                       child: GestureDetector(
                         onTap: () {
@@ -553,7 +680,7 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
                           );
                         },
                         child: Text(
-                          '...더보기',
+                          ' ...더보기',
                           style: TextStyle(
                             fontFamily: 'Pretendard',
                             fontSize: context.fs(14),
@@ -564,42 +691,41 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
                         ),
                       ),
                     ),
-                  ],
-                ),
-              ),
-              SizedBox(height: context.h(12)),
-
-              // Footer
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '신고하기',
-                    style: TextStyle(
-                      fontFamily: 'Pretendard',
-                      fontSize: context.fs(12),
-                      fontWeight: FontWeight.w400,
-                      color: const Color(0xFF555555),
-                    ),
-                  ),
-                  Text(
-                    review.date,
-                    style: TextStyle(
-                      fontFamily: 'Pretendard',
-                      fontSize: context.fs(12),
-                      fontWeight: FontWeight.w400,
-                      color: const Color(0xFF8E8E93),
-                    ),
-                  ),
                 ],
               ),
-            ],
-          ),
-          ), // GestureDetector
-        );
-      },
+            ),
+            SizedBox(height: context.h(12)),
+
+            // Footer
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '신고하기',
+                  style: TextStyle(
+                    fontFamily: 'Pretendard',
+                    fontSize: context.fs(12),
+                    fontWeight: FontWeight.w400,
+                    color: const Color(0xFF555555),
+                  ),
+                ),
+                Text(
+                  review.date,
+                  style: TextStyle(
+                    fontFamily: 'Pretendard',
+                    fontSize: context.fs(12),
+                    fontWeight: FontWeight.w400,
+                    color: const Color(0xFF8E8E93),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
+
 
   String _formatNumber(int number) {
     return number.toString().replaceAllMapped(
