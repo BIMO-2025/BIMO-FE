@@ -4,6 +4,8 @@ import '../../../features/onboarding/pages/splash_page.dart';
 import '../../../features/onboarding/pages/onboarding_page.dart';
 import '../../../features/auth/presentation/pages/nickname_setup_page.dart';
 import '../../../features/home/presentation/pages/home_page.dart';
+import '../../../features/home/presentation/pages/airline_review_page.dart';
+import '../../../features/home/presentation/pages/notification_page.dart';
 import '../../../features/home/presentation/pages/airline_detail_page.dart';
 import '../../../features/home/data/mock_airlines.dart';
 import '../../../features/auth/presentation/pages/login_page.dart';
@@ -57,6 +59,11 @@ class AppRouter {
         },
       ),
       // 테스트: 대한항공 상세 페이지
+      GoRoute(
+        path: '/notification',
+        name: 'notification',
+        builder: (context, state) => const NotificationPage(),
+      ),
       GoRoute(
         path: '/airline-detail',
         name: 'airline-detail',

@@ -18,6 +18,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/network/router/route_names.dart';
 import '../../../../core/storage/auth_token_storage.dart';
 import '../../../myflight/pages/myflight_page.dart';
+import '../../../../core/services/notification_service.dart';
 
 /// 홈 화면 메인 페이지
 class HomePage extends StatefulWidget {
@@ -57,12 +58,17 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           children: [
             // 커스텀 앱바 (높이 82px)
-            CustomAppBar(
-              hasUnreadNotifications: false, // TODO: 알림 상태 받아와서 확인할 게 있으면 상태 변경
-              onNotificationTap: () {
-                // TODO: 알림 화면으로 이동
+            ValueListenableBuilder<bool>(
+              valueListenable: NotificationService().hasUnread,
+              builder: (context, hasUnread, child) {
+                return CustomAppBar(
+                  hasUnreadNotifications: hasUnread,
+                  onNotificationTap: () {
+                    context.push('/notification');
+                  },
+                  showLogo: _selectedIndex == 0, // 홈 탭일 때만 로고 표시
+                );
               },
-              showLogo: _selectedIndex != 2, // 마이페이지가 아닐 때만 로고 표시
             ),
             // 본문 영역
             Expanded(
