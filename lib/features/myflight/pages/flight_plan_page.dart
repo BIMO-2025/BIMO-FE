@@ -2151,7 +2151,8 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
         return startA.compareTo(startB);
       });
     });
-    // Hive에 저장
+    
+    //  Hive에 저장 (setState 밖에서)
     await _saveTimelineToHive();
   }
 
