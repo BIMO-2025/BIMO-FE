@@ -3,10 +3,14 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/responsive_extensions.dart';
+import '../../../core/network/api_client.dart';
+import '../../../core/storage/auth_token_storage.dart';
+import '../../../core/network/router/route_names.dart';
 import '../widgets/flight_card_widget.dart' show DashedLinePainter;
 
 /// 리뷰 작성 페이지
@@ -37,6 +41,7 @@ class ReviewWritePage extends StatefulWidget {
 class _ReviewWritePageState extends State<ReviewWritePage> {
   final TextEditingController _reviewController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
+  final ApiClient _apiClient = ApiClient();
   List<XFile> _selectedImages = [];
   
   // 각 카테고리별 별점 (0-5)
@@ -46,10 +51,145 @@ class _ReviewWritePageState extends State<ReviewWritePage> {
   int _cleanlinessRating = 0;
   int _punctualityRating = 0;
 
+  bool _isSubmitting = false;
+
   @override
   void dispose() {
     _reviewController.dispose();
     super.dispose();
+  }
+
+  /// 리뷰 제출
+  Future<void> _submitReview() async {
+    // 유효성 검사
+    if (_seatRating == 0 || _foodRating == 0 || _serviceRating == 0 || 
+        _cleanlinessRating == 0 || _punctualityRating == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('모든 항목에 별점을 매겨주세요.')),
+      );
+      return;
+    }
+
+    if (_reviewController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('리뷰 내용을 입력해주세요.')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    try {
+      // 사용자 정보 가져오기
+      final storage = AuthTokenStorage();
+      final userInfo = await storage.getUserInfo();
+      final userId = userInfo['userId'];
+      final userNickname = userInfo['name'] ?? '사용자';
+
+      if (userId == null || userId.isEmpty) {
+        throw Exception('사용자 정보를 찾을 수 없습니다.');
+      }
+
+      // 항공사 코드 추출 (flightNumber에서 앞 2자리)
+      final airlineCode = widget.flightNumber.length >= 2 
+          ? widget.flightNumber.substring(0, 2).toUpperCase()
+          : 'KE';
+
+      // 항공사 이름 매핑 (간단한 예시, 나중에 확장 가능)
+      final airlineName = _getAirlineName(airlineCode);
+
+      // 평균 별점 계산
+      final overallRating = (_seatRating + _foodRating + _serviceRating + 
+          _cleanlinessRating + _punctualityRating) / 5.0;
+
+      // 경로
+      final route = '${widget.departureCode}-${widget.arrivalCode}';
+
+      // TODO: 사진 업로드 처리
+      // 사진이 선택되었다면, 먼저 업로드 API를 통해 URL을 받아야 함
+      // 현재는 사진 업로드 API 엔드포인트가 필요함
+      String? imageUrl;
+      if (_selectedImages.isNotEmpty) {
+        // 예시: 첫 번째 이미지만 업로드
+        // final uploadedUrl = await _uploadImage(_selectedImages[0]);
+        // imageUrl = uploadedUrl;
+        print('⚠️ 사진 ${_selectedImages.length}개 선택됨 - 업로드 API 필요');
+      }
+
+      // API 요청 데이터
+      final requestData = {
+        'airlineCode': airlineCode,
+        'airlineName': airlineName,
+        'overallRating': overallRating,
+        'ratings': {
+          'checkIn': _punctualityRating,
+          'cleanliness': _cleanlinessRating,
+          'inflightMeal': _foodRating,
+          'seatComfort': _seatRating,
+          'service': _serviceRating,
+        },
+        'route': route,
+        'flightNumber': widget.flightNumber, // 편명 추가
+        'text': _reviewController.text.trim(),
+        'userId': userId,
+        'userNickname': userNickname,
+      };
+
+      // 이미지 URL이 있으면 추가
+      if (imageUrl != null && imageUrl.isNotEmpty) {
+        requestData['imageUrl'] = imageUrl;
+      }
+
+      print('🚀 리뷰 제출: $requestData');
+
+      // API 호출
+      final response = await _apiClient.post(
+        '/reviews',
+        data: requestData,
+      );
+
+      print('✅ 리뷰 제출 성공: ${response.data}');
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('리뷰가 등록되었습니다!')),
+      );
+
+      // 홈 화면으로 이동
+      context.go(RouteNames.home);
+    } catch (e) {
+      print('❌ 리뷰 제출 실패: $e');
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('리뷰 등록 실패: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
+    }
+  }
+
+  /// 항공사 코드 -> 이름 매핑
+  String _getAirlineName(String code) {
+    final Map<String, String> airlineNames = {
+      'KE': '대한항공',
+      'OZ': '아시아나항공',
+      'TW': '티웨이항공',
+      'LJ': '진에어',
+      '7C': '제주항공',
+      'ZE': '이스타항공',
+      'RS': '에어서울',
+      'BX': '에어부산',
+      // 추가 항공사...
+    };
+    return airlineNames[code] ?? code;
   }
 
   @override
@@ -619,13 +759,7 @@ class _ReviewWritePageState extends State<ReviewWritePage> {
   /// 리뷰 작성하기 버튼 (AddFlightPage 다음 버튼 스타일)
   Widget _buildSubmitButton() {
     return GestureDetector(
-      onTap: () {
-        // TODO: 리뷰 제출 기능
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('리뷰가 등록되었습니다!')),
-        );
-        Navigator.pop(context);
-      },
+      onTap: _isSubmitting ? null : _submitReview,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(30),
         child: BackdropFilter(
@@ -634,7 +768,9 @@ class _ReviewWritePageState extends State<ReviewWritePage> {
             width: 335,
             height: 50,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
+              color: _isSubmitting 
+                  ? Colors.white.withOpacity(0.03)
+                  : Colors.white.withOpacity(0.05),
               borderRadius: BorderRadius.circular(30),
               border: Border.all(
                 color: Colors.white.withOpacity(0.1),
@@ -642,12 +778,21 @@ class _ReviewWritePageState extends State<ReviewWritePage> {
               ),
             ),
             child: Center(
-              child: Text(
-                '리뷰 작성하기',
-                style: AppTextStyles.body.copyWith(
-                  color: Colors.white,
-                ),
-              ),
+              child: _isSubmitting
+                  ? SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : Text(
+                      '리뷰 작성하기',
+                      style: AppTextStyles.body.copyWith(
+                        color: Colors.white,
+                      ),
+                    ),
             ),
           ),
         ),

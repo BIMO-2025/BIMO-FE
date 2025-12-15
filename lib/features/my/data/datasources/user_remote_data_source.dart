@@ -13,17 +13,19 @@ class UserRemoteDataSource {
   /// [sleepPatternStart] 수면 시작 시간 (HH:MM)
   /// [sleepPatternEnd] 수면 종료 시간 (HH:MM)
   Future<Map<String, dynamic>> updateSleepPattern({
+    required String userId,
     required String sleepPatternStart,
     required String sleepPatternEnd,
   }) async {
     try {
       final url = '${ApiConstants.baseUrl}${ApiConstants.sleepPattern}';
       print('🚀 API 호출: $url');
-      print('📦 파라미터: start=$sleepPatternStart, end=$sleepPatternEnd');
+      print('📦 파라미터: userId=$userId, start=$sleepPatternStart, end=$sleepPatternEnd');
 
       final response = await _apiClient.put(
         ApiConstants.sleepPattern,
         data: {
+          'userId': userId,
           'sleepPatternStart': sleepPatternStart,
           'sleepPatternEnd': sleepPatternEnd,
         },

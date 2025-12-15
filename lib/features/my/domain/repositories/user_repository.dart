@@ -2,6 +2,7 @@
 abstract class UserRepository {
   /// 수면 패턴 업데이트
   Future<void> updateSleepPattern({
+    required String userId,
     required String sleepPatternStart,
     required String sleepPatternEnd,
   });

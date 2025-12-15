@@ -69,9 +69,17 @@ class _MyReviewsPageState extends State<MyReviewsPage> {
         },
       );
 
+      print('🔍 나의 리뷰 API 응답 (Status ${response.statusCode}):');
+      print('📦 응답 데이터: ${response.data}');
+
       if (response.statusCode == 200) {
         final data = response.data;
         final reviews = data['reviews'] as List;
+        
+        print('📝 리뷰 개수: ${reviews.length}');
+        if (reviews.isNotEmpty) {
+          print('📄 첫 번째 리뷰 샘플: ${reviews[0]}');
+        }
         
         setState(() {
           _myReviews = reviews.map((reviewData) {
@@ -86,7 +94,7 @@ class _MyReviewsPageState extends State<MyReviewsPage> {
                 reviewData['airlineName'] ?? '',
               ],
               content: reviewData['text'] ?? '',
-              images: [], // TODO: 이미지 처리
+              images: (reviewData['imageUrls'] as List?)?.cast<String>() ?? [],
             );
           }).toList();
           _isLoading = false;

@@ -10,10 +10,12 @@ class UserRepositoryImpl implements UserRepository {
 
   @override
   Future<void> updateSleepPattern({
+    required String userId,
     required String sleepPatternStart,
     required String sleepPatternEnd,
   }) async {
     await _remoteDataSource.updateSleepPattern(
+      userId: userId,
       sleepPatternStart: sleepPatternStart,
       sleepPatternEnd: sleepPatternEnd,
     );

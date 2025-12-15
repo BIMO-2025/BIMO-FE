@@ -40,7 +40,16 @@ class _MyInfoPageState extends State<MyInfoPage> {
       final startStr = '${_sleepStart!.hour.toString().padLeft(2, '0')}:${_sleepStart!.minute.toString().padLeft(2, '0')}';
       final endStr = '${_sleepEnd!.hour.toString().padLeft(2, '0')}:${_sleepEnd!.minute.toString().padLeft(2, '0')}';
 
+      final storage = AuthTokenStorage();
+      final userInfo = await storage.getUserInfo();
+      final userId = userInfo['userId'];
+
+      if (userId == null || userId.isEmpty) {
+        throw Exception('사용자 ID를 찾을 수 없습니다.');
+      }
+
       await _userRepository.updateSleepPattern(
+        userId: userId,
         sleepPatternStart: startStr,
         sleepPatternEnd: endStr,
       );
@@ -138,7 +147,16 @@ class _MyInfoPageState extends State<MyInfoPage> {
       final startStr = '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}';
       final endStr = '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}';
 
+      final storage = AuthTokenStorage();
+      final userInfo = await storage.getUserInfo();
+      final userId = userInfo['userId'];
+
+      if (userId == null || userId.isEmpty) {
+        throw Exception('사용자 ID를 찾을 수 없습니다.');
+      }
+
       await _userRepository.updateSleepPattern(
+        userId: userId,
         sleepPatternStart: startStr,
         sleepPatternEnd: endStr,
       );

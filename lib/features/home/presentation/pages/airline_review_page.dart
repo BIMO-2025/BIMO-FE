@@ -88,6 +88,8 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
         offset: 0,
       );
 
+      if (!mounted) return;
+
       setState(() {
         _reviewsResponse = response;
         _apiReviews = response.reviews;
@@ -103,6 +105,7 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
       }
     } catch (e) {
       print('⚠️ 리뷰 API 실패, mock 데이터 사용: $e');
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
       });
@@ -634,9 +637,10 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
         if (apiReview.flightNumber != null && apiReview.flightNumber!.isNotEmpty) {
           tags.add(apiReview.flightNumber!);
         }
-        if (apiReview.seatClass != null && apiReview.seatClass!.isNotEmpty) {
-          tags.add(apiReview.seatClass!);
-        }
+        // 좌석 등급 제거 (요구사항에 따라)
+        // if (apiReview.seatClass != null && apiReview.seatClass!.isNotEmpty) {
+        //   tags.add(apiReview.seatClass!);
+        // }
 
         return Review(
           nickname: apiReview.userNickname,
