@@ -14,6 +14,7 @@ class ApiConstants {
   static const String login = '${_apiPrefix}auth/login';
   static const String logout = '${_apiPrefix}auth/logout';
   static const String register = '${_apiPrefix}auth/register';
+  static const String refresh = '${_apiPrefix}auth/refresh';
 
   // 사용자 관련
   static const String userProfile = '${_apiPrefix}user/profile';
@@ -28,6 +29,7 @@ class ApiConstants {
   // 리뷰 관련
   static const String reviews = '$_apiPrefix/reviews';
   static const String myReviews = '$_apiPrefix/reviews/my';
+  static String userReviews(String userId) => '${_apiPrefix}reviews/users/$userId/reviews';
 
   // 항공사 검색 관련 (feature/home에서 추가)
   static const String airlinesPopularWeekly = 'airlines/popular/weekly';

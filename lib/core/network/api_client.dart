@@ -143,22 +143,32 @@ class _ApiInterceptor extends Interceptor {
             headers: {'Content-Type': 'application/json'},
           ));
           
-          final response = await dio.post('/auth/refresh', data: {
+          final response = await dio.post(ApiConstants.refresh, data: {
             'refresh_token': refreshToken,
           });
           
-          final newAccessToken = response.data['access_token'];
-          if (newAccessToken != null) {
-            print('✅ 토큰 갱신 성공!');
-            await storage.saveAccessToken(newAccessToken);
+          if (response.statusCode == 200) {
+            final newAccessToken = response.data['access_token'];
+            final newRefreshToken = response.data['refresh_token']; // 새로운 refresh token (선택적)
             
-            // 원래 요청의 헤더 업데이트
-            final options = err.requestOptions;
-            options.headers['Authorization'] = 'Bearer $newAccessToken';
-            
-            // 원래 요청 재시도
-            final cloneReq = await ApiClient().dio.fetch(options);
-            return handler.resolve(cloneReq);
+            if (newAccessToken != null) {
+              print('✅ 토큰 갱신 성공!');
+              await storage.saveAccessToken(newAccessToken);
+              
+              // 새로운 refresh token이 있으면 저장
+              if (newRefreshToken != null) {
+                await storage.saveRefreshToken(newRefreshToken);
+                print('✅ 새로운 리프레시 토큰 저장 완료');
+              }
+              
+              // 원래 요청의 헤더 업데이트
+              final options = err.requestOptions;
+              options.headers['Authorization'] = 'Bearer $newAccessToken';
+              
+              // 원래 요청 재시도
+              final cloneReq = await ApiClient().dio.fetch(options);
+              return handler.resolve(cloneReq);
+            }
           }
         } catch (e) {
           print('❌ 토큰 갱신 실패: $e');

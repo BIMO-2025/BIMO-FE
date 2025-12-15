@@ -16,6 +16,7 @@ import 'faq_page.dart';
 import 'announcement_page.dart';
 import 'my_reviews_page.dart';
 import 'sleep_pattern_page.dart';
+import '../../../../test_token_refresh.dart';
 
 /// 마이 페이지 (탭 컨텐츠)
 class MyPage extends StatefulWidget {
@@ -304,6 +305,39 @@ class _MyPageState extends State<MyPage> {
                   },
                 ),
               ],
+            ),
+
+            SizedBox(height: context.h(20)),
+
+            // 토큰 갱신 테스트 버튼 (개발용)
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: context.w(20)),
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const TestTokenRefreshPage(),
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.yellow1,
+                  foregroundColor: Colors.black,
+                  minimumSize: Size(context.w(335), context.h(48)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(context.w(12)),
+                  ),
+                ),
+                child: const Text(
+                  '🔄 토큰 갱신 테스트',
+                  style: TextStyle(
+                    fontFamily: 'Pretendard',
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
             ),
 
             SizedBox(height: context.h(100)), // 탭바 공간 확보
