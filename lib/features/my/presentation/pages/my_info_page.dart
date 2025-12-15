@@ -7,7 +7,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/responsive_extensions.dart';
 import 'nickname_edit_page.dart';
-import 'sleep_pattern_setting_page.dart';
+import 'sleep_pattern_page.dart';
 
 import '../../data/repositories/user_repository_impl.dart';
 
@@ -112,13 +112,22 @@ class _MyInfoPageState extends State<MyInfoPage> {
   }
 
   Future<void> _logout() async {
-    // 1. 저장소에서 토큰/정보 삭제
+    try {
+      // 1. 백엔드 로그아웃 API 호출
+      final response = await _userRepository.logout();
+      print('✅ 로그아웃 API 호출 성공: $response');
+    } catch (e) {
+      print('❌ 로그아웃 API 호출 실패: $e');
+      // API 실패해도 로컬 토큰은 삭제
+    }
+
+    // 2. 저장소에서 토큰/정보 삭제
     final storage = AuthTokenStorage();
     await storage.deleteAllTokens();
 
     if (!mounted) return;
     
-    // 2. 로그인 화면으로 이동 (스택 초기화)
+    // 3. 로그인 화면으로 이동 (스택 초기화)
     context.go(RouteNames.login);
   }
 
@@ -491,60 +500,6 @@ class _MyInfoPageState extends State<MyInfoPage> {
                       ],
                     ),
                   ],
-                ),
-              ),
-
-              SizedBox(height: context.h(16)),
-
-              // 수면 패턴 설정 버튼
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const SleepPatternSettingPage(),
-                    ),
-                  ).then((_) => _loadUserInfo()); // 돌아오면 정보 갱신
-                },
-                child: Container(
-                  width: context.w(335),
-                  padding: EdgeInsets.all(context.w(20)),
-                  decoration: BoxDecoration(
-                    color: AppColors.white.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(context.w(14)),
-                  ),
-                  child: Row(
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '수면 패턴 설정',
-                            style: AppTextStyles.bigBody.copyWith(
-                              color: AppColors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          SizedBox(height: context.h(4)),
-                          Text(
-                            _sleepStart != null && _sleepEnd != null
-                                ? '${_sleepStart!.hour.toString().padLeft(2, '0')}:${_sleepStart!.minute.toString().padLeft(2, '0')} - ${_sleepEnd!.hour.toString().padLeft(2, '0')}:${_sleepEnd!.minute.toString().padLeft(2, '0')}'
-                                : '수면 시간을 설정해주세요',
-                            style: AppTextStyles.body.copyWith(
-                              color: AppColors.white.withOpacity(0.6),
-                              fontSize: context.fs(14),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const Spacer(),
-                      Icon(
-                        Icons.arrow_forward_ios_rounded,
-                        color: AppColors.white.withOpacity(0.4),
-                        size: context.w(16),
-                      ),
-                    ],
-                  ),
                 ),
               ),
 

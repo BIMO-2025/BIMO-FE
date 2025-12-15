@@ -28,4 +28,14 @@ class UserRepositoryImpl implements UserRepository {
   Future<Map<String, dynamic>> getSleepPattern() async {
     return await _remoteDataSource.getSleepPattern();
   }
+
+  @override
+  Future<String> logout() async {
+    return await _remoteDataSource.logout();
+  }
+
+  @override
+  Future<Map<String, dynamic>> updateProfilePhoto(String imagePath) async {
+    return await _remoteDataSource.updateProfilePhoto(imagePath);
+  }
 }

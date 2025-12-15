@@ -5,6 +5,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/responsive_extensions.dart';
 import '../../../../core/storage/auth_token_storage.dart';
 import '../../../../core/network/api/user_api_service.dart'; // UserApiService import
+import '../../data/repositories/user_repository_impl.dart';
 import '../widgets/profile_card.dart';
 import '../widgets/menu_section.dart';
 import '../widgets/menu_item.dart';
@@ -53,7 +54,7 @@ class _MyPageState extends State<MyPage> {
     }
   }
 
-  /// 갤러리에서 이미지 선택 (로컬 저장)
+  /// 갤러리에서 이미지 선택 및 업로드
   Future<void> _pickImage() async {
     final ImagePicker picker = ImagePicker();
     try {
@@ -65,19 +66,39 @@ class _MyPageState extends State<MyPage> {
           _profileImageUrl = image.path;
         });
         
-        // 2. 로컬 스토리지에 저장 (API 없음)
-        // 현재는 서버 API가 없으므로 로컬 경로를 저장하여 앱 재시작 시에도 유지되도록 함
-        final storage = AuthTokenStorage();
-        await storage.saveUserInfo(photoUrl: image.path);
-        print('💾 프로필 이미지 로컬 저장 완료: ${image.path}');
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('프로필 사진이 변경되었습니다.'),
-              duration: Duration(seconds: 1),
-            ),
-          );
+        // 2. 백엔드에 업로드
+        try {
+          final userRepository = UserRepositoryImpl();
+          final response = await userRepository.updateProfilePhoto(image.path);
+          
+          print('✅ 프로필 사진 업로드 성공: $response');
+          
+          // 3. 응답에서 새로운 photo_url 받아서 저장
+          final newPhotoUrl = response['photo_url'];
+          if (newPhotoUrl != null) {
+            final storage = AuthTokenStorage();
+            await storage.saveUserInfo(photoUrl: newPhotoUrl);
+            
+            setState(() {
+              _profileImageUrl = newPhotoUrl;
+            });
+          }
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('프로필 사진이 변경되었습니다.'),
+                duration: Duration(seconds: 1),
+              ),
+            );
+          }
+        } catch (e) {
+          print('❌ 프로필 사진 업로드 실패: $e');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('사진 업로드 실패: $e')),
+            );
+          }
         }
       }
     } catch (e) {

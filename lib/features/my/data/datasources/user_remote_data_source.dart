@@ -115,6 +115,78 @@ class UserRemoteDataSource {
     }
   }
 
+  /// 로그아웃
+  Future<String> logout() async {
+    try {
+      final url = '${ApiConstants.baseUrl}${ApiConstants.logout}';
+      print('🚀 API 호출: $url');
+
+      final response = await _apiClient.post(ApiConstants.logout);
+
+      print('✅ 응답 성공: ${response.statusCode}');
+      print('📄 응답 데이터: ${response.data}');
+
+      if (response.statusCode == 200) {
+        return response.data is String ? response.data : response.data.toString();
+      } else {
+        throw Exception(
+          'Failed to logout: ${response.statusCode}',
+        );
+      }
+    } on DioException catch (e) {
+      print('❌ DioException 발생 (로그아웃): ${e.type}');
+      print('❌ 에러 메시지: ${e.message}');
+      print('❌ 응답: ${e.response?.data}');
+      throw _handleDioError(e);
+    } catch (e, stackTrace) {
+      print('❌ 예상치 못한 에러 (로그아웃): $e');
+      print('❌ 스택 트레이스: $stackTrace');
+      throw Exception('Unexpected error: $e');
+    }
+  }
+
+  /// 프로필 사진 업데이트
+  Future<Map<String, dynamic>> updateProfilePhoto(String imagePath) async {
+    try {
+      final url = '${ApiConstants.baseUrl}${ApiConstants.userProfile}';
+      print('🚀 API 호출: $url');
+      print('📸 이미지 경로: $imagePath');
+
+      // FormData 생성
+      final formData = FormData.fromMap({
+        'photo': await MultipartFile.fromFile(
+          imagePath,
+          filename: imagePath.split('/').last,
+        ),
+      });
+
+      final response = await _apiClient.put(
+        ApiConstants.userProfile,
+        data: formData,
+      );
+
+      print('✅ 응답 성공: ${response.statusCode}');
+      print('📄 응답 데이터: ${response.data}');
+
+      if (response.statusCode == 200) {
+        return response.data as Map<String, dynamic>;
+      } else {
+        throw Exception(
+          'Failed to update profile photo: ${response.statusCode}',
+        );
+      }
+    } on DioException catch (e) {
+      print('❌ DioException 발생 (프로필 사진 업데이트): ${e.type}');
+      print('❌ 에러 메시지: ${e.message}');
+      print('❌ 응답: ${e.response?.data}');
+      throw _handleDioError(e);
+    } catch (e, stackTrace) {
+      print('❌ 예상치 못한 에러 (프로필 사진 업데이트): $e');
+      print('❌ 스택 트레이스: $stackTrace');
+      throw Exception('Unexpected error: $e');
+    }
+  }
+
   /// Dio 에러 핸들링
   Exception _handleDioError(DioException e) {
     switch (e.type) {

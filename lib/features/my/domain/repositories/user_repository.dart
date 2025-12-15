@@ -11,4 +11,10 @@ abstract class UserRepository {
 
   /// 수면 패턴 조회
   Future<Map<String, dynamic>> getSleepPattern();
+
+  /// 로그아웃
+  Future<String> logout();
+
+  /// 프로필 사진 업데이트
+  Future<Map<String, dynamic>> updateProfilePhoto(String imagePath);
 }
