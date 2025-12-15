@@ -53,16 +53,7 @@ class _AirlineDetailPageState extends State<AirlineDetailPage> {
         print('⚠️ 기본 정보 API 실패: $e');
       }
       
-      // 2. 통계 API
-      try {
-        _airlineStatistics = await _apiService.getAirlineStatistics(
-          airlineCode: widget.airline.code,
-        );
-      } catch (e) {
-        print('⚠️ 통계 API 실패: $e');
-      }
-      
-      // 3. BIMO 요약 API
+      // 2. BIMO 요약 API
       try {
         _airlineSummary = await _apiService.getAirlineSummary(
           airlineCode: widget.airline.code,

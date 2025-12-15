@@ -29,13 +29,16 @@ class AuthRepositoryImpl implements AuthRepository {
       print('✅ AuthRepository: Login Response Data: $data');
 
       final accessToken = data['access_token'];
+      final refreshToken = data['refresh_token']; // 리프레시 토큰 추가
       final tokenType = data['token_type'];
       final user = data['user'];
 
-      // 토큰 저장 (MVP: access_token만 저장)
-      // 실제로는 refresh_token도 있을 수 있음
+      // 토큰 저장
       if (accessToken != null) {
         await _tokenStorage.saveAccessToken(accessToken);
+      }
+      if (refreshToken != null) {
+        await _tokenStorage.saveRefreshToken(refreshToken);
       }
 
       return AuthResult(

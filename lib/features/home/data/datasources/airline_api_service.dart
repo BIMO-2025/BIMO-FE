@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import '../../../../core/constants/api_constants.dart';
+import '../../../../core/network/api_client.dart';
 import '../models/popular_airline_response.dart';
 import '../models/flight_search_response.dart';
 import '../models/location_search_response.dart';
@@ -11,22 +12,9 @@ import '../models/airline_reviews_response.dart';
 
 /// 항공사 API 서비스
 class AirlineApiService {
-  final Dio _dio;
+  final ApiClient _apiClient = ApiClient();
 
-  AirlineApiService({Dio? dio})
-    : _dio =
-          dio ??
-          Dio(
-            BaseOptions(
-              baseUrl: ApiConstants.baseUrl,
-              connectTimeout: const Duration(seconds: 30),
-              receiveTimeout: const Duration(seconds: 30),
-              headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-              },
-            ),
-          );
+  AirlineApiService();
 
   /// 주차별 인기 항공사 조회
   ///
@@ -46,7 +34,7 @@ class AirlineApiService {
       print('🚀 API 호출: $url');
       print('📦 파라미터: year=$year, month=$month, week=$week, limit=$limit');
 
-      final response = await _dio.get(
+      final response = await _apiClient.get(
         ApiConstants.airlinesPopularWeekly,
         queryParameters: {
           'year': year,
@@ -95,7 +83,7 @@ class AirlineApiService {
       print('🚀 API 호출: $url');
       print('📦 파라미터: limit=$limit');
 
-      final response = await _dio.get(
+      final response = await _apiClient.get(
         ApiConstants.airlinesPopular,
         queryParameters: {'limit': limit},
       );
@@ -145,7 +133,7 @@ class AirlineApiService {
       print('🚀 API 호출: $url');
       print('📦 파라미터: query=$query');
 
-      final response = await _dio.get(
+      final response = await _apiClient.get(
         ApiConstants.airlinesSearch,
         queryParameters: {'query': query},
       );
@@ -195,7 +183,7 @@ class AirlineApiService {
       print('🚀 API 호출: $url');
       print('📦 파라미터: origin=$origin, destination=$destination, departureDate=$departureDate, adults=$adults');
 
-      final response = await _dio.post(
+      final response = await _apiClient.post(
         ApiConstants.flightsSearch,
         data: {
           'origin': origin,
@@ -240,7 +228,7 @@ class AirlineApiService {
       print('🚀 API 호출: $url');
       print('📦 파라미터: keyword=$keyword, subType=AIRPORT');
 
-      final response = await _dio.get(
+      final response = await _apiClient.get(
         ApiConstants.locationsSearch,
         queryParameters: {
           'keyword': keyword,
@@ -278,7 +266,7 @@ class AirlineApiService {
       final url = '${ApiConstants.baseUrl}${ApiConstants.airlinesSorting}';
       print('🚀 API 호출: $url');
 
-      final response = await _dio.get(ApiConstants.airlinesSorting);
+      final response = await _apiClient.get(ApiConstants.airlinesSorting);
 
       print('✅ 응답 성공: ${response.statusCode}');
       print('📄 응답 데이터: ${response.data}');
@@ -317,7 +305,7 @@ class AirlineApiService {
       final url = '${ApiConstants.baseUrl}${ApiConstants.airlinesDetail}/$airlineCode';
       print('🚀 API 호출: $url');
 
-      final response = await _dio.get(
+      final response = await _apiClient.get(
         '${ApiConstants.airlinesDetail}/$airlineCode',
       );
 
@@ -355,7 +343,7 @@ class AirlineApiService {
       final url = '${ApiConstants.baseUrl}${ApiConstants.airlinesStatistics}/$airlineCode/statistics';
       print('🚀 API 호출 (통계): $url');
 
-      final response = await _dio.get(
+      final response = await _apiClient.get(
         '${ApiConstants.airlinesStatistics}/$airlineCode/statistics',
       );
 
@@ -393,7 +381,7 @@ class AirlineApiService {
       final url = '${ApiConstants.baseUrl}${ApiConstants.airlinesSummary}/$airlineCode/summary';
       print('🚀 API 호출 (BIMO 요약): $url');
 
-      final response = await _dio.get(
+      final response = await _apiClient.get(
         '${ApiConstants.airlinesSummary}/$airlineCode/summary',
       );
 
@@ -437,7 +425,7 @@ class AirlineApiService {
       final url = '${ApiConstants.baseUrl}${ApiConstants.airlinesReviews}/$airlineCode/reviews';
       print('🚀 API 호출 (리뷰 목록): $url?sort=$sort&limit=$limit&offset=$offset');
 
-      final response = await _dio.get(
+      final response = await _apiClient.get(
         '${ApiConstants.airlinesReviews}/$airlineCode/reviews',
         queryParameters: {
           'sort': sort,

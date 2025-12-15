@@ -124,9 +124,53 @@ class _ApiInterceptor extends Interceptor {
   }
 
   @override
-  void onError(DioException err, ErrorInterceptorHandler handler) {
+  void onError(DioException err, ErrorInterceptorHandler handler) async {
     print('❌ ERROR[${err.response?.statusCode}] => PATH: ${err.requestOptions.path}');
     print('❌ ERROR MESSAGE: ${err.message}');
+
+    // 401 에러이고, 토큰 갱신 요청이 아닌 경우
+    if (err.response?.statusCode == 401 && !err.requestOptions.path.contains('refresh')) {
+      print('🔄 토큰 만료 감지. 갱신 시도...');
+      
+      final storage = AuthTokenStorage();
+      final refreshToken = await storage.getRefreshToken();
+      
+      if (refreshToken != null) {
+        try {
+          // 토큰 갱신 요청 (새로운 Dio 인스턴스 사용 - 인터셉터 루프 방지)
+          final dio = Dio(BaseOptions(
+            baseUrl: ApiConstants.baseUrl,
+            headers: {'Content-Type': 'application/json'},
+          ));
+          
+          final response = await dio.post('/auth/refresh', data: {
+            'refresh_token': refreshToken,
+          });
+          
+          final newAccessToken = response.data['access_token'];
+          if (newAccessToken != null) {
+            print('✅ 토큰 갱신 성공!');
+            await storage.saveAccessToken(newAccessToken);
+            
+            // 원래 요청의 헤더 업데이트
+            final options = err.requestOptions;
+            options.headers['Authorization'] = 'Bearer $newAccessToken';
+            
+            // 원래 요청 재시도
+            final cloneReq = await ApiClient().dio.fetch(options);
+            return handler.resolve(cloneReq);
+          }
+        } catch (e) {
+          print('❌ 토큰 갱신 실패: $e');
+          // 갱신 실패 시 로그아웃 처리 (토큰 삭제)
+          await storage.deleteAllTokens();
+          // TODO: 로그인 화면으로 이동하는 로직이 필요할 수 있음 (GlobalKey 사용 등)
+        }
+      } else {
+        print('❌ 리프레시 토큰 없음.');
+      }
+    }
+
     super.onError(err, handler);
   }
 }
