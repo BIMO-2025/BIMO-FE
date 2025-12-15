@@ -315,7 +315,7 @@ class _MyFlightPageState extends State<MyFlightPage> {
       // LocalTimelineEvent → Map 변환
       return events.map((e) => {
         'title': e.title,
-        'duration': e.duration,
+        'duration': e.durationMinutes, // duration이 아니라 durationMinutes
       }).toList();
     } catch (e) {
       print('⚠️ 타임라인 로드 실패: $e');
