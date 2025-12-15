@@ -23,6 +23,10 @@ import '../models/flight_model.dart';
 import '../../../core/state/flight_state.dart';
 import '../../../core/state/timeline_state.dart';
 import 'package:go_router/go_router.dart';
+import '../data/models/local_flight.dart';
+import '../data/models/local_timeline_event.dart';
+import '../data/repositories/local_flight_repository.dart';
+import '../data/repositories/local_timeline_repository.dart';
 // import '../../home/data/datasources/airline_api_service.dart'; // Removed
 
 /// 비행 등록 페이지
@@ -921,7 +925,7 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
         // 4. 로컬에 비행 즉시 저장 (FlightState)
         final newFlight = _convertToLocalFlight(selectedFlight);
         FlightState().addFlight(newFlight);
-        print('✅ 로컬 비행 저장 완료');
+        print('✅ 로컬 비행 저장 완료 (FlightState)');
         
         // 5. 타임라인 생성 API 호출
         final timelineRequest = TimelineRequest.fromFlightSearchData(
@@ -932,10 +936,35 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
         final timelineData = await flightRepository.generateTimeline(timelineRequest);
         print('✅ 타임라인 생성 완료');
         
-        // 6. 타임라인 응답을 TimelineState에 저장
+        // 6. 타임라인 응답을 Hive 로컬 DB에 저장
         if (timelineData != null) {
+          // 6-1. TimelineState에 저장 (메모리 캐시)
           TimelineState().timelineData = timelineData;
-          print('✅ 타임라인 로컬 저장 완료');
+          
+          // 6-2. Hive에 비행 정보 저장
+          final flightInfo = timelineData['flight_info'] as Map<String, dynamic>;
+          final localFlight = LocalFlight.fromFlightInfo(
+            flightInfo,
+            DateTime.parse(selectedFlight.departure.time),
+            DateTime.parse(selectedFlight.arrival.time),
+          );
+          final localFlightRepo = LocalFlightRepository();
+          await localFlightRepo.init();
+          await localFlightRepo.saveFlight(localFlight);
+          
+          // 6-3. Hive에 타임라인 저장
+          final timelineEvents = (timelineData['timeline_events'] as List<dynamic>)
+              .map((e) => LocalTimelineEvent.fromApiResponse(
+                    e as Map<String, dynamic>,
+                    localFlight.id,
+                  ))
+              .toList();
+          
+          final localTimelineRepo = LocalTimelineRepository();
+          await localTimelineRepo.init();
+          await localTimelineRepo.saveTimeline(localFlight.id, timelineEvents);
+          
+          print('✅ Hive 로컬 DB 저장 완료');
         }
         
         // 7. 성공 시 비행 플랜 페이지로 이동 (GoRouter 사용)

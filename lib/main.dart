@@ -1,8 +1,13 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'core/theme/app_theme.dart';
 import 'core/network/router/app_router.dart';
+import 'features/myflight/data/models/local_timeline_event.dart';
+import 'features/myflight/data/models/local_flight.dart';
+import 'features/myflight/data/repositories/local_timeline_repository.dart';
+import 'features/myflight/data/repositories/local_flight_repository.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,6 +24,9 @@ Future<void> main() async {
 
 Future<void> _initializeServices() async {
   try {
+    // Hive 초기화 (오프라인 로컬 DB)
+    await _initializeHive();
+    
     // GoogleService-Info.plist 파일이 Xcode 프로젝트에 제대로 링크되지 않았을 경우를 대비해
     // 코드에서 직접 옵션을 설정하여 초기화합니다.
     await Firebase.initializeApp(
@@ -37,6 +45,33 @@ Future<void> _initializeServices() async {
     print("Services initialized successfully");
   } catch (e) {
     print('Initialization Failed: $e');
+  }
+}
+
+/// Hive 로컬 DB 초기화
+Future<void> _initializeHive() async {
+  try {
+    // Hive 초기화
+    await Hive.initFlutter();
+    
+    // TypeAdapter 등록
+    if (!Hive.isAdapterRegistered(0)) {
+      Hive.registerAdapter(LocalTimelineEventAdapter());
+    }
+    if (!Hive.isAdapterRegistered(1)) {
+      Hive.registerAdapter(LocalFlightAdapter());
+    }
+    
+    // Repository 초기화
+    final timelineRepo = LocalTimelineRepository();
+    await timelineRepo.init();
+    
+    final flightRepo = LocalFlightRepository();
+    await flightRepo.init();
+    
+    print('✅ Hive 로컬 DB 초기화 완료');
+  } catch (e) {
+    print('❌ Hive 초기화 실패: $e');
   }
 }
 
