@@ -15,6 +15,10 @@ import '../../home/domain/models/airport.dart';
 import '../presentation/viewmodels/add_flight_view_model.dart';
 import '../widgets/flight_result_card.dart';
 import '../../home/data/models/flight_search_response.dart';
+import '../data/models/create_flight_request.dart';
+import '../data/models/timeline_request.dart';
+import '../../../core/storage/auth_token_storage.dart';
+import '../data/repositories/flight_repository.dart';
 // import '../../home/data/datasources/airline_api_service.dart'; // Removed
 
 /// 비행 등록 페이지
@@ -875,22 +879,52 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
     }
   }
 
-  void _goToFinish() {
+  void _goToFinish() async {
       // 로딩 화면 표시
       setState(() {
         _isLoading = true;
       });
       _rotationController?.repeat();
       
-      // 3초 후 로딩 종료 및 비행 플랜 페이지로 이동 (실제로는 API 호출 완료 후)
-      Future.delayed(const Duration(seconds: 3), () {
+      try {
+        // 1. 사용자 ID 가져오기
+        final storage = AuthTokenStorage();
+        final userInfo = await storage.getUserInfo();
+        final userId = userInfo['userId'];
+        
+        if (userId == null || userId.isEmpty) {
+          throw Exception('사용자 ID를 찾을 수 없습니다.');
+        }
+        
+        // 2. 선택된 비행 정보 확인
+        final selectedFlight = _viewModel.selectedFlight;
+        if (selectedFlight == null) {
+          throw Exception('선택된 비행편이 없습니다.');
+        }
+        
+        // 3. 비행 저장 API 호출
+        final flightRepository = FlightRepository();
+        final createRequest = CreateFlightRequest.fromFlightSearchData(selectedFlight);
+        await flightRepository.saveFlight(userId, createRequest);
+        print('✅ 비행 저장 완료');
+        
+        // 4. 타임라인 생성 API 호출
+        // seat_class는 현재 UI에서 제거되었으므로 기본값 "ECONOMY" 사용
+        final timelineRequest = TimelineRequest.fromFlightSearchData(
+          data: selectedFlight,
+          seatClass: 'ECONOMY',
+          flightGoal: _selectedFlightGoal ?? 'SLEEP_FOCUS', // 기본값
+        );
+        await flightRepository.generateTimeline(timelineRequest);
+        print('✅ 타임라인 생성 완료');
+        
+        // 5. 성공 시 비행 플랜 페이지로 이동
         if (mounted) {
           setState(() {
             _isLoading = false;
           });
           _rotationController?.stop();
           
-          // 타임라인(비행 플랜) 페이지로 이동
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
@@ -898,7 +932,25 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
             ),
           );
         }
-      });
+      } catch (e) {
+        // 에러 처리
+        print('❌ 비행 등록 실패: $e');
+        
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+          _rotationController?.stop();
+          
+          // 에러 메시지 표시
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('비행 등록에 실패했습니다: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
     }
   
   

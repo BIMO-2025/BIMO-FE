@@ -3,6 +3,8 @@ import '../../../../core/constants/api_constants.dart';
 import '../../../../core/utils/airport_keyword_mapper.dart';
 import '../../../home/domain/models/airport.dart';
 import '../../../home/data/models/flight_search_response.dart';
+import '../models/create_flight_request.dart';
+import '../models/timeline_request.dart';
 
 /// 비행 관련 데이터 리포지토리
 class FlightRepository {
@@ -286,6 +288,52 @@ class FlightRepository {
     } catch (e) {
       print('API search failed for "$mappedQuery": $e');
       return [];
+    }
+  }
+
+  /// 비행 저장
+  /// POST /users/{userId}/my-flights
+  Future<void> saveFlight(String userId, CreateFlightRequest request) async {
+    try {
+      print('🚀 비행 저장 API 호출: /users/$userId/my-flights');
+      print('📦 Request Body: ${request.toJson()}');
+      
+      final response = await _dio.post(
+        '/users/$userId/my-flights',
+        data: request.toJson(),
+      );
+      
+      if (response.statusCode == 201) {
+        print('✅ 비행 저장 성공');
+      } else {
+        throw Exception('비행 저장 실패: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('❌ 비행 저장 에러: $e');
+      rethrow;
+    }
+  }
+
+  /// 타임라인 생성
+  /// POST /wellness/flight-timeline
+  Future<void> generateTimeline(TimelineRequest request) async {
+    try {
+      print('🚀 타임라인 생성 API 호출: /wellness/flight-timeline');
+      print('📦 Request Body: ${request.toJson()}');
+      
+      final response = await _dio.post(
+        '/wellness/flight-timeline',
+        data: request.toJson(),
+      );
+      
+      if (response.statusCode == 200) {
+        print('✅ 타임라인 생성 성공');
+      } else {
+        throw Exception('타임라인 생성 실패: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('❌ 타임라인 생성 에러: $e');
+      rethrow;
     }
   }
 }
