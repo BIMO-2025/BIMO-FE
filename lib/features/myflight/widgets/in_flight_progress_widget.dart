@@ -133,57 +133,48 @@ class _InFlightProgressWidgetState extends State<InFlightProgressWidget> {
   }
 
   List<Widget> _buildTimelineItems() {
-    if (widget.timeline.isEmpty) return [];
-    
-   final currentIndex = _currentActivityIndex;
-    final items = <Widget>[];
-    
-    // 이전 항목 (있으면)
-    if (currentIndex > 0) {
-      items.add(
+    if (widget.timeline.isEmpty) {
+      // 타임라인 없으면 기본 표시
+      return [
         Text(
-          widget.timeline[currentIndex - 1]['title'] as String,
-          style: AppTextStyles.body.copyWith(
-            color: Colors.white.withOpacity(0.3),
-          ),
-        ),
-      );
-      items.add(SizedBox(height: context.h(8)));
-    } else {
-      // 첫 번째 항목일 때 위에 빈 공간
-      items.add(SizedBox(height: context.h(24)));
-    }
-    
-    // 현재 항목 (파란색 배경)
-    items.add(
-      Container(
-        padding: EdgeInsets.symmetric(
-          horizontal: context.w(16),
-          vertical: context.h(8),
-        ),
-        decoration: BoxDecoration(
-          color: AppColors.blue1,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          widget.timeline[currentIndex]['title'] as String,
+          '이륙 및 안정',
           style: AppTextStyles.body.copyWith(
             color: Colors.white,
             fontWeight: FontWeight.w600,
           ),
-          textAlign: TextAlign.center,
+        ),
+        SizedBox(height: context.h(4)),
+        Text(
+          '첫 번째 가능한 활동 (비빔밥 or 볼로기)',
+          style: AppTextStyles.smallBody.copyWith(
+            color: Colors.white.withOpacity(0.3),
+          ),
+        ),
+      ];
+    }
+    
+    final currentIndex = _currentActivityIndex;
+    final items = <Widget>[];
+    
+    // 현재 항목 (흰색, 굵게)
+    items.add(
+      Text(
+        widget.timeline[currentIndex]['title'] as String,
+        style: AppTextStyles.body.copyWith(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );
     
-    items.add(SizedBox(height: context.h(8)));
+    items.add(SizedBox(height: context.h(4)));
     
-    // 다음 항목 (있으면)
+    // 다음 항목 (옅은 회색)
     if (currentIndex < widget.timeline.length - 1) {
       items.add(
         Text(
           widget.timeline[currentIndex + 1]['title'] as String,
-          style: AppTextStyles.body.copyWith(
+          style: AppTextStyles.smallBody.copyWith(
             color: Colors.white.withOpacity(0.3),
           ),
         ),
@@ -291,13 +282,7 @@ class _InFlightProgressWidgetState extends State<InFlightProgressWidget> {
                           ),
                         ),
                         Text(
-                          widget.departureTime,
-                          style: AppTextStyles.smallBody.copyWith(
-                            color: Colors.white.withOpacity(0.5),
-                          ),
-                        ),
-                        Text(
-                          'AM',
+                          widget.departureTime, // 이미 AM/PM 포함
                           style: AppTextStyles.smallBody.copyWith(
                             color: Colors.white.withOpacity(0.5),
                           ),
@@ -387,12 +372,6 @@ class _InFlightProgressWidgetState extends State<InFlightProgressWidget> {
                         ),
                         Text(
                           widget.arrivalTime,
-                          style: AppTextStyles.smallBody.copyWith(
-                            color: Colors.white.withOpacity(0.5),
-                          ),
-                        ),
-                        Text(
-                          'PM',
                           style: AppTextStyles.smallBody.copyWith(
                             color: Colors.white.withOpacity(0.5),
                           ),
