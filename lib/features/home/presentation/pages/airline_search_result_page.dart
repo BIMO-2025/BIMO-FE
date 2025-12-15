@@ -450,9 +450,8 @@ class _AirlineSearchResultPageState extends State<AirlineSearchResultPage> {
                   final airline = filteredAirlines[index];
                   // Mocking route info based on index/airline for demo
                   final isDirect = airline.name == '대한항공' || airline.name == '에어프랑스';
-                  final routeInfo = isDirect ? '직항' : '아디스아바바 경유';
                   
-                  return _buildAirlineResultCard(context, airline, routeInfo, isDirect);
+                  return _buildAirlineResultCard(context, airline, isDirect);
                 },
               ),
             SizedBox(height: context.h(40)),
@@ -560,7 +559,6 @@ class _AirlineSearchResultPageState extends State<AirlineSearchResultPage> {
   Widget _buildAirlineResultCard(
     BuildContext context,
     Airline airline,
-    String routeInfo,
     bool isDirect,
   ) {
     return GestureDetector(
@@ -574,9 +572,9 @@ class _AirlineSearchResultPageState extends State<AirlineSearchResultPage> {
       },
       child: Container(
         margin: EdgeInsets.only(bottom: context.h(12)),
-        padding: EdgeInsets.all(context.w(20)),
+        padding: EdgeInsets.symmetric(horizontal: context.w(20), vertical: context.h(20)),
         constraints: BoxConstraints(
-          minHeight: context.h(110),
+          minHeight: context.h(90), // 90으로 변경
         ),
         decoration: BoxDecoration(
           color: const Color(0xFF1A1A1A), // Dark grey card
@@ -589,17 +587,6 @@ class _AirlineSearchResultPageState extends State<AirlineSearchResultPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Route Info (직항/경유)
-              Text(
-                routeInfo,
-                style: TextStyle(
-                  fontFamily: 'Pretendard',
-                  fontSize: context.fs(13),
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.yellow1,
-                ),
-              ),
-              SizedBox(height: context.h(4)),
               // Airline Name
               Text(
                 airline.name,
@@ -610,7 +597,7 @@ class _AirlineSearchResultPageState extends State<AirlineSearchResultPage> {
                   color: Colors.white,
                 ),
               ),
-              SizedBox(height: context.h(1)),
+              SizedBox(height: context.h(4)), // 간격 조정
               // Rating & Review Count
               Row(
                 children: [

@@ -42,25 +42,23 @@ class _AirlineDetailPageState extends State<AirlineDetailPage> {
     });
 
     try {
-      // API를 개별적으로 호출 (하나 실패해도 다른 것은 성공)
-      
-      // 1. 기본 정보 API
+      // 1. 기본 정보 API (BIMO 요약 포함)
       try {
         _airlineInfo = await _apiService.getAirlineDetail(
           airlineCode: widget.airline.code,
         );
+        
+        // BIMO 요약 정보 할당
+        if (_airlineInfo?.bimoSummary != null) {
+          _airlineSummary = _airlineInfo!.bimoSummary;
+          print('✅ BIMO 요약 정보 로드 완료 (from AirlineInfo)');
+        }
       } catch (e) {
         print('⚠️ 기본 정보 API 실패: $e');
       }
       
-      // 2. BIMO 요약 API
-      try {
-        _airlineSummary = await _apiService.getAirlineSummary(
-          airlineCode: widget.airline.code,
-        );
-      } catch (e) {
-        print('⚠️ BIMO 요약 API 실패 (mock 데이터 사용): $e');
-      }
+      // 통계 API 호출 제거 (백엔드 통합 또는 Mock 사용)
+      // _airlineStatistics = ...; 
       
       if (!mounted) return;
       setState(() {
@@ -142,32 +140,24 @@ class _AirlineDetailPageState extends State<AirlineDetailPage> {
   }
 
   Widget _buildContent(BuildContext context) {
-    // API 데이터 사용 (우선순위: 통계 API overallRating > 기본 정보 API overallRating > 계산된 overall > mock 데이터)
-    // 0.0은 유효하지 않은 값으로 간주
-    final statisticsOverall = _airlineStatistics?.overallRating;
-    final statisticsCalculated = _airlineStatistics?.averageRatings.overall;
+    // API 데이터 사용 (우선순위: 기본 정보 API의 averageRatings > 기본 정보 API overallRating > mock 데이터)
+    final infoAverageRatings = _airlineInfo?.averageRatings;
     final infoRating = _airlineInfo?.overallRating;
     
-    final rating = (statisticsOverall != null && statisticsOverall > 0) 
-        ? statisticsOverall 
-        : (infoRating != null && infoRating > 0)
+    final rating = (infoRating != null && infoRating > 0)
             ? infoRating
-            : (statisticsCalculated != null && statisticsCalculated > 0)
-                ? statisticsCalculated
+            : (infoAverageRatings != null && infoAverageRatings.overall > 0)
+                ? infoAverageRatings.overall
                 : widget.airline.rating;
     
-    final statisticsReviews = _airlineStatistics?.totalReviews;
     final infoReviews = _airlineInfo?.totalReviews;
-    final reviewCount = (statisticsReviews != null && statisticsReviews > 0)
-        ? statisticsReviews
-        : (infoReviews != null && infoReviews > 0)
+    final reviewCount = (infoReviews != null && infoReviews > 0)
             ? infoReviews
             : widget.airline.reviewCount;
     
     print('⭐ 평점 계산:');
-    print('  - 통계 API overallRating: ${_airlineStatistics?.overallRating}');
-    print('  - 통계 API 계산된 overall: ${_airlineStatistics?.averageRatings.overall}');
     print('  - 기본 정보 API overallRating: ${_airlineInfo?.overallRating}');
+    print('  - 기본 정보 API averageRatings.overall: ${_airlineInfo?.averageRatings?.overall}');
     print('  - mock 데이터: ${widget.airline.rating}');
     print('  - 최종 rating: $rating');
     print('  - 최종 reviewCount: $reviewCount');
@@ -355,12 +345,12 @@ class _AirlineDetailPageState extends State<AirlineDetailPage> {
                 SizedBox(height: context.h(24)),
 
                 // 5. Detail Ratings (API 데이터 사용)
-                if (_airlineStatistics != null) ...[
-                  _buildDetailRatingRow(context, '좌석 편안함', _airlineStatistics!.averageRatings.seatComfort),
-                  _buildDetailRatingRow(context, '기내식 및 음료', _airlineStatistics!.averageRatings.inflightMeal),
-                  _buildDetailRatingRow(context, '서비스', _airlineStatistics!.averageRatings.service),
-                  _buildDetailRatingRow(context, '청결도', _airlineStatistics!.averageRatings.cleanliness),
-                  _buildDetailRatingRow(context, '시간 준수도 및 수속', _airlineStatistics!.averageRatings.checkIn),
+                if (_airlineInfo?.averageRatings != null) ...[
+                  _buildDetailRatingRow(context, '좌석 편안함', _airlineInfo!.averageRatings!.seatComfort),
+                  _buildDetailRatingRow(context, '기내식 및 음료', _airlineInfo!.averageRatings!.inflightMeal),
+                  _buildDetailRatingRow(context, '서비스', _airlineInfo!.averageRatings!.service),
+                  _buildDetailRatingRow(context, '청결도', _airlineInfo!.averageRatings!.cleanliness),
+                  _buildDetailRatingRow(context, '시간 준수도 및 수속', _airlineInfo!.averageRatings!.checkIn),
                 ] else ...[
                   _buildDetailRatingRow(context, '좌석 편안함', widget.airline.detailRating.seatComfort),
                   _buildDetailRatingRow(context, '기내식 및 음료', widget.airline.detailRating.foodAndBeverage),

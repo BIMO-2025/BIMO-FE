@@ -33,7 +33,10 @@ class PopularAirlineResponse {
       country: json['country'] as String? ?? '',
       alliance: json['alliance'] as String? ?? '',
       type: json['type'] as String? ?? 'FSC',
-      rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
+      rating: (json['rating'] as num?)?.toDouble() ??
+          (json['overall_rating'] as num?)?.toDouble() ??
+          (json['overallRating'] as num?)?.toDouble() ??
+          0.0,
       reviewCount: json['review_count'] as int? ?? 0,
       logoUrl: json['logo_url'] as String? ?? '',
       rank: json['rank'] as int? ?? 0,

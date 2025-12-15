@@ -60,6 +60,11 @@ class ReviewItem {
   final String text;
   final String userId;
   final String userNickname;
+  final List<String> imageUrls; // 추가
+  final int likes; // 추가
+  final String createdAt; // 추가
+  final String? flightNumber; // 추가
+  final String? seatClass; // 추가
 
   ReviewItem({
     required this.airlineCode,
@@ -71,6 +76,11 @@ class ReviewItem {
     required this.text,
     required this.userId,
     required this.userNickname,
+    required this.imageUrls,
+    required this.likes,
+    required this.createdAt,
+    this.flightNumber,
+    this.seatClass,
   });
 
   factory ReviewItem.fromJson(Map<String, dynamic> json) {
@@ -84,6 +94,14 @@ class ReviewItem {
       text: json['text'] as String? ?? '',
       userId: json['userId'] as String? ?? '',
       userNickname: json['userNickname'] as String? ?? '',
+      imageUrls: (json['imageUrls'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
+      likes: json['likes'] as int? ?? 0,
+      createdAt: json['createdAt'] as String? ?? '',
+      flightNumber: json['flightNumber'] as String?,
+      seatClass: json['seatClass'] as String?,
     );
   }
 }
