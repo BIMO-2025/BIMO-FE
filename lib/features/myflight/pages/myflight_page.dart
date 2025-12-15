@@ -230,11 +230,9 @@ class _MyFlightPageState extends State<MyFlightPage> {
 
           const SizedBox(height: 32),
 
-          // 진행 중인 비행 섹션 (오프라인 모드 시만 표시)
-          if (_isOfflineMode) ...[
-            _buildInFlightSection(),
-            const SizedBox(height: 32),
-          ],
+          // 진행 중인 비행 섹션 (항상 표시 - offline 조건 제거)
+          _buildInFlightSection(),
+          const SizedBox(height: 32),
 
           // 예정된 비행 섹션
           _buildScheduledFlightsSection(),
@@ -301,18 +299,25 @@ class _MyFlightPageState extends State<MyFlightPage> {
   /// 진행 중인 비행 가져오기
   Future<LocalFlight?> _getInProgressFlight() async {
     try {
+      print('🔍 진행 중 비행 검색 시작');
       final localFlightRepo = LocalFlightRepository();
       await localFlightRepo.init();
       final flights = await localFlightRepo.getAllFlights();
       
+      print('🔍 전체 비행 수: ${flights.length}');
+      
       // status가 inProgress이거나 forceInProgress인 비행 찾기
       for (var flight in flights) {
         final status = flight.calculateStatus();
+        print('🔍 비행 ${flight.id}: status=$status, forceInProgress=${flight.forceInProgress}');
+        
         if (status == 'inProgress') {
+          print('✅ 진행 중 비행 발견: ${flight.id}');
           return flight;
         }
       }
       
+      print('⚠️ 진행 중 비행 없음');
       return null;
     } catch (e) {
       print('⚠️ 진행 중 비행 로드 실패: $e');

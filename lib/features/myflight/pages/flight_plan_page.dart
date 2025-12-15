@@ -869,6 +869,43 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
                           _showAIResetModal(context);
                         },
                       ),
+                      // 진행 중으로 테스트 (테스트용)
+                      _buildOptionItem(
+                        context,
+                        text: '🧪 진행 중으로 테스트',
+                        isFirst: false,
+                        isLast: false,
+                        onTap: () async {
+                          setState(() {
+                            _showMoreOptions = false;
+                          });
+                          
+                          if (_currentFlight != null) {
+                            print('🧪 테스트: 진행 중으로 설정 시작');
+                            print('🧪 비행 ID: ${_currentFlight!.id}');
+                            
+                            // forceInProgress를 true로 설정
+                            _currentFlight!.forceInProgress = true;
+                            print('🧪 forceInProgress 설정: ${_currentFlight!.forceInProgress}');
+                            
+                            // Hive에 저장
+                            await _currentFlight!.save();
+                            print('🧪 Hive 저장 완료');
+                            
+                            // 저장 확인
+                            final status = _currentFlight!.calculateStatus();
+                            print('🧪 현재 상태: $status');
+                            
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('진행 중 비행으로 설정: $status')),
+                              );
+                            }
+                          } else {
+                            print('🧪 에러: _currentFlight가 null입니다');
+                          }
+                        },
+                      ),
                       // 비행 플랜 삭제 (맨 아래)
                       _buildOptionItem(
                         context,
