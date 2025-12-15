@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -39,11 +40,102 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
   bool _showMoreOptions = false; // 더보기 옵션 메뉴 표시 여부
   List<TimelineEvent> _initialEvents = []; // 초기 타임라인 (AI 초기화용)
   LocalFlight? _currentFlight; // 현재 표시 중인 비행 정보
+  
+  // 읽기 전용 모드 타이머
+  Timer? _autoHighlightTimer;
+  int _elapsedSeconds = 0;
 
   @override
   void initState() {
     super.initState();
     _loadTimelineFromHive();
+    
+    // 읽기 전용 모드일 때 자동 하이라이트 타이머 시작
+    if (widget.isReadOnly) {
+      _startAutoHighlightTimer();
+    }
+  }
+  
+  @override
+  void dispose() {
+    _autoHighlightTimer?.cancel();
+    super.dispose();
+  }
+  
+  /// 자동 하이라이트 타이머 시작
+  void _startAutoHighlightTimer() {
+    _autoHighlightTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) {
+        setState(() {
+          _elapsedSeconds++;
+          _updateCurrentEventHighlight();
+        });
+      }
+    });
+  }
+  
+  /// 현재 진행 중인 이벤트 하이라이트 업데이트
+  void _updateCurrentEventHighlight() {
+    int cumulativeMinutes = 0;
+    
+    for (int i = 0; i < _events.length; i++) {
+      final duration = _parseDurationToMinutes(_events[i].time);
+      
+      // 모든 이벤트 비활성화
+      _events[i] = TimelineEvent(
+        icon: _events[i].icon,
+        title: _events[i].title,
+        time: _events[i].time,
+        description: _events[i].description,
+        isEditable: _events[i].isEditable,
+        isActive: false,
+      );
+      
+      // 현재 경과 시간에 해당하는 이벤트 활성화
+      if (_elapsedSeconds < (cumulativeMinutes + duration) * 60) {
+        _events[i] = TimelineEvent(
+          icon: _events[i].icon,
+          title: _events[i].title,
+          time: _events[i].time,
+          description: _events[i].description,
+          isEditable: _events[i].isEditable,
+          isActive: true,
+        );
+        break;
+      }
+      
+      cumulativeMinutes += duration;
+    }
+  }
+  
+  /// 시간 문자열을 분 단위로 변환 (예: "6:55 AM - 7:55 AM" → 60)
+  int _parseDurationToMinutes(String timeString) {
+    final parts = timeString.split(' - ');
+    if (parts.length != 2) return 0;
+    
+    try {
+      final start = _parseTime(parts[0]);
+      final end = _parseTime(parts[1]);
+      return end.difference(start).inMinutes;
+    } catch (e) {
+      return 0;
+    }
+  }
+  
+  DateTime _parseTime(String time) {
+    // "6:55 AM" 형식 파싱
+    final cleaned = time.trim();
+    final parts = cleaned.split(' ');
+    final timeParts = parts[0].split(':');
+    
+    int hour = int.parse(timeParts[0]);
+    final minute = int.parse(timeParts[1]);
+    final isPM = parts.length > 1 && parts[1].toUpperCase() == 'PM';
+    
+    if (isPM && hour != 12) hour += 12;
+    if (!isPM && hour == 12) hour = 0;
+    
+    return DateTime(2025, 1, 1, hour, minute);
   }
   
   /// Hive에서 타임라인 로드 (가장 최근 예정된 비행 우선)
