@@ -65,7 +65,12 @@ class _LoginPageState extends State<LoginPage> {
         final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
         token = googleAuth.idToken ?? '';
         
-        print("✅ Google ID Token: $token");
+        print("✅ Google ID Token Length: ${token.length}");
+        int chunkSize = 800;
+        for (int i = 0; i < token.length; i += chunkSize) {
+            int end = (i + chunkSize < token.length) ? i + chunkSize : token.length;
+            print("Token chunk: ${token.substring(i, end)}");
+        }
         
         if (token.isEmpty) {
           throw Exception('구글 토큰을 가져오지 못했습니다.');

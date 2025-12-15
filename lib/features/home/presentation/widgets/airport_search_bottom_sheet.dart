@@ -212,15 +212,18 @@ class _AirportSearchBottomSheetState extends State<AirportSearchBottomSheet> {
                               return AirportItem(
                                 airport: airport,
                                 onTap: () {
-                                  if (airport.locationType == 'SUGGESTION') {
-                                    // 제안 항목(예: '영국') 선택 시 검색창에 입력하고 검색 재실행 (자동 완성 효과)
+                                  // COUNTRY 또는 CITY 타입인 경우 -> 검색어 자동완성 후 재검색
+                                  // (사용자가 해당 지역의 공항을 찾기 위해 '진입'하는 개념)
+                                  if (airport.type == SearchResultType.COUNTRY || 
+                                      airport.type == SearchResultType.CITY) {
+                                    
                                     _searchController.text = airport.cityName;
                                     _searchController.selection = TextSelection.fromPosition(
                                       TextPosition(offset: _searchController.text.length),
                                     );
                                     // 텍스트 변경으로 인해 리스너가 호출되어 검색이 트리거됨
                                   } else {
-                                    // 실제 공항/도시 선택 시
+                                    // AIRPORT 타입 -> 최종 선택
                                     widget.onAirportSelected(airport);
                                     Navigator.pop(context);
                                   }
