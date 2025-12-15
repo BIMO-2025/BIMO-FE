@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -105,6 +106,49 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
       _events = _getTimelineEvents();
       _initialEvents = List.from(_events);
       if (mounted) setState(() {});
+    }
+  }
+  
+  /// 현재 타임라인을 Hive에 저장
+  Future<void> _saveTimelineToHive() async {
+    if (_currentFlight == null) {
+      print('⚠️ 현재 비행 정보 없음, Hive 저장 스킵');
+      return;
+    }
+    
+    try {
+      final localTimelineRepo = LocalTimelineRepository();
+      await localTimelineRepo.init();
+      
+      // TimelineEvent → LocalTimelineEvent 변환
+      final localEvents = _events.asMap().entries.map((entry) {
+        final index = entry.key;
+        final event = entry.value;
+        
+        // 간단한 시간 설정 (실제로는 event.time 파싱 필요)
+        final now = DateTime.now();
+        
+        return LocalTimelineEvent(
+          id: '${_currentFlight!.id}_$index',
+          flightId: _currentFlight!.id,
+          order: index,
+          type: event.isEditable ? 'FREE_TIME' : 'CUSTOM',
+          title: event.title,
+          description: event.description,
+          startTime: now,
+          endTime: now.add(const Duration(hours: 1)),
+          iconType: event.icon,
+          isEditable: event.isEditable,
+          isCustom: true,
+          isActive: event.isActive,
+        );
+      }).toList();
+      
+      // Hive에 전체 타임라인 저장
+      await localTimelineRepo.saveTimeline(_currentFlight!.id, localEvents);
+      print('✅ Hive에 타임라인 ${localEvents.length}개 저장 완료');
+    } catch (e) {
+      print('❌ Hive 타임라인 저장 실패: $e');
     }
   }
 
@@ -786,13 +830,8 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
                           );
                           FlightState().addFlight(newFlight);
                           
-                          // 나의 비행 페이지로 이동
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const MyFlightPage(),
-                            ),
-                          );
+                          // 홈으로 이동 (탭바 유지)
+                          context.go('/home');
                           
                           // 저장 성공 메시지
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -1303,7 +1342,7 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
                         // 삭제 버튼
                         Expanded(
                           child: GestureDetector(
-                            onTap: () {
+                            onTap: () async {
                               Navigator.pop(context);
                               setState(() {
                                 // 삭제 대신 자유 시간으로 변경
@@ -1318,6 +1357,9 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
                                   _selectedEvent = null;
                                 }
                               });
+                              
+                              // Hive에 저장
+                              await _saveTimelineToHive();
                             },
                             child: Container(
                               padding: EdgeInsets.symmetric(
@@ -1818,7 +1860,7 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
   }
 
   /// 플랜 추가/수정 시 겹침 확인 및 처리
-  void _checkOverlapAndProceed(
+  Future<void> _checkOverlapAndProceed(
     BuildContext context, {
     TimelineEvent? originalEvent, // 수정일 경우 원본 이벤트
     required String title,
@@ -2109,6 +2151,8 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
         return startA.compareTo(startB);
       });
     });
+    // Hive에 저장
+    await _saveTimelineToHive();
   }
 
   /// 시간 문자열을 분으로 변환 (예: "12:00 PM" -> 720)
