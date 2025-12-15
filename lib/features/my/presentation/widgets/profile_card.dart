@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
@@ -9,6 +10,7 @@ class ProfileCard extends StatelessWidget {
   final String name;
   final String email;
   final VoidCallback onTap;
+  final VoidCallback? onProfileImageTap;
 
   const ProfileCard({
     super.key,
@@ -16,6 +18,7 @@ class ProfileCard extends StatelessWidget {
     required this.name,
     required this.email,
     required this.onTap,
+    this.onProfileImageTap,
   });
 
   @override
@@ -36,25 +39,62 @@ class ProfileCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center, // Y축 중앙 정렬
           children: [
             // 프로필 이미지 (50x50)
-            ClipOval(
-              child: Image.network(
-                profileImageUrl,
-                width: context.w(50),
-                height: context.w(50),
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    width: context.w(50),
-                    height: context.w(50),
-                    color: AppColors.textTertiary,
-                    child: Icon(
-                      Icons.person,
-                      size: context.w(25),
-                      color: AppColors.white,
+            // 프로필 이미지 (50x50) + 카메라 아이콘
+            Stack(
+              children: [
+                ClipOval(
+                  child: profileImageUrl.isNotEmpty
+                      ? (profileImageUrl.startsWith('http')
+                          ? Image.network(
+                              profileImageUrl,
+                              width: context.w(50),
+                              height: context.w(50),
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Image.asset(
+                                  'assets/images/my/default_profile.png',
+                                  width: context.w(50),
+                                  height: context.w(50),
+                                  fit: BoxFit.cover,
+                                );
+                              },
+                            )
+                          : Image.file(
+                              File(profileImageUrl),
+                              width: context.w(50),
+                              height: context.w(50),
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Image.asset(
+                                  'assets/images/my/default_profile.png',
+                                  width: context.w(50),
+                                  height: context.w(50),
+                                  fit: BoxFit.cover,
+                                );
+                              },
+                            ))
+                      : Image.asset(
+                          'assets/images/my/default_profile.png',
+                          width: context.w(50),
+                          height: context.w(50),
+                          fit: BoxFit.cover,
+                        ),
+                ),
+                // 카메라 아이콘 오버레이
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: GestureDetector(
+                    onTap: onProfileImageTap,
+                    child: Image.asset(
+                      'assets/images/my/camera.png',
+                      width: context.w(22),
+                      height: context.w(22),
+                      fit: BoxFit.contain,
                     ),
-                  );
-                },
-              ),
+                  ),
+                ),
+              ],
             ),
 
             // 이미지 오른쪽 16 간격
