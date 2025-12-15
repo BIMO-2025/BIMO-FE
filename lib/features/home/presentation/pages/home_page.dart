@@ -418,22 +418,10 @@ class _HomePageState extends State<HomePage> {
             adults: 1,
           );
 
-          // 항공사 정보 조회
-          final List<PopularAirlineResponse> airlineResults = [];
-          if (response.airlines.isNotEmpty) {
-            for (final airlineInfo in response.airlines) {
-              try {
-                final results = await _apiService.searchAirlines(
-                  query: airlineInfo.airlineName,
-                );
-                if (results.isNotEmpty) {
-                  airlineResults.add(results.first);
-                }
-              } catch (e) {
-                print('항공사 정보 조회 실패: ${airlineInfo.airlineName} - $e');
-              }
-            }
-          }
+          // 항공편 데이터 그룹화 (항공사 + 경유지 기준)
+          print('🟢 API 성공: ${response.data.length}개 항공편 데이터 받음');
+          final groupedFlights = _groupFlightsByAirlineAndRouting(response.data);
+          print('🟢 그룹화 완료: ${groupedFlights.length}개 고유 경로');
 
           // 성공!
           success = true;
@@ -441,7 +429,7 @@ class _HomePageState extends State<HomePage> {
           // 로딩 다이얼로그 닫기
           if (mounted) Navigator.pop(context);
 
-          // 결과 페이지로 이동 (검색 결과 전달)
+          // 결과 페이지로 이동 (그룹화된 데이터 전달)
           if (mounted) {
             Navigator.push(
               context,
@@ -452,7 +440,7 @@ class _HomePageState extends State<HomePage> {
                   arrivalAirport: _arrivalAirport,
                   selectedDate: _selectedDate,
                   airlineQuery: '',
-                  initialSearchResults: airlineResults, // 검색 결과 전달
+                  initialSearchResults: groupedFlights, // 그룹화된 항공사 리스트 전달
                 ),
               ),
             );
@@ -515,5 +503,33 @@ class _HomePageState extends State<HomePage> {
         },
       ),
     );
+  }
+
+  /// 항공편 데이터 그룹화 (항공사 + 경유지 기준 중복 제거)
+  List<PopularAirlineResponse> _groupFlightsByAirlineAndRouting(List<dynamic> flights) {
+    final Map<String, PopularAirlineResponse> uniqueAirlines = {};
+    
+    for (final flight in flights) {
+      final airlineCode = flight.airline?.name ?? '';
+      final logoUrl = flight.airline?.logo ?? '';
+      
+      // 중복 방지: 같은 항공사는 한 번만 추가
+      if (!uniqueAirlines.containsKey(airlineCode) && airlineCode.isNotEmpty) {
+        uniqueAirlines[airlineCode] = PopularAirlineResponse(
+          id: airlineCode,
+          name: airlineCode, // 항공사 코드를 이름으로 사용
+          code: airlineCode,
+          country: '', // API에 국가 정보 없음
+          alliance: '', // API에 제휴 정보 없음
+          type: 'FSC', // 기본값
+          logoUrl: logoUrl,
+          rating: 0.0, // API에 평점 정보 없음
+          reviewCount: 0, // API에 리뷰 수 없음
+          rank: 0, // 순위 없음
+        );
+      }
+    }
+    
+    return uniqueAirlines.values.toList();
   }
 }

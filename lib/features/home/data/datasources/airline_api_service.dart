@@ -186,8 +186,8 @@ class AirlineApiService {
       final response = await _apiClient.post(
         ApiConstants.flightsSearch,
         data: {
-          'origin': origin,
-          'destination': destination,
+          'departure': origin,
+          'arrive': destination,
           'departure_date': departureDate,
           'adults': adults,
         },

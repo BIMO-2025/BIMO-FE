@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../home/data/models/flight_search_response.dart';
 import 'flight_card_widget.dart' show DashedLinePainter;
 
@@ -21,28 +22,24 @@ class FlightResultCard extends StatelessWidget {
     final isLayover = flight.segments != null && flight.segments!.length > 1;
     final segments = flight.segments ?? [];
     
-    // 경유지 정보 (첫 번째 경유지 기준)
+    // 경유지 정보 계산
     String layoverInfo = '';
     if (isLayover) {
-      final firstSegment = segments[0];
-      final secondSegment = segments[1];
+      final List<String> layoverDetails = [];
       
-      // 대기 시간 계산: (다음 비행 출발) - (이전 비행 도착)
-      // 실제 데이터 형식에 따라 파싱 로직이 필요할 수 있음. 
-      // 여기서는 DateTime 문자열(ISO 8601 등)이라고 가정하거나, 단순 시간 차이 계산
-      
-      try {
-        final arrivalTime = DateTime.parse(firstSegment.arrivalTime);
-        final departureTime = DateTime.parse(secondSegment.departureTime);
-        final diff = departureTime.difference(arrivalTime);
+      for (int i = 0; i < segments.length - 1; i++) {
+        final prevArrival = DateTime.parse(segments[i].arrivalTime);
+        final nextDeparture = DateTime.parse(segments[i + 1].departureTime);
+        final diff = nextDeparture.difference(prevArrival);
+        
         final hours = diff.inHours;
         final minutes = diff.inMinutes % 60;
+        final airportCode = segments[i].arrivalAirport;
         
-        layoverInfo = '${hours.toString().padLeft(2, '0')}시간 ${minutes.toString().padLeft(2, '0')}분 ${firstSegment.arrivalAirport}';
-      } catch (e) {
-        // 날짜 파싱 실패 시 기본 표시
-        layoverInfo = '경유 ${firstSegment.arrivalAirport}';
+        layoverDetails.add('${hours.toString().padLeft(2, '0')}시간 ${minutes.toString().padLeft(2, '0')}분 $airportCode');
       }
+      
+      layoverInfo = layoverDetails.join('\n');
     }
 
     return GestureDetector(
@@ -53,7 +50,7 @@ class FlightResultCard extends StatelessWidget {
           color: Colors.white.withOpacity(0.1),
           borderRadius: BorderRadius.circular(14),
           border: isSelected
-              ? Border.all(color: const Color(0xFF0080FF), width: 1.5)
+              ? Border.all(color: Colors.white.withOpacity(0.5), width: 1.5)
               : null,
         ),
         child: Column(
@@ -69,15 +66,10 @@ class FlightResultCard extends StatelessWidget {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(14),
                   ),
+                  padding: const EdgeInsets.all(12),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(14),
-                    child: Image.network(
-                      flight.airline.logo,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return const Center(child: Icon(Icons.flight, color: Colors.blue));
-                      },
-                    ),
+                    child: _buildLogo(flight.airline.logo),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -126,17 +118,6 @@ class FlightResultCard extends StatelessWidget {
                           color: Colors.white,
                         ),
                       ),
-                      // 경유 정보 표시
-                      if (isLayover)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Text(
-                            layoverInfo,
-                            style: AppTextStyles.smallBody.copyWith(
-                                color: const Color(0xFFFFB800), // 강조색 (노랑)
-                            ),
-                          ),
-                        ),
                     ],
                   ),
                 ),
@@ -157,25 +138,56 @@ class FlightResultCard extends StatelessWidget {
             const SizedBox(height: 10),
             
             // 하단: 날짜, 편명
+            // 하단: 날짜, 편명, 경유 정보
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // 날짜
                 Expanded(
+                  flex: 1,
                   child: _buildInfoColumn(
                     label: '날짜',
-                    value: _formatDate(flight.departure.time),
+                    value: _formatDate(flight.departure.time), 
                   ),
                 ),
+                // 편명
                 Expanded(
+                  flex: 1,
                   child: _buildInfoColumn(
                     label: '편명',
-                    value: flight.flightNumber, // 경유편인 경우 'KE081 / DL192' 처럼 표시될 수 있도록 데이터 처리 필요
+                    value: segments.isNotEmpty
+                        ? segments.map((s) {
+                            // 편명 중복 방지 (예: carrier='PR', number='PR0127' -> 'PR0127')
+                            if (s.number.startsWith(s.carrierCode)) {
+                              return s.number;
+                            }
+                            return '${s.carrierCode}${s.number}';
+                          }).join(' / ')
+                        : flight.flightNumber,
                   ),
                 ),
-                // 직항/경유 여부
-                Text(
-                  isLayover ? '경유' : '직항',
-                  style: AppTextStyles.body.copyWith(
-                    color: isLayover ? const Color(0xFFFFB800) : Colors.white,
+                // 경유 여부
+                Expanded(
+                  flex: 1,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                        Text(
+                          '경유 여부 (${isLayover ? segments.length - 1 : 0}번)',
+                          style: AppTextStyles.smallBody.copyWith(
+                            color: Colors.white.withOpacity(0.5),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          isLayover ? layoverInfo : '직항',
+                          style: AppTextStyles.smallBody.copyWith(
+                             color: Colors.white,
+                             fontWeight: FontWeight.bold // 강조
+                          ),
+                          textAlign: TextAlign.end,
+                        ),
+                    ],
                   ),
                 ),
               ],
@@ -248,20 +260,41 @@ class FlightResultCard extends StatelessWidget {
     }
   }
 
-  // 날짜 포맷 (예: 2024-05-20T10:30:00 -> 2024.05.20)
+  // 날짜 포맷 (예: 2024-05-20T10:30:00 -> 2024.05.20. (월))
   String _formatDate(String dateTimeStr) {
     try {
       final dt = DateTime.parse(dateTimeStr);
-      return '${dt.year}.${dt.month.toString().padLeft(2, '0')}.${dt.day.toString().padLeft(2, '0')}';
+      final weekdays = ['월', '화', '수', '목', '금', '토', '일'];
+      final weekday = weekdays[dt.weekday - 1];
+      return '${dt.year}.${dt.month.toString().padLeft(2, '0')}.${dt.day.toString().padLeft(2, '0')}. ($weekday)';
     } catch (e) {
       return dateTimeStr;
     }
   }
   
-  // 소요시간 포맷 (예: 830 -> 13시간 50분)
+  // 소요시간 포맷 (예: 830 -> 13h 50m)
   String _formatDuration(int minutes) {
     final h = minutes ~/ 60;
     final m = minutes % 60;
-    return '${h}시간 ${m.toString().padLeft(2, '0')}분';
+    return '${h}h ${m.toString().padLeft(2, '0')}m';
+  }
+
+  Widget _buildLogo(String url) {
+    if (url.toLowerCase().endsWith('.svg')) {
+      return SvgPicture.network(
+        url,
+        fit: BoxFit.cover,
+        placeholderBuilder: (BuildContext context) => const Center(
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return const Center(child: Icon(Icons.flight, color: Colors.blue));
+      },
+    );
   }
 }

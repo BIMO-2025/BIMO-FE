@@ -211,6 +211,8 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
       return _buildStep1Body();
     } else if (_currentStep == 2) {
       return _buildStep2Body();
+    } else if (_currentStep == 2) {
+      return _buildStep2Body();
     } else if (_currentStep == 3) {
       return _buildStep3Body();
     } else {
@@ -290,11 +292,28 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
   
   /// 2단계 바디 (비행편 검색 및 선택)
   Widget _buildStep2Body() {
-    // ViewModel 결과 + 로컬 필터링 (편명 검색)
+    // ViewModel 결과 + 로컬 필터링 (편명 검색 + 경유편 필터)
     final results = _viewModel.flightResults.where((flight) {
+      // 1. 편명 검색
       final query = _flightNumberController.text.trim().toUpperCase();
-      if (query.isEmpty) return true;
-      return flight.flightNumber.toUpperCase().contains(query);
+      bool matchesQuery = true;
+      if (query.isNotEmpty) {
+        matchesQuery = flight.flightNumber.toUpperCase().contains(query);
+      }
+      
+      // 2. 경유편 필터 (체크되면 경유편만, 해제되면 직항만)
+      bool matchesLayover = true;
+      final isLayover = (flight.segments?.length ?? 0) > 1;
+      
+      if (_hasLayover) {
+        // 체크됨 -> 경유편만 표시
+        matchesLayover = isLayover;
+      } else {
+        // 해제됨 -> 직항만 표시
+        matchesLayover = !isLayover;
+      }
+
+      return matchesQuery && matchesLayover;
     }).toList();
 
     return SingleChildScrollView(
@@ -358,7 +377,7 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
   /// 3단계 바디 (좌석 등급 및 비행 목표 선택)
   Widget _buildStep3Body() {
     // 더미 데이터: 좌석 등급 목록 (실제로는 비행 정보에서 받아와야 함)
-    final List<String> seatClasses = ['이코노미', '프리미엄 이코노미', '비즈니스', '퍼스트'];
+    // final List<String> seatClasses = ['이코노미', '프리미엄 이코노미', '비즈니스', '퍼스트']; // 제거됨
     
     // 비행 목표 목록
     final List<String> flightGoals = ['시차적응', '학습/업무 집중', '완전한 휴식'];
@@ -373,7 +392,7 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 좌석 등급 선택 섹션
+          /* 좌석 등급 선택 섹션 제거됨
           Text(
             '탑승하실 좌석 등급을 선택해 주세요.',
             style: AppTextStyles.bigBody.copyWith(color: Colors.white),
@@ -419,6 +438,8 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
             ),
           ),
           const SizedBox(height: 32),
+          */
+          
           // 비행 목표 선택 섹션
           Text(
             '이번 비행의 주된 목표는 무엇인가요?',
@@ -471,11 +492,14 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
 
   /// 진행 표시 바
   Widget _buildProgressBar() {
-    // 진행도 계산 (0% = 첫 단계, 33% = 두 번째 단계, 66% = 세 번째 단계, 100% = 완료)
-    // 첫 단계는 0% (아예 안 채워짐)
+    // 진행도 계산 (0% = 첫 단계, 100% = 두 번째 단계 완료 시점이나, 여기서는 2단계 진입 시 50%? 혹은 100%?)
+    // UI상 2단계에서 이미 바가 다 차있어야 하는지, 아니면 2단계 완료 후 차는지?
+    // 기존: 1->0%, 2->33%, 3->66%
+    // 변경(2단계): 1->0%, 2->100% (비행기 끝까지)
+    // 진행도 계산 (0% = 첫 단계, 50% = 두 번째 단계, 100% = 세 번째 단계)
     final double progress = _currentStep == 1 
         ? 0.0 
-        : (_currentStep - 1) / 3.0; // 2단계: 33%, 3단계: 66%
+        : (_currentStep - 1) / 2.0;
     
     final double barWidth = context.w(335); // 전체 너비
     final double filledWidth = barWidth * progress; // 채워진 너비
@@ -821,8 +845,8 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
              // 2단계: 비행편이 선택되어야 함
              return _viewModel.selectedFlight != null;
            } else if (_currentStep == 3) {
-             // 3단계: 좌석 등급과 비행 목표가 모두 선택되어야 함
-             return _selectedSeatClass != null && _selectedFlightGoal != null;
+             // 3단계: 비행 목표가 선택되어야 함 (좌석 등급 제거됨)
+             return _selectedFlightGoal != null;
            }
            return false;
          }
@@ -847,7 +871,12 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
         _currentStep = 3;
       });
     } else if (_currentStep == 3) {
-      // 3단계에서 로딩 화면 표시
+      _goToFinish();
+    }
+  }
+
+  void _goToFinish() {
+      // 로딩 화면 표시
       setState(() {
         _isLoading = true;
       });
@@ -871,7 +900,7 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
         }
       });
     }
-  }
+  
   
   /// 로딩 화면
   Widget _buildLoadingScreen() {
@@ -887,7 +916,10 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
             const SizedBox(height: 8), // 로딩 컨테이너와 글자 간격 8px
             // 안내 텍스트
             Text(
-              '최적의 비행 플랜을\n생성 중입니다',
+              // 1단계에서 넘어갈 때(검색 중) vs 2단계에서 넘어갈 때(생성 중)
+              _currentStep == 1 
+                  ? 'BIMO가\n비행편을 확인 중이에요' 
+                  : '최적의 비행 플랜을\n생성 중입니다',
               textAlign: TextAlign.center,
               style: AppTextStyles.large.copyWith(color: Colors.white),
             ),

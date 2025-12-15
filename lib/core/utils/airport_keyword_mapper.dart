@@ -211,10 +211,43 @@ class AirportKeywordMapper {
     final displayMap = {
       // 한국
       'Seoul': '서울',
+      'ICN': '인천',
       'Incheon': '인천',
       'Incheon International Airport': '인천 국제공항',
+      'GMP': '김포',
       'Gimpo': '김포',
       'Gimpo International Airport': '김포 국제공항',
+
+      // Common Layover Hubs & Major Cities
+      'ADD': '아디스아바바',
+      'DXB': '두바이',
+      'DOH': '도하',
+      'IST': '이스탄불',
+      'HND': '도쿄(하네다)',
+      'NRT': '도쿄(나리타)',
+      'KIX': '오사카(간사이)',
+      'FUK': '후쿠오카',
+      'HKG': '홍콩',
+      'SIN': '싱가포르',
+      'BKK': '방콕',
+      'TPE': '타이베이',
+      'PEK': '베이징',
+      'PVG': '상하이(푸동)',
+      'CDG': '파리',
+      'LHR': '런던',
+      'FRA': '프랑크푸르트',
+      'AMS': '암스테르담',
+      'FCO': '로마',
+      'MAD': '마드리드',
+      'BCN': '바르셀로나',
+      'ZRH': '취리히',
+      'JFK': '뉴욕(JFK)',
+      'LAX': '로스앤젤레스',
+      'SFO': '샌프란시스코',
+      'SEA': '시애틀',
+      'YVR': '밴쿠버',
+      'YYZ': '토론토',
+      'SYD': '시드니',
       'Busan': '부산',
       'Gimhae International Airport': '김해 국제공항',
       'Jeju': '제주',
@@ -254,6 +287,17 @@ class AirportKeywordMapper {
       'Rick Husband Amarillo International Airport': '릭 허스번드 애머릴로 국제공항',
       'Lanai': '리나이',
       'Lanai Airport': '리나이 공항',
+      
+      // 캐나다
+      'Canada': '캐나다',
+      'Toronto': '토론토',
+      'Pearson International Airport': '피어슨 국제공항',
+      'Vancouver': '밴쿠버',
+      'Vancouver International Airport': '밴쿠버 국제공항',
+      'Montreal': '몬트리올',
+      'Pierre Elliott Trudeau International Airport': '피에르 엘리오트 트뤼도 국제공항',
+      'Calgary': '캘거리',
+      'Calgary International Airport': '캘거리 국제공항',
       
       // 일본
       'Tokyo': '도쿄',
@@ -357,5 +401,147 @@ class AirportKeywordMapper {
     if (input.length != 1) return false;
     final int code = input.codeUnitAt(0);
     return code >= 0x3131 && code <= 0x314E;
+  }
+
+  /// 접두사(Prefix) 일치 검색 (로컬 필터링용)
+  /// 입력값으로 시작하는 한글 키워드를 찾아 영문 매핑값을 반환
+  /// 예: "미" -> ["United States", "Myanmar"]
+  static Map<String, String> getPrefixMatches(String input) {
+    if (input.isEmpty) return {};
+
+    final Map<String, String> matches = {};
+    
+    // 로컬 매핑 데이터 (쿼리용) - 데이터 확장
+    // NOTE: 실제 프로덕션에서는 별도 파일이나 상수로 관리하는 것이 좋음
+    final queryMap = {
+      // 대한민국
+      '서울': 'Seoul',
+      '인천': 'Incheon',
+      '김포': 'Gimpo',
+      '부산': 'Busan',
+      '제주': 'Jeju',
+      '대구': 'Daegu',
+      '광주': 'Gwangju',
+      '청주': 'Cheongju',
+      '무안': 'Muan',
+      '양양': 'Yangyang',
+
+      // 미국
+      '미국': 'United States',
+      '뉴욕': 'New York',
+      '로스앤젤레스': 'Los Angeles',
+      '엘에이': 'Los Angeles',
+      'LA': 'Los Angeles',
+      '샌프란시스코': 'San Francisco',
+      '시카고': 'Chicago',
+      '워싱턴': 'Washington',
+      '라스베가스': 'Las Vegas',
+      '시애틀': 'Seattle',
+      '보스턴': 'Boston',
+      '애틀랜타': 'Atlanta',
+      '댈러스': 'Dallas',
+      '하와이': 'Hawaii',
+      '호놀룰루': 'Honolulu',
+      '괌': 'Guam',
+      
+      // 일본
+      '일본': 'Japan',
+      '도쿄': 'Tokyo',
+      '오사카': 'Osaka',
+      '후쿠오카': 'Fukuoka',
+      '삿포로': 'Sapporo',
+      '오키나와': 'Okinawa',
+      '나고야': 'Nagoya',
+
+      // 중국/동북아
+      '중국': 'China',
+      '베이징': 'Beijing',
+      '북경': 'Beijing',
+      '상하이': 'Shanghai',
+      '상해': 'Shanghai',
+      '홍콩': 'Hong Kong',
+      '대만': 'Taiwan',
+      '타이베이': 'Taipei',
+      '마카오': 'Macau',
+      
+      // 동남아
+      '미얀마': 'Myanmar',
+      '태국': 'Thailand',
+      '방콕': 'Bangkok',
+      '치앙마이': 'Chiang Mai',
+      '푸켓': 'Phuket',
+      '베트남': 'Vietnam',
+      '다낭': 'Da Nang',
+      '하노이': 'Hanoi',
+      '호치민': 'Ho Chi Minh',
+      '나트랑': 'Nha Trang',
+      '필리핀': 'Philippines',
+      '마닐라': 'Manila',
+      '세부': 'Cebu',
+      '보라카이': 'Boracay',
+      '싱가포르': 'Singapore',
+      '말레이시아': 'Malaysia',
+      '쿠알라룸푸르': 'Kuala Lumpur',
+      '코타키나발루': 'Kota Kinabalu',
+      '인도네시아': 'Indonesia',
+      '발리': 'Bali',
+      '자카르타': 'Jakarta',
+      
+      // 유럽
+      '영국': 'United Kingdom',
+      '런던': 'London',
+      '프랑스': 'France',
+      '파리': 'Paris',
+      '독일': 'Germany',
+      '프랑크푸르트': 'Frankfurt',
+      '뮌헨': 'Munich',
+      '이탈리아': 'Italy',
+      '로마': 'Rome',
+      '밀라노': 'Milan',
+      '베니스': 'Venice',
+      '스페인': 'Spain',
+      '바르셀로나': 'Barcelona',
+      '마드리드': 'Madrid',
+      '스위스': 'Switzerland',
+      '취리히': 'Zurich',
+      '제네바': 'Geneva',
+      '네덜란드': 'Netherlands',
+      '암스테르담': 'Amsterdam',
+      '체코': 'Czech Republic',
+      '프라하': 'Prague',
+      '오스트리아': 'Austria',
+      '비엔나': 'Vienna',
+      
+      // 대양주
+      '호주': 'Australia',
+      '시드니': 'Sydney',
+      '멜버른': 'Melbourne',
+      '브리즈번': 'Brisbane',
+      '뉴질랜드': 'New Zealand',
+      '오클랜드': 'Auckland',
+      
+      // 캐나다
+      '캐나다': 'Canada',
+      '토론토': 'Toronto',
+      '밴쿠버': 'Vancouver',
+    };
+
+    for (final entry in queryMap.entries) {
+      if (entry.key.startsWith(input)) {
+        matches[entry.key] = entry.value;
+      }
+    }
+    
+    return matches;
+  }
+  
+  /// 주어진 키워드가 국가명인지 확인 (헤더 표시용)
+  static bool isCountryKey(String key) {
+    const countries = {
+      '대한민국', '미국', '일본', '중국', '영국', '프랑스', '독일', '이탈리아', '스페인', '네덜란드', '스위스', '체코', '오스트리아',
+      '태국', '베트남', '필리핀', '싱가포르', '말레이시아', '인도네시아', '대만',
+      '호주', '뉴질랜드', '캐나다', '미얀마'
+    };
+    return countries.contains(key);
   }
 }

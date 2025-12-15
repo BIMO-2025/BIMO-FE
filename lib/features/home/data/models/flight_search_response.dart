@@ -51,27 +51,104 @@ class FlightSearchData {
     required this.date,
   });
 
+  // existing fromJson kept for compatibility/tests if needed, but delegating
   factory FlightSearchData.fromJson(Map<String, dynamic> json) {
+    return FlightSearchData.fromMap(json);
+  }
+
+  factory FlightSearchData.fromMap(Map<String, dynamic> json, {Map<String, String>? airlineLogos}) {
+    // segments가 있으면 첫 번째 세그먼트의 출발, 마지막 세그먼트의 도착 정보를 사용
+    final segmentsList = (json['segments'] as List<dynamic>?)
+        ?.map((e) => FlightSegment.fromJson(e as Map<String, dynamic>))
+        .toList();
+    
+    FlightEndpoint depEndpoint;
+    FlightEndpoint arrEndpoint;
+    
+    if (segmentsList != null && segmentsList.isNotEmpty) {
+        final first = segmentsList.first;
+        final last = segmentsList.last;
+        depEndpoint = FlightEndpoint(airport: first.departureAirport, time: first.departureTime);
+        arrEndpoint = FlightEndpoint(airport: last.arrivalAirport, time: last.arrivalTime);
+    } else {
+        // Fallback or throw
+        depEndpoint = FlightEndpoint(airport: '', time: '');
+        arrEndpoint = FlightEndpoint(airport: '', time: '');
+    }
+
+    var rawDuration = json['total_duration'] ?? json['duration'];
+    int parsedDuration = _parseDuration(rawDuration);
+    
+    // 디버깅용 (빌드 후 로그 확인)
+    if (parsedDuration == 0) {
+        print('⚠️ Duration parsing failed for: $rawDuration. Fallback to diff.');
+    }
+    
+    // 만약 duration 파싱 결과가 0이고 세그먼트가 있다면 직접 계산 (Fallback)
+    // 주의: 현지 시간(Local Time) 기준일 경우 시차로 인해 계산이 부정확할 수 있음
+    if (parsedDuration == 0 && depEndpoint.time.isNotEmpty && arrEndpoint.time.isNotEmpty) {
+      try {
+        final start = DateTime.parse(depEndpoint.time);
+        final end = DateTime.parse(arrEndpoint.time);
+        parsedDuration = end.difference(start).inMinutes;
+      } catch (_) {}
+    }
+    
+    // 항공사 로고 찾기
+    // 1. logo_symbol_url 확인 (최우선)
+    String? logoUrl = json['logo_symbol_url'] as String?;
+    
+    // 2. 없으면 기존 로직 (매핑 또는 fallback)
+    String carrierCode = json['operating_carrier'] as String? ?? '';
+    if (logoUrl == null || logoUrl.isEmpty) {
+        if (carrierCode.isEmpty && segmentsList != null && segmentsList.isNotEmpty) {
+          carrierCode = segmentsList.first.carrierCode;
+        }
+        logoUrl = airlineLogos?[carrierCode] ?? 'https://pic.sopoo.kr/upload/1.png';
+    }
+
     return FlightSearchData(
-      airline: FlightAirline.fromJson(json['airline'] ?? {}),
-      departure: FlightEndpoint.fromJson(json['departure'] ?? {}),
-      arrival: FlightEndpoint.fromJson(json['arrival'] ?? {}),
-      duration: _parseDuration(json['duration']),
-      flightNumber: _parseFlightNumber(json),
-      segments: (json['itineraries'] != null && (json['itineraries'] as List).isNotEmpty)
-          ? ((json['itineraries'][0]['segments'] as List?)
-              ?.map((e) => FlightSegment.fromJson(e))
-              .toList())
-          : null,
-      date: json['lastTicketingDate'] ?? '', // TODO: 적절한 날짜 필드 매핑 필요
+      // Airline 정보가 없으면 operating_carrier 코드만이라도 사용
+      airline: FlightAirline(
+          name: carrierCode, 
+          logo: logoUrl
+      ), 
+      departure: depEndpoint,
+      arrival: arrEndpoint,
+      duration: parsedDuration,
+      flightNumber: json['flight_number'] ?? '',
+      segments: segmentsList,
+      date: '', // 응답에 날짜 필드가 명시적으로 없으면 빈 문자열 혹은 출발 시간 등 사용
     );
   }
 
   static int _parseDuration(dynamic duration) {
     if (duration is int) return duration;
     if (duration is String) {
-      // PT13H50M 형식 파싱 필요시 구현, 여기서는 임시로 0 처리
-      return 0;
+      // PT14H30M or 14H30M format
+      String d = duration.toUpperCase();
+      if (d.startsWith('PT')) d = d.substring(2);
+      
+      int days = 0;
+      int hours = 0;
+      int minutes = 0;
+      
+      final dMatch = RegExp(r'(\d+)\s*D').firstMatch(d);
+      if (dMatch != null) {
+        days = int.parse(dMatch.group(1)!);
+      }
+
+      final hMatch = RegExp(r'(\d+)\s*H').firstMatch(d);
+      if (hMatch != null) {
+        hours = int.parse(hMatch.group(1)!);
+      }
+      
+      final mMatch = RegExp(r'(\d+)\s*M').firstMatch(d);
+      if (mMatch != null) {
+        minutes = int.parse(mMatch.group(1)!);
+      }
+      
+      return (days * 24 * 60) + (hours * 60) + minutes;
     }
     return 0;
   }
@@ -140,12 +217,12 @@ class FlightSegment {
 
   factory FlightSegment.fromJson(Map<String, dynamic> json) {
     return FlightSegment(
-      departureAirport: json['departure']?['iataCode'] ?? '',
-      arrivalAirport: json['arrival']?['iataCode'] ?? '',
+      departureAirport: json['departure']?['iata_code'] ?? '',
+      arrivalAirport: json['arrival']?['iata_code'] ?? '',
       departureTime: json['departure']?['at'] ?? '',
       arrivalTime: json['arrival']?['at'] ?? '',
-      carrierCode: json['carrierCode'] ?? '',
-      number: json['number'] ?? '',
+      carrierCode: json['operating_carrier'] ?? '',
+      number: json['flight_number'] ?? '',
       duration: json['duration'] ?? '',
     );
   }
@@ -164,41 +241,31 @@ class FlightSearchResponse {
   });
 
   factory FlightSearchResponse.fromJson(Map<String, dynamic> json) {
-    // API 응답 구조가 Amadeus Flight Offers Search와 유사하다고 가정
-    // 하지만 사용자의 코드는 'flight_offers' 키를 사용함
+    // 1. 항공사 로고 맵 생성
+    final airlineLogos = <String, String>{};
+    final rawAirlines = json['airlines'] as List<dynamic>?;
+    if (rawAirlines != null) {
+      for (final item in rawAirlines) {
+        final logo = item['logo_url'] as String?;
+        if (logo != null) {
+            final code = item['code'] as String?;
+            final id = item['id'] as String?;
+            
+            if (code != null) airlineLogos[code] = logo;
+            if (id != null) airlineLogos[id] = logo;
+        }
+      }
+    }
+
+    // 2. 결과 파싱 (로고 맵 전달)
+    final rawResults = json['results'] as List<dynamic>? ?? [];
     
-    final rawOffers = json['flight_offers'] as List<dynamic>? ?? [];
-    
-    // API 응답을 내부 모델 형식으로 변환하는 로직이 필요할 수 있음
-    // 여기서는 rawOffers를 직접 파싱하기보다, 
-    // 기존 코드의 데이터 구조에 맞추기 위해 더미 매핑을 하거나 
-    // 실제 API 응답을 확인해야 함.
-    // 임시로 rawOffers를 FlightSearchData로 변환 시도
-    
-    final flightDataList = rawOffers.map((e) {
-        // Amadeus 응답 구조라고 가정하고 매핑
-        return FlightSearchData(
-            airline: FlightAirline(name: 'Airline', logo: 'https://pic.sopoo.kr/upload/1.png'), // 더미
-            departure: FlightEndpoint(
-                airport: e['itineraries'][0]['segments'][0]['departure']['iataCode'],
-                time: e['itineraries'][0]['segments'][0]['departure']['at']
-            ),
-            arrival: FlightEndpoint(
-                airport: e['itineraries'][0]['segments'].last['arrival']['iataCode'],
-                time: e['itineraries'][0]['segments'].last['arrival']['at']
-            ),
-            duration: 0, // DURATION PARSING NEEDED
-            flightNumber: '${e['itineraries'][0]['segments'][0]['carrierCode']}${e['itineraries'][0]['segments'][0]['number']}',
-            segments: (e['itineraries'][0]['segments'] as List).map((s) => FlightSegment.fromJson(s)).toList(),
-            date: e['lastTicketingDate'] ?? '',
-        );
+    final flightDataList = rawResults.map((e) {
+        return FlightSearchData.fromMap(e as Map<String, dynamic>, airlineLogos: airlineLogos);
     }).toList();
 
     return FlightSearchResponse(
-      airlines: (json['airlines'] as List<dynamic>?)
-              ?.map((e) => FlightAirlineInfo.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [],
+      airlines: (rawAirlines?.map((e) => FlightAirlineInfo.fromJson(e)).toList()) ?? [],
       count: json['count'] as int? ?? 0,
       data: flightDataList,
     );
