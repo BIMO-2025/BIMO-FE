@@ -2,8 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../../core/widgets/base_bottom_sheet.dart';
 import '../../../../core/utils/responsive_extensions.dart';
-import '../../data/datasources/airline_api_service.dart';
-import '../../data/airport_mapper.dart';
+import '../../../myflight/data/repositories/flight_repository.dart';
 import '../../domain/models/airport.dart';
 import 'airport_item.dart';
 
@@ -21,8 +20,9 @@ class AirportSearchBottomSheet extends StatefulWidget {
 }
 
 class _AirportSearchBottomSheetState extends State<AirportSearchBottomSheet> {
+
   final TextEditingController _searchController = TextEditingController();
-  final AirlineApiService _apiService = AirlineApiService();
+  final FlightRepository _flightRepository = FlightRepository();
   
   List<Airport> _filteredAirports = []; // Start with empty list
   bool _isLoading = false;
@@ -67,7 +67,7 @@ class _AirportSearchBottomSheetState extends State<AirportSearchBottomSheet> {
   /// 공항 검색 API 호출
   Future<void> _searchAirports(String keyword) async {
     // 최소 길이 검증
-    if (keyword.length < 2) {
+    if (keyword.length < 1) { // 1글자부터 검색 허용 (매퍼가 있으므로)
       setState(() {
         _filteredAirports = [];
         _isLoading = false;
@@ -76,16 +76,7 @@ class _AirportSearchBottomSheetState extends State<AirportSearchBottomSheet> {
       return;
     }
     
-    // 미완성 한글 필터링 (자음/모음만 있는 경우)
-    if (RegExp(r'[ㄱ-ㅎㅏ-ㅣ]').hasMatch(keyword)) {
-      print('⚠️ 미완성 한글 감지: $keyword');
-      setState(() {
-        _filteredAirports = [];
-        _isLoading = false;
-        _errorMessage = null;
-      });
-      return;
-    }
+    // 한글 필터링 제거 (매퍼가 처리함)
 
     setState(() {
       _isLoading = true;
@@ -93,27 +84,8 @@ class _AirportSearchBottomSheetState extends State<AirportSearchBottomSheet> {
     });
 
     try {
-      // 한글 키워드를 공항 코드로 변환
-      final searchKeyword = AirportMapper.convertSearchKeyword(keyword);
-      
-      print('🔍 원본 검색어: $keyword');
-      print('🔍 변환된 검색어: $searchKeyword');
-      
-      final response = await _apiService.searchLocations(keyword: searchKeyword);
-      
-      // LocationItem을 Airport 모델로 변환 (AIRPORT만 필터링)
-      final airports = response.locations
-          .where((location) => location.subType == 'AIRPORT') // AIRPORT만 필터링
-          .map<Airport>((location) {
-        return Airport(
-          cityName: location.address?.cityName ?? location.name,
-          cityCode: location.address?.cityCode ?? '',
-          airportName: location.name, // 공항 이름
-          airportCode: location.iataCode, // 공항 코드
-          country: location.address?.countryName ?? '',
-          locationType: location.subType, // "AIRPORT"
-        );
-      }).toList();
+      // FlightRepository를 통해 검색 (내부적으로 매핑 처리됨)
+      final airports = await _flightRepository.searchAirports(keyword);
 
       setState(() {
         _filteredAirports = airports;
@@ -240,8 +212,21 @@ class _AirportSearchBottomSheetState extends State<AirportSearchBottomSheet> {
                               return AirportItem(
                                 airport: airport,
                                 onTap: () {
-                                  widget.onAirportSelected(airport);
-                                  Navigator.pop(context);
+                                  // COUNTRY 또는 CITY 타입인 경우 -> 검색어 자동완성 후 재검색
+                                  // (사용자가 해당 지역의 공항을 찾기 위해 '진입'하는 개념)
+                                  if (airport.type == SearchResultType.COUNTRY || 
+                                      airport.type == SearchResultType.CITY) {
+                                    
+                                    _searchController.text = airport.cityName;
+                                    _searchController.selection = TextSelection.fromPosition(
+                                      TextPosition(offset: _searchController.text.length),
+                                    );
+                                    // 텍스트 변경으로 인해 리스너가 호출되어 검색이 트리거됨
+                                  } else {
+                                    // AIRPORT 타입 -> 최종 선택
+                                    widget.onAirportSelected(airport);
+                                    Navigator.pop(context);
+                                  }
                                 },
                               );
                             },

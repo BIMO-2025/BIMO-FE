@@ -65,7 +65,12 @@ class _LoginPageState extends State<LoginPage> {
         final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
         token = googleAuth.idToken ?? '';
         
-        print("✅ Google ID Token: $token");
+        print("✅ Google ID Token Length: ${token.length}");
+        int chunkSize = 800;
+        for (int i = 0; i < token.length; i += chunkSize) {
+            int end = (i + chunkSize < token.length) ? i + chunkSize : token.length;
+            print("Token chunk: ${token.substring(i, end)}");
+        }
         
         if (token.isEmpty) {
           throw Exception('구글 토큰을 가져오지 못했습니다.');
@@ -237,25 +242,34 @@ class _LoginPageState extends State<LoginPage> {
 
       print('✅ Login Successful! User: $displayName');
 
-      // 저장소에 userId와 최신 닉네임 저장 (앱 재시작 시 체크용)
-      // 주의: 닉네임 설정이 완료되기 전까지는 name을 저장하지 않음으로써,
-      // 앱 재시작 시 Splash에서 닉네임 설정을 강제할 수 있도록 함.
+      // 저장소에 userId와 최신 닉네임 저장
       final storage = AuthTokenStorage();
       await storage.saveUserInfo(
         userId: userId,
-        // name: displayName, // <-- 여기서 저장하지 않음!
+        // 닉네임이 있으면 저장, 없으면 null (Splash에서 체크용)
+        name: displayName, 
         email: email, 
       );
       
-      // 3. 닉네임 설정 페이지로 이동 (통일)
-      // 닉네임이 있어도 설정 페이지로 이동하여 확인/수정하도록 함
-      AppRouter.router.push(
-        RouteNames.nicknameSetup, 
-        extra: {
-          'userId': userId ?? '',
-          'nickname': displayName,
-        },
-      );
+      if (displayName != null && displayName.toString().isNotEmpty) {
+        // 닉네임이 이미 설정된 경우 -> 홈으로 이동
+        print('✅ 기존 사용자 (닉네임: $displayName) -> 홈으로 이동');
+        if (mounted) {
+           context.go(RouteNames.home);
+        }
+      } else {
+        // 닉네임이 없는 경우 -> 닉네임 설정 페이지로 이동
+        print('🆕 신규 사용자 또는 닉네임 미설정 -> 닉네임 설정 페이지로 이동');
+        if (mounted) {
+          context.push(
+            RouteNames.nicknameSetup, 
+            extra: {
+              'userId': userId ?? '',
+              'nickname': displayName,
+            },
+          );
+        }
+      }
     } catch (e) {
       // 401 에러(토큰 유효하지 않음)는 테스트 상황에서 정상이므로,
       // 테스트 모드로 간주하고 강제로 로그인을 성공시킵니다.

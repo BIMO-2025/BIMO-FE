@@ -1,7 +1,11 @@
+import 'dart:io'; // File 클래스 사용을 위해 추가
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/responsive_extensions.dart';
 import '../../../../core/storage/auth_token_storage.dart';
+import '../../../../core/network/api/user_api_service.dart'; // UserApiService import
+import '../../data/repositories/user_repository_impl.dart';
 import '../widgets/profile_card.dart';
 import '../widgets/menu_section.dart';
 import '../widgets/menu_item.dart';
@@ -12,6 +16,7 @@ import 'faq_page.dart';
 import 'announcement_page.dart';
 import 'my_reviews_page.dart';
 import 'sleep_pattern_page.dart';
+import '../../../../test_token_refresh.dart';
 
 /// 마이 페이지 (탭 컨텐츠)
 class MyPage extends StatefulWidget {
@@ -22,9 +27,10 @@ class MyPage extends StatefulWidget {
 }
 
 class _MyPageState extends State<MyPage> {
+  final UserApiService _userApiService = UserApiService(); // API 서비스 인스턴스
   String _name = '사용자';
   String _email = '';
-  String _profileImageUrl = 'https://picsum.photos/200'; // Default
+  String _profileImageUrl = ''; // Default (empty string to trigger default image in ProfileCard)
   
   @override
   void initState() {
@@ -46,6 +52,63 @@ class _MyPageState extends State<MyPage> {
            _profileImageUrl = savedPhotoUrl;
         }
       });
+    }
+  }
+
+  /// 갤러리에서 이미지 선택 및 업로드
+  Future<void> _pickImage() async {
+    final ImagePicker picker = ImagePicker();
+    try {
+      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+
+      if (image != null) {
+        // 1. UI에 즉시 반영 (로컬 파일 경로)
+        setState(() {
+          _profileImageUrl = image.path;
+        });
+        
+        // 2. 백엔드에 업로드
+        try {
+          final userRepository = UserRepositoryImpl();
+          final response = await userRepository.updateProfilePhoto(image.path);
+          
+          print('✅ 프로필 사진 업로드 성공: $response');
+          
+          // 3. 응답에서 새로운 photo_url 받아서 저장
+          final newPhotoUrl = response['photo_url'];
+          if (newPhotoUrl != null) {
+            final storage = AuthTokenStorage();
+            await storage.saveUserInfo(photoUrl: newPhotoUrl);
+            
+            setState(() {
+              _profileImageUrl = newPhotoUrl;
+            });
+          }
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('프로필 사진이 변경되었습니다.'),
+                duration: Duration(seconds: 1),
+              ),
+            );
+          }
+        } catch (e) {
+          print('❌ 프로필 사진 업로드 실패: $e');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('사진 업로드 실패: $e')),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      print('❌ 이미지 선택 실패: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('사진을 선택할 수 없습니다: $e')),
+        );
+      }
     }
   }
 
@@ -73,6 +136,7 @@ class _MyPageState extends State<MyPage> {
                   _loadUserInfo();
                 });
               },
+              onProfileImageTap: _pickImage,
             ),
 
             SizedBox(height: context.h(16)),
@@ -241,6 +305,39 @@ class _MyPageState extends State<MyPage> {
                   },
                 ),
               ],
+            ),
+
+            SizedBox(height: context.h(20)),
+
+            // 토큰 갱신 테스트 버튼 (개발용)
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: context.w(20)),
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const TestTokenRefreshPage(),
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.yellow1,
+                  foregroundColor: Colors.black,
+                  minimumSize: Size(context.w(335), context.h(48)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(context.w(12)),
+                  ),
+                ),
+                child: const Text(
+                  '🔄 토큰 갱신 테스트',
+                  style: TextStyle(
+                    fontFamily: 'Pretendard',
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
             ),
 
             SizedBox(height: context.h(100)), // 탭바 공간 확보

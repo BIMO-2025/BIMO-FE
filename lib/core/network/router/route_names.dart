@@ -12,6 +12,7 @@ class RouteNames {
 
   // Main Routes
   static const String nicknameSetup = '/nickname-setup';
+  static const String sleepPattern = '/sleep-pattern';
   static const String home = '/home';
   static const String myFlight = '/myflight';
  

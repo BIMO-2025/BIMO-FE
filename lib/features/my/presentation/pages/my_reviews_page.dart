@@ -1,36 +1,112 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/responsive_extensions.dart';
+import '../../../../core/storage/auth_token_storage.dart';
+import '../../../../core/constants/api_constants.dart';
+import '../../../../core/network/api_client.dart';
 import '../../../home/presentation/pages/airline_review_page.dart'; // Review 클래스
 import '../../../home/presentation/pages/review_detail_page.dart';
 
 /// 나의 리뷰 페이지
-class MyReviewsPage extends StatelessWidget {
+class MyReviewsPage extends StatefulWidget {
   const MyReviewsPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // TODO: 백엔드에서 사용자 리뷰 데이터 가져오기
-    final myReviews = [
-      Review(
-        nickname: '여행조아',
-        profileImage: 'assets/images/search/user_img.png',
-        rating: 4.0,
-        date: '2025.10.09.',
-        likes: 22,
-        tags: ['인천 - 파리 노선', 'KE901', '이코노미'],
-        content:
-            '좌석은 이코노미지만 넓고 나쁘지 않았어요 동양인들이 타기에는 나쁘지 않은 것 같아요 기내식은 비빔밥이랑 치즈랑 빵이 나왔어요 맛있어요 그리고 승무원 님들 서비스가 너무 좋았어요 14시간 내내 고생하시더라고요 그래서 어저구 저쩌구 했어요 ...더보기',
-        images: [
-          'assets/images/search/review_photo_1.png',
-          'assets/images/search/review_photo_2.png',
-          'assets/images/search/review_photo_3.png',
-          'assets/images/search/review_photo_1.png',
-        ],
-      ),
-    ];
+  State<MyReviewsPage> createState() => _MyReviewsPageState();
+}
 
+class _MyReviewsPageState extends State<MyReviewsPage> {
+  String _nickname = '사용자';
+  String _profileImage = 'assets/images/my/default_profile.png'; // 기본 이미지
+  List<Review> _myReviews = [];
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserInfo();
+  }
+
+  Future<void> _loadUserInfo() async {
+    final storage = AuthTokenStorage();
+    final userInfo = await storage.getUserInfo();
+    
+    if (mounted) {
+      setState(() {
+        _nickname = userInfo['name'] ?? '사용자';
+        final savedPhotoUrl = userInfo['photoUrl'];
+        if (savedPhotoUrl != null && savedPhotoUrl.isNotEmpty) {
+           _profileImage = savedPhotoUrl;
+        }
+      });
+      
+      // userId로 리뷰 가져오기
+      final userId = userInfo['userId'];
+      if (userId != null && userId.isNotEmpty) {
+        await _fetchUserReviews(userId);
+      } else {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = '사용자 ID를 찾을 수 없습니다.';
+        });
+      }
+    }
+  }
+
+  Future<void> _fetchUserReviews(String userId) async {
+    try {
+      final apiClient = ApiClient();
+      final response = await apiClient.get(
+        ApiConstants.userReviews(userId),
+        queryParameters: {
+          'limit': 20,
+          'offset': 0,
+          'sort': 'latest',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+        final reviews = data['reviews'] as List;
+        
+        setState(() {
+          _myReviews = reviews.map((reviewData) {
+            return Review(
+              nickname: reviewData['userNickname'] ?? _nickname,
+              profileImage: reviewData['userProfileImage'] ?? _profileImage,
+              rating: (reviewData['overallRating'] ?? 0).toDouble(),
+              date: reviewData['createdAt'] ?? '',
+              likes: reviewData['likes'] ?? 0,
+              tags: [
+                reviewData['airlineCode'] ?? '',
+                reviewData['airlineName'] ?? '',
+              ],
+              content: reviewData['text'] ?? '',
+              images: [], // TODO: 이미지 처리
+            );
+          }).toList();
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = '리뷰를 불러올 수 없습니다.';
+        });
+      }
+    } catch (e) {
+      print('❌ 리뷰 로딩 실패: $e');
+      setState(() {
+        _isLoading = false;
+        _errorMessage = '리뷰를 불러오는 중 오류가 발생했습니다.';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF131313),
       appBar: AppBar(
@@ -60,24 +136,50 @@ class MyReviewsPage extends StatelessWidget {
         ),
         centerTitle: true,
       ),
-      body: ListView.separated(
-        padding: EdgeInsets.only(
-          top: context.h(15),
-          left: context.w(20),
-          right: context.w(20),
-          bottom: context.h(20),
-        ),
-        itemCount: myReviews.length,
-        separatorBuilder: (context, index) => SizedBox(height: context.h(12)),
-        itemBuilder: (context, index) {
-          final review = myReviews[index];
-          return _buildReviewCard(context, review);
-        },
-      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: AppColors.yellow1))
+          : _errorMessage != null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        _errorMessage!,
+                        style: AppTextStyles.medium.copyWith(color: AppColors.white),
+                      ),
+                      SizedBox(height: context.h(16)),
+                      ElevatedButton(
+                        onPressed: _loadUserInfo,
+                        child: const Text('다시 시도'),
+                      ),
+                    ],
+                  ),
+                )
+              : _myReviews.isEmpty
+                  ? Center(
+                      child: Text(
+                        '작성한 리뷰가 없습니다.',
+                        style: AppTextStyles.medium.copyWith(color: AppColors.white),
+                      ),
+                    )
+                  : ListView.separated(
+                      padding: EdgeInsets.only(
+                        top: context.h(15),
+                        left: context.w(20),
+                        right: context.w(20),
+                        bottom: context.h(20),
+                      ),
+                      itemCount: _myReviews.length,
+                      separatorBuilder: (context, index) => SizedBox(height: context.h(12)),
+                      itemBuilder: (context, index) {
+                        final review = _myReviews[index];
+                        return _buildReviewCard(context, review);
+                      },
+                    ),
     );
   }
 
-  /// 리뷰 카드 위젯 (airline_review_page.dart와 동일 구조)
+  /// 리뷰 카드 위젯
   Widget _buildReviewCard(BuildContext context, Review review) {
     return GestureDetector(
       onTap: () {
@@ -110,7 +212,7 @@ class MyReviewsPage extends StatelessWidget {
                     CircleAvatar(
                       radius: context.w(16),
                       backgroundColor: const Color(0xFF333333),
-                      backgroundImage: AssetImage(review.profileImage),
+                      backgroundImage: _getImageProvider(review.profileImage),
                     ),
                     SizedBox(width: context.w(8)),
                     Column(
@@ -252,5 +354,15 @@ class MyReviewsPage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  ImageProvider _getImageProvider(String imagePath) {
+    if (imagePath.startsWith('http')) {
+      return NetworkImage(imagePath);
+    } else if (imagePath.startsWith('assets/')) {
+      return AssetImage(imagePath);
+    } else {
+      return FileImage(File(imagePath));
+    }
   }
 }
