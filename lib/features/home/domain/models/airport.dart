@@ -1,5 +1,6 @@
 class Airport {
   final String cityName;
+  final String cityCode; // 도시 코드 추가 (예: NYC)
   final String airportName;
   final String airportCode;
   final String country;
@@ -7,6 +8,7 @@ class Airport {
 
   const Airport({
     required this.cityName,
+    required this.cityCode,
     required this.airportName,
     required this.airportCode,
     required this.country,

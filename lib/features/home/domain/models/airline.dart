@@ -1,5 +1,6 @@
 class Airline {
   final String name;
+  final String code; // 항공사 코드 (예: KE, AF, SQ)
   final String englishName;
   final String logoPath;
   final String imagePath;
@@ -12,6 +13,7 @@ class Airline {
 
   const Airline({
     required this.name,
+    required this.code,
     required this.englishName,
     required this.logoPath,
     required this.imagePath,

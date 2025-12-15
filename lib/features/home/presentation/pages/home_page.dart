@@ -18,6 +18,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/network/router/route_names.dart';
 import '../../../../core/storage/auth_token_storage.dart';
 import '../../../myflight/pages/myflight_page.dart';
+import '../../../../core/services/notification_service.dart';
 
 /// 홈 화면 메인 페이지
 class HomePage extends StatefulWidget {
@@ -57,12 +58,17 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           children: [
             // 커스텀 앱바 (높이 82px)
-            CustomAppBar(
-              hasUnreadNotifications: false, // TODO: 알림 상태 받아와서 확인할 게 있으면 상태 변경
-              onNotificationTap: () {
-                // TODO: 알림 화면으로 이동
+            ValueListenableBuilder<bool>(
+              valueListenable: NotificationService().hasUnread,
+              builder: (context, hasUnread, child) {
+                return CustomAppBar(
+                  hasUnreadNotifications: hasUnread,
+                  onNotificationTap: () {
+                    context.push('/notification');
+                  },
+                  showLogo: _selectedIndex == 0, // 홈 탭일 때만 로고 표시
+                );
               },
-              showLogo: _selectedIndex != 2, // 마이페이지가 아닐 때만 로고 표시
             ),
             // 본문 영역
             Expanded(
@@ -386,13 +392,14 @@ class _HomePageState extends State<HomePage> {
       final formattedDate =
           '${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}';
 
-      // 항공편 검색 API 호출 (성공할 때까지 무한 재시도)
+      // 항공편 검색 API 호출 (최대 5번 재시도)
+      const maxRetries = 5;
       int attempt = 0;
       bool success = false;
 
-      while (!success) {
+      while (!success && attempt < maxRetries) {
         attempt++;
-        print('🔄 검색 시도 $attempt');
+        print('🔄 검색 시도 $attempt/$maxRetries');
 
         try {
           final response = await _apiService.searchFlights(
@@ -443,6 +450,21 @@ class _HomePageState extends State<HomePage> {
           }
         } catch (e) {
           print('❌ 검색 시도 $attempt 실패: $e');
+          
+          // 마지막 시도였다면 에러 처리
+          if (attempt >= maxRetries) {
+            if (mounted) Navigator.pop(context); // 로딩 다이얼로그 닫기
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('항공편 검색에 실패했습니다.\n잠시 후 다시 시도해주세요.'),
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            }
+            return;
+          }
+          
           // 1초 대기 후 재시도
           await Future.delayed(const Duration(seconds: 1));
         }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/responsive_extensions.dart';
+import '../../../../core/storage/auth_token_storage.dart';
 import '../widgets/profile_card.dart';
 import '../widgets/menu_section.dart';
 import '../widgets/menu_item.dart';
@@ -13,8 +14,40 @@ import 'my_reviews_page.dart';
 import 'sleep_pattern_page.dart';
 
 /// 마이 페이지 (탭 컨텐츠)
-class MyPage extends StatelessWidget {
+class MyPage extends StatefulWidget {
   const MyPage({super.key});
+
+  @override
+  State<MyPage> createState() => _MyPageState();
+}
+
+class _MyPageState extends State<MyPage> {
+  String _name = '사용자';
+  String _email = '';
+  String _profileImageUrl = 'https://picsum.photos/200'; // Default
+  
+  @override
+  void initState() {
+    super.initState();
+    _loadUserInfo();
+  }
+  
+  Future<void> _loadUserInfo() async {
+    final storage = AuthTokenStorage(); // Singleton
+    final userInfo = await storage.getUserInfo();
+    
+    if (mounted) {
+      setState(() {
+        _name = userInfo['name'] ?? '사용자';
+        _email = userInfo['email'] ?? '';
+        
+        final savedPhotoUrl = userInfo['photoUrl'];
+        if (savedPhotoUrl != null && savedPhotoUrl.isNotEmpty) {
+           _profileImageUrl = savedPhotoUrl;
+        }
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,17 +60,18 @@ class MyPage extends StatelessWidget {
             SizedBox(height: context.h(16)),
 
             // 프로필 카드
-            // TODO: 백엔드 연동 - 로그인 시 저장된 사용자 정보 (ID, 이름, 이메일, 프로필 이미지) 가져오기
             ProfileCard(
-              profileImageUrl:
-                  'https://picsum.photos/200', // TODO: 백엔드에서 받아온 프로필 이미지 URL
-              name: '여행조아', // TODO: 백엔드에서 받아온 사용자 이름
-              email: 'hyerim2003@kakao.com', // TODO: 백엔드에서 받아온 이메일
+              profileImageUrl: _profileImageUrl,
+              name: _name,
+              email: _email,
               onTap: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const MyInfoPage()),
-                );
+                ).then((_) {
+                  // 정보 페이지에서 돌아왔을 때 갱신 (닉네임 변경 등)
+                  _loadUserInfo();
+                });
               },
             ),
 

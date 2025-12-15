@@ -35,37 +35,7 @@ class _MyFlightPageState extends State<MyFlightPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.darkTheme.scaffoldBackgroundColor,
-      extendBody: true,
-      body: SafeArea(
-        bottom: false,
-        child: Stack(
-          children: [
-            // 본문 영역 (전체 화면)
-            Positioned.fill(child: _buildBody()),
-
-            // 커스텀 앱바 (위에 고정, 알림 아이콘만)
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: CustomAppBar(
-                showLogo: false, // 로고 숨김
-                hasUnreadNotifications:
-                    _hasUnreadNotifications, // 알림 상태 (홈과 동일하게)
-                onNotificationTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('알림 기능 준비 중입니다.')),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: _buildBottomNavigationBar(),
-    );
+    return _buildBody();
   }
 
   /// 예정된 비행 데이터 가져오기 (FlightState에서)
@@ -137,7 +107,7 @@ class _MyFlightPageState extends State<MyFlightPage> {
       padding: const EdgeInsets.only(
         left: 20,
         right: 20,
-        top: 88, // AppBar 높이(82) + 간격(6)
+        top: 20, // HomePage AppBar 아래에 위치하므로 패딩 조정
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

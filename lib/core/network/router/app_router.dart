@@ -4,6 +4,10 @@ import '../../../features/onboarding/pages/splash_page.dart';
 import '../../../features/onboarding/pages/onboarding_page.dart';
 import '../../../features/auth/presentation/pages/nickname_setup_page.dart';
 import '../../../features/home/presentation/pages/home_page.dart';
+import '../../../features/home/presentation/pages/airline_review_page.dart';
+import '../../../features/home/presentation/pages/notification_page.dart';
+import '../../../features/home/presentation/pages/airline_detail_page.dart';
+import '../../../features/home/data/mock_airlines.dart';
 import '../../../features/auth/presentation/pages/login_page.dart';
 import '../../../features/myflight/pages/myflight_page.dart';
 
@@ -15,7 +19,8 @@ class AppRouter {
   static GoRouter get router => _router;
 
   static final GoRouter _router = GoRouter(
-    initialLocation: RouteNames.splash,
+    // initialLocation: '/airline-detail',
+    initialLocation: RouteNames.login,
     routes: [
       GoRoute(
         path: RouteNames.splash,
@@ -57,6 +62,24 @@ class AppRouter {
              userId: extra?['userId'] ?? '',
              prefillNickname: extra?['nickname'],
            );
+        },
+      ),
+      // 테스트: 대한항공 상세 페이지
+      GoRoute(
+        path: '/notification',
+        name: 'notification',
+        builder: (context, state) => const NotificationPage(),
+      ),
+      GoRoute(
+        path: '/airline-detail',
+        name: 'airline-detail',
+        builder: (context, state) {
+          // 대한항공 mock 데이터 사용
+          final koreanAir = mockAirlines.firstWhere(
+            (airline) => airline.code == 'KE',
+            orElse: () => mockAirlines.first,
+          );
+          return AirlineDetailPage(airline: koreanAir);
         },
       ),
     ],

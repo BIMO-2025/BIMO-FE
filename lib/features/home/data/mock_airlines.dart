@@ -3,6 +3,7 @@ import '../domain/models/airline.dart';
 final List<Airline> mockAirlines = [
   Airline(
     name: '대한항공',
+    code: 'KE',
     englishName: 'KOREAN AIR',
     logoPath: 'assets/images/home/korean_air_logo.png',
     imagePath: 'assets/images/search/korean_air_plane.png',
@@ -29,6 +30,7 @@ final List<Airline> mockAirlines = [
   ),
   Airline(
     name: '아시아나 항공',
+    code: 'OZ',
     englishName: 'ASIANA AIRLINES',
     logoPath: 'assets/images/search/asiana_plane_mini.png',
     imagePath: 'assets/images/search/asiana_plane.png',
@@ -55,6 +57,7 @@ final List<Airline> mockAirlines = [
   ),
   Airline(
     name: '에어프랑스',
+    code: 'AF',
     englishName: 'AIRFRANCE',
     logoPath: 'assets/images/search/airfrance_plane_mini.png',
     imagePath: 'assets/images/search/airfrance_plane.png', // Placeholder path
