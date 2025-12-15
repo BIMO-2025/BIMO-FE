@@ -15,7 +15,9 @@ import 'add_flight_page.dart';
 import 'flight_plan_page.dart';
 import 'past_flights_list_page.dart';
 import 'ticket_verification_camera_page.dart';
-import '../../home/presentation/pages/home_page.dart';
+import '../../home/presentation/pages/airline_search_result_page.dart';
+import '../../home/presentation/pages/airline_review_page.dart';
+import '../data/repositories/local_flight_repository.dart';
 import '../../../../core/utils/responsive_extensions.dart';
 import '../../../../core/storage/auth_token_storage.dart';
 import '../data/repositories/flight_repository.dart';
@@ -39,11 +41,62 @@ class _MyFlightPageState extends State<MyFlightPage> {
   @override
   void initState() {
     super.initState();
+    // FlightState 변경 감지
+    FlightState().addListener(_onFlightStateChanged);
     _loadScheduledFlights();
   }
+  
+  @override
+  void dispose() {
+    FlightState().removeListener(_onFlightStateChanged);
+    super.dispose();
+  }
+  
+  void _onFlightStateChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
 
-  /// 예정된 비행 목록 불러오기
+  /// 예정된 비행 목록 불러오기 (Hive 우선, API 보조)
   Future<void> _loadScheduledFlights() async {
+    try {
+      // Hive 초기화 대기 (main.dart에서 초기화 중일 수 있음)
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      // 1. Hive에서 로드 (오프라인 가능)
+      final localFlightRepo = LocalFlightRepository();
+      await localFlightRepo.init();
+      final localFlights = await localFlightRepo.getScheduledFlights();
+      
+      if (localFlights.isNotEmpty) {
+        // Hive에서 Flight 모델로 변환
+        final flights = localFlights.map((lf) => Flight(
+          date: '${lf.departureTime.year}.${lf.departureTime.month.toString().padLeft(2, '0')}.${lf.departureTime.day.toString().padLeft(2, '0')}. (${_getWeekday(lf.departureTime)})',
+          departureCode: lf.origin,
+          arrivalCode: lf.destination,
+          departureCity: lf.origin,
+          arrivalCity: lf.destination,
+          departureTime: '${lf.departureTime.hour.toString().padLeft(2, '0')}:${lf.departureTime.minute.toString().padLeft(2, '0')}',
+          arrivalTime: '${lf.arrivalTime.hour.toString().padLeft(2, '0')}:${lf.arrivalTime.minute.toString().padLeft(2, '0')}',
+          duration: lf.totalDuration,
+          rating: null,
+        )).toList();
+        
+        FlightState().scheduledFlights = flights;
+        print('✅ Hive에서 ${localFlights.length}개 비행 로드 완료');
+        return; // 성공하면 API 조회 스킵
+      }
+    } catch (e) {
+      print('⚠️ Hive 로드 실패, API 조회로 전환: $e');
+    }
+    
+    // 2. Hive 실패 시 API에서 조회
+    await _loadFromAPI();
+  }
+  
+  /// API에서 비행 로드 (백업용)
+  Future<void> _loadFromAPI() async {
     setState(() {
       _isLoading = true;
     });
@@ -555,5 +608,11 @@ class _MyFlightPageState extends State<MyFlightPage> {
         },
       ),
     );
+  }
+  
+  /// 요일 변환 헬퍼
+  String _getWeekday(DateTime date) {
+    const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
+    return weekdays[date.weekday - 1];
   }
 }

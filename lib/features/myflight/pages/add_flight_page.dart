@@ -927,54 +927,62 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
         FlightState().addFlight(newFlight);
         print('✅ 로컬 비행 저장 완료 (FlightState)');
         
-        // 5. 타임라인 생성 API 호출
-        final timelineRequest = TimelineRequest.fromFlightSearchData(
-          data: selectedFlight,
-          seatClass: 'ECONOMY',
+        // 4-1. Hive에도 비행 저장 (앱 재시작 후에도 유지)
+        final localFlight = LocalFlight(
+          id: '${selectedFlight.departure.airport}_${selectedFlight.arrival.airport}_${DateTime.now().millisecondsSinceEpoch}',
+          origin: selectedFlight.departure.airport,
+          destination: selectedFlight.arrival.airport,
+          departureTime: DateTime.parse(selectedFlight.departure.time),
+          arrivalTime: DateTime.parse(selectedFlight.arrival.time),
+          totalDuration: '${selectedFlight.duration ~/ 60}h ${selectedFlight.duration % 60}m',
+          status: 'scheduled',
+          lastModified: DateTime.now(),
           flightGoal: _selectedFlightGoal ?? '시차적응',
+          seatClass: 'ECONOMY',
         );
-        final timelineData = await flightRepository.generateTimeline(timelineRequest);
-        print('✅ 타임라인 생성 완료');
+        final localFlightRepo = LocalFlightRepository();
+        await localFlightRepo.init();
+        await localFlightRepo.saveFlight(localFlight);
+        print('✅ Hive에 비행 저장 완료');
         
-        // 6. 타임라인 응답을 Hive 로컬 DB에 저장
-        if (timelineData != null) {
-          // 6-1. TimelineState에 저장 (메모리 캐시)
-          TimelineState().timelineData = timelineData;
-          
-          // 6-2. Hive에 비행 정보 저장
-          final flightInfo = timelineData['flight_info'] as Map<String, dynamic>;
-          final localFlight = LocalFlight.fromFlightInfo(
-            flightInfo,
-            DateTime.parse(selectedFlight.departure.time),
-            DateTime.parse(selectedFlight.arrival.time),
+        // 5. 타임라인 생성 API 호출 (실패해도 계속 진행)
+        try {
+          final timelineRequest = TimelineRequest.fromFlightSearchData(
+            data: selectedFlight,
+            seatClass: 'ECONOMY',
+            flightGoal: _selectedFlightGoal ?? '시차적응',
           );
-          final localFlightRepo = LocalFlightRepository();
-          await localFlightRepo.init();
-          await localFlightRepo.saveFlight(localFlight);
+          final timelineData = await flightRepository.generateTimeline(timelineRequest);
           
-          // 6-3. Hive에 타임라인 저장
-          final timelineEvents = (timelineData['timeline_events'] as List<dynamic>)
-              .map((e) => LocalTimelineEvent.fromApiResponse(
-                    e as Map<String, dynamic>,
-                    localFlight.id,
-                  ))
-              .toList();
-          
-          final localTimelineRepo = LocalTimelineRepository();
-          await localTimelineRepo.init();
-          await localTimelineRepo.saveTimeline(localFlight.id, timelineEvents);
-          
-          print('✅ Hive 로컬 DB 저장 완료');
+          if (timelineData != null) {
+            print('✅ 타임라인 생성 완료');
+            TimelineState().timelineData = timelineData;
+            
+            // Hive에 타임라인 저장 (비행은 이미 저장됨)
+            final timelineEvents = (timelineData['timeline_events'] as List<dynamic>)
+                .map((e) => LocalTimelineEvent.fromApiResponse(
+                      e as Map<String, dynamic>,
+                      localFlight.id,
+                    ))
+                .toList();
+            
+            final localTimelineRepo = LocalTimelineRepository();
+            await localTimelineRepo.init();
+            await localTimelineRepo.saveTimeline(localFlight.id, timelineEvents);
+            print('✅ Hive에 타임라인 저장 완료');
+          }
+        } catch (e) {
+          print('⚠️ 타임라인 생성 실패 (비행은 저장됨): $e');
         }
         
-        // 7. 성공 시 비행 플랜 페이지로 이동 (GoRouter 사용)
+        // 6. MyFlight 페이지로 이동 (저장된 비행 확인)
         if (mounted) {
           setState(() {
             _isLoading = false;
           });
           _rotationController?.stop();
           
-          context.go('/flight-plan');
+          context.go('/myflight');
         }
       } catch (e) {
         // 에러 처리
