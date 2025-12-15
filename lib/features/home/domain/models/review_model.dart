@@ -7,6 +7,7 @@ class Review {
   final List<String> tags;
   final String content;
   final List<String> images;
+  final Map<String, dynamic>? detailRatings; // 카테고리별 평점 (선택사항)
 
   Review({
     required this.nickname,
@@ -17,5 +18,6 @@ class Review {
     required this.tags,
     required this.content,
     required this.images,
+    this.detailRatings, // 선택적 필드
   });
 }

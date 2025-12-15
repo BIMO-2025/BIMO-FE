@@ -20,6 +20,7 @@ class ApiClient {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'ngrok-skip-browser-warning': 'true', // ngrok 브라우저 워닝 페이지 우회
         },
       ),
     );

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:go_router/go_router.dart';
+import 'package:dio/dio.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_colors.dart';
@@ -144,10 +145,15 @@ class _ReviewWritePageState extends State<ReviewWritePage> {
 
       print('🚀 리뷰 제출: $requestData');
 
-      // API 호출
+      // API 호출 (ngrok 헤더 명시적 추가)
       final response = await _apiClient.post(
         '/reviews',
         data: requestData,
+        options: Options(
+          headers: {
+            'ngrok-skip-browser-warning': 'true',
+          },
+        ),
       );
 
       print('✅ 리뷰 제출 성공: ${response.data}');
@@ -162,6 +168,18 @@ class _ReviewWritePageState extends State<ReviewWritePage> {
       context.go(RouteNames.home);
     } catch (e) {
       print('❌ 리뷰 제출 실패: $e');
+      
+      // DioException인 경우 응답 데이터 확인
+      if (e.toString().contains('DioException')) {
+        try {
+          final dioError = e as dynamic;
+          if (dioError.response != null) {
+            print('❌ 서버 응답 상태: ${dioError.response.statusCode}');
+            print('❌ 서버 응답 데이터: ${dioError.response.data}');
+          }
+        } catch (_) {}
+      }
+      
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
