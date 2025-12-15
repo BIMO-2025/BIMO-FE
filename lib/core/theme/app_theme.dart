@@ -65,6 +65,15 @@ class AppTheme {
           color: AppColors.textSecondary,
         ),
       ),
+
+      // Page Transitions
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: NoTransitionsBuilder(),
+          TargetPlatform.iOS: NoTransitionsBuilder(),
+          TargetPlatform.macOS: NoTransitionsBuilder(),
+        },
+      ),
     );
   }
 
@@ -120,6 +129,22 @@ class AppTheme {
         systemNavigationBarIconBrightness: systemNavigationBarIconBrightness ?? Brightness.light,
       ),
     );
+  }
+}
+
+/// 페이지 전환 애니메이션 제거를 위한 빌더
+class NoTransitionsBuilder extends PageTransitionsBuilder {
+  const NoTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    return child;
   }
 }
 

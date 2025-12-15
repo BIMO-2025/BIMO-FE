@@ -56,8 +56,8 @@ class _MyPageState extends State<MyPage> {
         padding: EdgeInsets.symmetric(horizontal: context.w(20)),
         child: Column(
           children: [
-            // 상단 여백 16px
-            SizedBox(height: context.h(16)),
+            // 상단 여백 (앱바 높이 82 + 추가 16)
+            SizedBox(height: context.h(82) + context.h(16)),
 
             // 프로필 카드
             ProfileCard(

@@ -104,10 +104,10 @@ class _MyFlightPageState extends State<MyFlightPage> {
   /// 메인 바디 영역
   Widget _buildBody() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.only(
+      padding: EdgeInsets.only(
         left: 20,
         right: 20,
-        top: 20, // HomePage AppBar 아래에 위치하므로 패딩 조정
+        top: context.h(82) + 8, // 앱바 아래 8px 간격
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

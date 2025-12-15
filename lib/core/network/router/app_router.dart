@@ -20,7 +20,7 @@ class AppRouter {
 
   static final GoRouter _router = GoRouter(
     // initialLocation: '/airline-detail',
-    initialLocation: RouteNames.login,
+    initialLocation: RouteNames.home, // Start with Home (which defaults to tab 1)
     routes: [
       GoRoute(
         path: RouteNames.splash,
@@ -50,8 +50,8 @@ class AppRouter {
         builder: (context, state) => const HomePage(),
       ),
       GoRoute(
-        path: RouteNames.my,
-        name: 'my',
+        path: RouteNames.myFlight,
+        name: 'myFlight',
         builder: (context, state) => const MyFlightPage(),
       ),
       GoRoute(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/custom_tab_bar.dart';
 import '../../../../core/widgets/custom_app_bar.dart';
+import '../../../../core/utils/responsive_extensions.dart';
 import '../widgets/search_tab_selector.dart';
 import '../widgets/airline_search_input.dart';
 import '../widgets/destination_search_section.dart';
@@ -29,7 +30,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int _selectedIndex = 0; // Bottom tab bar index
+  int _selectedIndex = 1; // Bottom tab bar index (Test: Start with MyFlight)
   int _searchTabIndex = 0; // Search tab index (0: Airline, 1: Destination)
   final TextEditingController _airlineSearchController =
       TextEditingController();
@@ -47,6 +48,7 @@ class _HomePageState extends State<HomePage> {
   bool _isLoadingAirlines = false;
   String _weekLabel = '';
   String? _errorMessage;
+  bool _isOfflineMode = false; // 오프라인 모드 상태 복구
 
   @override
   Widget build(BuildContext context) {
@@ -55,23 +57,10 @@ class _HomePageState extends State<HomePage> {
       extendBody: true, // 본문이 탭바 영역까지 확장됨
       body: SafeArea(
         bottom: false,
-        child: Column(
+        child: Stack(
           children: [
-            // 커스텀 앱바 (높이 82px)
-            ValueListenableBuilder<bool>(
-              valueListenable: NotificationService().hasUnread,
-              builder: (context, hasUnread, child) {
-                return CustomAppBar(
-                  hasUnreadNotifications: hasUnread,
-                  onNotificationTap: () {
-                    context.push('/notification');
-                  },
-                  showLogo: _selectedIndex == 0, // 홈 탭일 때만 로고 표시
-                );
-              },
-            ),
-            // 본문 영역
-            Expanded(
+            // 본문 영역 (가장 아래 레이어)
+            Positioned.fill(
               child: GestureDetector(
                 onTap: () {
                   FocusScope.of(
@@ -79,6 +68,25 @@ class _HomePageState extends State<HomePage> {
                   ).unfocus(); // Dismiss keyboard on tap outside
                 },
                 child: _buildBody(),
+              ),
+            ),
+            
+            // 커스텀 앱바 (상단 고정, 투명 그라데이션)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: ValueListenableBuilder<bool>(
+                valueListenable: NotificationService().hasUnread,
+                builder: (context, hasUnread, child) {
+                  return CustomAppBar(
+                    hasUnreadNotifications: hasUnread,
+                    onNotificationTap: () {
+                      context.push('/notification');
+                    },
+                    showLogo: _selectedIndex == 0, // 홈 탭일 때만 로고 표시
+                  );
+                },
               ),
             ),
           ],
@@ -185,6 +193,7 @@ class _HomePageState extends State<HomePage> {
   /// 홈 탭 컨텐츠
   Widget _buildHomeContent() {
     return SingleChildScrollView(
+      padding: EdgeInsets.only(top: context.h(82)), // 앱바 높이만큼 상단 여백
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -483,11 +492,23 @@ class _HomePageState extends State<HomePage> {
       alignment: Alignment.bottomCenter,
       child: CustomTabBar(
         currentIndex: _selectedIndex,
+        isOnline: !_isOfflineMode, // 오프라인 모드 상태 전달
+        onToggleOffline: () {
+          setState(() {
+            _isOfflineMode = !_isOfflineMode;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(_isOfflineMode ? '오프라인 모드로 전환되었습니다.' : '온라인 모드로 전환되었습니다.'),
+              duration: const Duration(milliseconds: 1000),
+            ),
+          );
+        },
         onTap: (index) {
-          if (index == 1) {
-            context.go(RouteNames.my);
-            return;
-          }
+          // if (index == 1) {
+          //   context.go(RouteNames.myFlight);
+          //   return;
+          // }
           setState(() {
             _selectedIndex = index;
           });

@@ -13,10 +13,10 @@ class RouteNames {
   // Main Routes
   static const String nicknameSetup = '/nickname-setup';
   static const String home = '/home';
-  static const String my = '/my';
+  static const String myFlight = '/myflight';
  
   static const List<String> bottomNavRoutes = [
     home,
-    my,
+    myFlight,
   ];
 }
