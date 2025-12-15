@@ -4,7 +4,7 @@ import '../../../../core/network/api_client.dart';
 import '../models/popular_airline_response.dart';
 import '../models/flight_search_response.dart';
 import '../models/location_search_response.dart';
-import '../models/airline_sorting_response.dart';
+
 import '../models/airline_detail_response.dart';
 import '../models/airline_info_response.dart';
 import '../models/airline_summary_response.dart';
@@ -261,7 +261,7 @@ class AirlineApiService {
   }
 
   /// 평점 순으로 정렬된 항공사 목록 조회
-  Future<List<AirlineSortingResponse>> getSortedAirlines() async {
+  Future<List<PopularAirlineResponse>> getSortedAirlines() async {
     try {
       final url = '${ApiConstants.baseUrl}${ApiConstants.airlinesSorting}';
       print('🚀 API 호출: $url');
@@ -274,7 +274,7 @@ class AirlineApiService {
       if (response.statusCode == 200) {
         final List<dynamic> data = response.data as List<dynamic>;
         return data
-            .map((json) => AirlineSortingResponse.fromJson(
+            .map((json) => PopularAirlineResponse.fromJson(
                   json as Map<String, dynamic>,
                 ))
             .toList();

@@ -3,12 +3,13 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/responsive_extensions.dart';
 import '../../domain/models/airline.dart';
+import '../../domain/models/review_model.dart'; // Review 모델 import
 import '../../data/datasources/airline_api_service.dart';
 import '../../data/models/airline_reviews_response.dart';
 import 'review_detail_page.dart';
+import 'photo_grid_page.dart'; // PhotoGridPage import
 import '../widgets/review_filter_bottom_sheet.dart';
-
-
+import '../widgets/review_card.dart'; // ReviewCard import
 
 class AirlineReviewPage extends StatefulWidget {
   final Airline airline;
@@ -92,6 +93,14 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
         _apiReviews = response.reviews;
         _isLoading = false;
       });
+      
+      // 디버깅 로그
+      print('📸 API 리뷰 로드 완료: ${response.reviews.length}개');
+      for (var r in response.reviews) {
+        if (r.imageUrls.isNotEmpty) {
+          print('📸 리뷰(${r.userNickname}): 사진 ${r.imageUrls.length}장');
+        }
+      }
     } catch (e) {
       print('⚠️ 리뷰 API 실패, mock 데이터 사용: $e');
       setState(() {
@@ -140,8 +149,8 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
             ),
           ),
         ),
-        title: Text(
-          '상세 리뷰',
+          title: Text(
+            widget.airline.name,
           style: TextStyle(
             fontFamily: 'Pretendard',
             fontSize: context.fs(17),
@@ -316,39 +325,93 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
   }
 
   Widget _buildPhotoReviews(BuildContext context) {
+    // 1. 현재 표시할 리뷰 데이터 가져오기 (API 또는 Mock)
+    List<Review> currentReviews = [];
+    if (_apiReviews.isNotEmpty) {
+      currentReviews = _apiReviews.map((apiReview) {
+        String formattedDate = apiReview.createdAt;
+        if (formattedDate.length >= 10) {
+          formattedDate = formattedDate.substring(0, 10).replaceAll('-', '.');
+        }
+        final tags = <String>[];
+        if (apiReview.route.isNotEmpty) tags.add(apiReview.route);
+        if (apiReview.flightNumber != null && apiReview.flightNumber!.isNotEmpty) tags.add(apiReview.flightNumber!);
+        // 좌석 등급 삭제
+        // if (apiReview.seatClass != null && apiReview.seatClass!.isNotEmpty) tags.add(apiReview.seatClass!);
+
+        return Review(
+          nickname: apiReview.userNickname,
+          profileImage: 'assets/images/my/default_profile.png',
+          rating: apiReview.overallRating,
+          date: formattedDate,
+          likes: apiReview.likes,
+          tags: tags,
+          content: apiReview.text,
+          images: apiReview.imageUrls,
+        );
+      }).toList();
+    } else {
+      currentReviews = _reviews;
+    }
+
+    // 2. 사진이 있는 리뷰만 필터링
+    final photoReviews = currentReviews.where((r) => r.images.isNotEmpty).toList();
+    
+    // 3. 전체 사진 개수 계산
+    int totalPhotoCount = 0;
+    for (var review in photoReviews) {
+      totalPhotoCount += review.images.length;
+    }
+
+    if (photoReviews.isEmpty) return const SizedBox.shrink();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: EdgeInsets.symmetric(horizontal: context.w(20)),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    '사진 리뷰',
-                    style: TextStyle(
-                      fontFamily: 'Pretendard',
-                      fontSize: context.fs(16),
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
+          child: GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PhotoGridPage(reviews: currentReviews),
+                ),
+              );
+            },
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      '사진 리뷰',
+                      style: TextStyle(
+                        fontFamily: 'Pretendard',
+                        fontSize: context.fs(16),
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
                     ),
-                  ),
-                  SizedBox(width: context.w(6)),
-                  Text(
-                    '850', // Mock count
-                    style: TextStyle(
-                      fontFamily: 'Pretendard',
-                      fontSize: context.fs(16),
-                      fontWeight: FontWeight.w400,
-                      color: const Color(0xFF8E8E93),
+                    SizedBox(width: context.w(6)),
+                    Text(
+                      '${photoReviews.length}', // 사진이 있는 리뷰 개수 표시
+                      style: TextStyle(
+                        fontFamily: 'Pretendard',
+                        fontSize: context.fs(16),
+                        fontWeight: FontWeight.w400,
+                        color: const Color(0xFF8E8E93),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              Icon(Icons.chevron_right, color: Colors.white, size: context.w(24)),
-            ],
+                  ],
+                ),
+                Image.asset(
+                  'assets/images/home/chevron_right.png',
+                  width: context.w(24),
+                  height: context.h(24),
+                ),
+              ],
+            ),
           ),
         ),
         SizedBox(height: context.h(12)),
@@ -357,15 +420,71 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
           child: ListView.separated(
             padding: EdgeInsets.symmetric(horizontal: context.w(20)),
             scrollDirection: Axis.horizontal,
-            itemCount: 5,
+            itemCount: photoReviews.length,
             separatorBuilder: (context, index) => SizedBox(width: context.w(8)),
             itemBuilder: (context, index) {
-              return Container(
-                width: context.w(100),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(context.w(12)),
-                  color: const Color(0xFF333333), // Placeholder color
-                  // image: DecorationImage(...) // TODO: Add real images
+              final review = photoReviews[index];
+              return GestureDetector(
+                onTap: () {
+                  // 사진 클릭 시 해당 리뷰 상세 팝업
+                  showDialog(
+                    context: context,
+                    builder: (context) => Dialog(
+                      backgroundColor: Colors.transparent,
+                      insetPadding: EdgeInsets.all(context.w(20)),
+                      child: Stack(
+                        children: [
+                          ReviewCard(review: review),
+                          Positioned(
+                            right: 0,
+                            top: 0,
+                            child: GestureDetector(
+                              onTap: () => Navigator.pop(context),
+                              child: Container(
+                                padding: EdgeInsets.all(context.w(8)),
+                                decoration: const BoxDecoration(
+                                  color: Colors.black54,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.close, color: Colors.white, size: 20),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+                child: SizedBox(
+                  width: context.w(100),
+                  height: context.w(100),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(context.w(12)),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        _buildReviewImage(review.images[0]), // 이미지 렌더링 헬퍼 사용
+                        // 사진이 여러 장인 경우 표시
+                        if (review.images.length > 1)
+                          Align(
+                            alignment: Alignment.topRight,
+                            child: Container(
+                              margin: EdgeInsets.all(context.w(6)),
+                              padding: EdgeInsets.all(context.w(4)),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.6),
+                                borderRadius: BorderRadius.circular(context.w(4)),
+                              ),
+                              child: Icon(
+                                Icons.filter_none, // 여러 장 아이콘
+                                color: Colors.white,
+                                size: context.w(12),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
               );
             },
@@ -375,6 +494,38 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
       ],
     );
   }
+
+  Widget _buildReviewImage(String imagePath) {
+    if (imagePath.startsWith('http')) {
+      return Image.network(
+        imagePath,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Image.network(
+            'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=800&q=80', // 비행기 대체 이미지
+            fit: BoxFit.cover,
+          );
+        },
+      );
+    } else if (imagePath.startsWith('assets/')) {
+      return Image.asset(
+        imagePath,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+           return Container(color: const Color(0xFF333333));
+        },
+      );
+    } else {
+      return Image.file(
+        File(imagePath), 
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+           return Container(color: const Color(0xFF333333));
+        },
+      );
+    }
+  }
+
 
   Widget _buildFilterBar(BuildContext context) {
     return Padding(
@@ -511,233 +662,8 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
       separatorBuilder: (context, index) => SizedBox(height: context.h(12)),
       itemBuilder: (context, index) {
         final review = displayReviews[index];
-        return _buildReviewCard(context, review);
+        return ReviewCard(review: review);
       },
-    );
-  }
-
-  // 통합 리뷰 카드 (MyReviewsPage와 동일한 UI + 신고하기 버튼)
-  Widget _buildReviewCard(BuildContext context, Review review) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ReviewDetailPage(review: review),
-          ),
-        );
-      },
-      child: Container(
-        padding: EdgeInsets.all(context.w(20)),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1A1A1A),
-          borderRadius: BorderRadius.circular(context.w(16)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // User Info
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: context.w(16),
-                      backgroundColor: const Color(0xFF333333),
-                      backgroundImage: _getImageProvider(review.profileImage),
-                      onBackgroundImageError: (_, __) {}, 
-                      child: review.profileImage.isEmpty 
-                          ? Text(
-                              review.nickname.isNotEmpty ? review.nickname[0] : 'U',
-                              style: TextStyle(color: Colors.white),
-                            )
-                          : null,
-                    ),
-                    SizedBox(width: context.w(8)),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          review.nickname,
-                          style: TextStyle(
-                            fontFamily: 'Pretendard',
-                            fontSize: context.fs(14),
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                        ),
-                        SizedBox(height: context.h(2)),
-                        Row(
-                          children: [
-                            Icon(Icons.star, color: Colors.white, size: context.w(12)),
-                            SizedBox(width: context.w(2)),
-                            Text(
-                              '${review.rating}',
-                              style: TextStyle(
-                                fontFamily: 'Pretendard',
-                                fontSize: context.fs(12),
-                                fontWeight: FontWeight.w500,
-                                color: Colors.white,
-                              ),
-                            ),
-                            Text(
-                              '/5.0',
-                              style: TextStyle(
-                                fontFamily: 'Pretendard',
-                                fontSize: context.fs(12),
-                                fontWeight: FontWeight.w400,
-                                color: const Color(0xFF8E8E93),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                Text(
-                  '좋아요 ${review.likes}',
-                  style: TextStyle(
-                    fontFamily: 'Pretendard',
-                    fontSize: context.fs(13),
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.yellow1,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: context.h(12)),
-            
-            // Tags
-            if (review.tags.isNotEmpty) ...[
-              Row(
-                children: review.tags.map((tag) {
-                  return Container(
-                    margin: EdgeInsets.only(right: context.w(6)),
-                    padding: EdgeInsets.symmetric(
-                      horizontal: context.w(8),
-                      vertical: context.h(4),
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF333333),
-                      borderRadius: BorderRadius.circular(context.w(4)),
-                    ),
-                    child: Text(
-                      tag,
-                      style: TextStyle(
-                        fontFamily: 'Pretendard',
-                        fontSize: context.fs(12),
-                        fontWeight: FontWeight.w400,
-                        color: const Color(0xFFCCCCCC),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-              SizedBox(height: context.h(12)),
-            ],
-
-            // Photos
-            if (review.images.isNotEmpty) ...[
-              SizedBox(
-                height: context.w(80),
-                width: context.w(315),
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  padding: EdgeInsets.zero,
-                  itemCount: review.images.length,
-                  separatorBuilder: (context, index) => SizedBox(width: context.w(8)),
-                  itemBuilder: (context, index) {
-                    return Container(
-                      width: context.w(80),
-                      height: context.w(80),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(context.w(8)),
-                        color: const Color(0xFF333333),
-                        image: DecorationImage(
-                          image: _getImageProvider(review.images[index]),
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              SizedBox(height: context.h(12)),
-            ],
-
-            // Content
-            RichText(
-              text: TextSpan(
-                style: TextStyle(
-                  fontFamily: 'Pretendard',
-                  fontSize: context.fs(14),
-                  fontWeight: FontWeight.w400,
-                  color: Colors.white,
-                  height: 1.5,
-                ),
-                children: [
-                  TextSpan(
-                    text: review.content.length > 100 
-                        ? '${review.content.substring(0, 100)}...' 
-                        : review.content,
-                  ),
-                  if (review.content.length > 100)
-                    WidgetSpan(
-                      child: GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => ReviewDetailPage(review: review),
-                            ),
-                          );
-                        },
-                        child: Text(
-                          ' ...더보기',
-                          style: TextStyle(
-                            fontFamily: 'Pretendard',
-                            fontSize: context.fs(14),
-                            fontWeight: FontWeight.w400,
-                            color: const Color(0xFF8E8E93),
-                            height: 1.5,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            SizedBox(height: context.h(12)),
-
-            // Footer
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '신고하기',
-                  style: TextStyle(
-                    fontFamily: 'Pretendard',
-                    fontSize: context.fs(12),
-                    fontWeight: FontWeight.w400,
-                    color: const Color(0xFF555555),
-                  ),
-                ),
-                Text(
-                  review.date,
-                  style: TextStyle(
-                    fontFamily: 'Pretendard',
-                    fontSize: context.fs(12),
-                    fontWeight: FontWeight.w400,
-                    color: const Color(0xFF8E8E93),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -751,31 +677,8 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
     }
   }
 
-
   String _formatNumber(int number) {
     return number.toString().replaceAllMapped(
         RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},');
   }
-}
-
-class Review {
-  final String nickname;
-  final String profileImage;
-  final double rating;
-  final String date;
-  final int likes;
-  final List<String> tags;
-  final String content;
-  final List<String> images;
-
-  Review({
-    required this.nickname,
-    required this.profileImage,
-    required this.rating,
-    required this.date,
-    required this.likes,
-    required this.tags,
-    required this.content,
-    required this.images,
-  });
 }
