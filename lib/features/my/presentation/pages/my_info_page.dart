@@ -275,7 +275,9 @@ class _MyInfoPageState extends State<MyInfoPage> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const NicknameEditPage(),
+                                builder: (context) => NicknameEditPage(
+                                  currentNickname: _name,
+                                ),
                               ),
                             ).then((_) {
                                 // 닉네임 변경 후 돌아왔을 때 갱신

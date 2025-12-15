@@ -1,3 +1,6 @@
+import 'airline_summary_response.dart';
+import 'airline_detail_response.dart'; // AverageRatings 사용을 위해 import
+
 /// 항공사 기본 정보 응답 모델
 class AirlineInfoResponse {
   final String airlineName;
@@ -12,6 +15,8 @@ class AirlineInfoResponse {
   final List<String> operatingClasses;
   final List<String> images;
   final String description;
+  final AirlineSummaryResponse? bimoSummary;
+  final AverageRatings? averageRatings; // 추가
 
   AirlineInfoResponse({
     required this.airlineName,
@@ -26,6 +31,8 @@ class AirlineInfoResponse {
     required this.operatingClasses,
     required this.images,
     required this.description,
+    this.bimoSummary,
+    this.averageRatings,
   });
 
   factory AirlineInfoResponse.fromJson(Map<String, dynamic> json) {
@@ -48,6 +55,12 @@ class AirlineInfoResponse {
               .toList() ??
           [],
       description: json['description'] as String? ?? '',
+      bimoSummary: json['bimoSummary'] != null
+          ? AirlineSummaryResponse.fromJson(json['bimoSummary'] as Map<String, dynamic>)
+          : null,
+      averageRatings: json['averageRatings'] != null
+          ? AverageRatings.fromJson(json['averageRatings'] as Map<String, dynamic>)
+          : null,
     );
   }
 }

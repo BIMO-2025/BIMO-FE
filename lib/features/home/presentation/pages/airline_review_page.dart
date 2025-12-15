@@ -1,3 +1,4 @@
+import 'dart:io'; // File 클래스 사용을 위해 추가
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/responsive_extensions.dart';
@@ -6,6 +7,8 @@ import '../../data/datasources/airline_api_service.dart';
 import '../../data/models/airline_reviews_response.dart';
 import 'review_detail_page.dart';
 import '../widgets/review_filter_bottom_sheet.dart';
+
+
 
 class AirlineReviewPage extends StatefulWidget {
   final Airline airline;
@@ -468,15 +471,31 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
     if (_apiReviews.isNotEmpty) {
       // API 데이터를 Mock Review 형식으로 변환
       displayReviews = _apiReviews.map((apiReview) {
+        // 날짜 포맷팅 (YYYY-MM-DD)
+        String formattedDate = apiReview.createdAt;
+        if (formattedDate.length >= 10) {
+          formattedDate = formattedDate.substring(0, 10).replaceAll('-', '.');
+        }
+
+        // 태그 생성
+        final tags = <String>[];
+        if (apiReview.route.isNotEmpty) tags.add(apiReview.route);
+        if (apiReview.flightNumber != null && apiReview.flightNumber!.isNotEmpty) {
+          tags.add(apiReview.flightNumber!);
+        }
+        if (apiReview.seatClass != null && apiReview.seatClass!.isNotEmpty) {
+          tags.add(apiReview.seatClass!);
+        }
+
         return Review(
           nickname: apiReview.userNickname,
-          profileImage: 'assets/images/search/user_img.png', // 기본 이미지
+          profileImage: 'assets/images/my/default_profile.png', // 기본 프로필 이미지로 변경
           rating: apiReview.overallRating,
-          date: '', // API에 날짜 없음
-          likes: 0, // API에 좋아요 없음
-          tags: apiReview.route.isNotEmpty ? [apiReview.route] : [], // 경로를 태그로
+          date: formattedDate,
+          likes: apiReview.likes,
+          tags: tags,
           content: apiReview.text,
-          images: [], // API에 이미지 없음
+          images: apiReview.imageUrls, // 이미지 URL 리스트 연결
         );
       }).toList();
     } else {
@@ -497,7 +516,7 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
     );
   }
 
-  // 통합 리뷰 카드 (Mock UI 유지)
+  // 통합 리뷰 카드 (MyReviewsPage와 동일한 UI + 신고하기 버튼)
   Widget _buildReviewCard(BuildContext context, Review review) {
     return GestureDetector(
       onTap: () {
@@ -526,9 +545,7 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
                     CircleAvatar(
                       radius: context.w(16),
                       backgroundColor: const Color(0xFF333333),
-                      backgroundImage: review.profileImage.startsWith('http') 
-                          ? NetworkImage(review.profileImage) 
-                          : AssetImage(review.profileImage) as ImageProvider,
+                      backgroundImage: _getImageProvider(review.profileImage),
                       onBackgroundImageError: (_, __) {}, 
                       child: review.profileImage.isEmpty 
                           ? Text(
@@ -639,9 +656,7 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
                         borderRadius: BorderRadius.circular(context.w(8)),
                         color: const Color(0xFF333333),
                         image: DecorationImage(
-                          image: review.images[index].startsWith('http')
-                              ? NetworkImage(review.images[index])
-                              : AssetImage(review.images[index]) as ImageProvider,
+                          image: _getImageProvider(review.images[index]),
                           fit: BoxFit.cover,
                         ),
                       ),
@@ -659,16 +674,16 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
                   fontFamily: 'Pretendard',
                   fontSize: context.fs(14),
                   fontWeight: FontWeight.w400,
-                  color: const Color(0xFFCCCCCC),
+                  color: Colors.white,
                   height: 1.5,
                 ),
                 children: [
                   TextSpan(
-                    text: review.content.length > 400 
-                        ? '${review.content.substring(0, 400)}...' 
+                    text: review.content.length > 100 
+                        ? '${review.content.substring(0, 100)}...' 
                         : review.content,
                   ),
-                  if (review.content.length > 400)
+                  if (review.content.length > 100)
                     WidgetSpan(
                       child: GestureDetector(
                         onTap: () {
@@ -724,6 +739,16 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
         ),
       ),
     );
+  }
+
+  ImageProvider _getImageProvider(String imagePath) {
+    if (imagePath.startsWith('http')) {
+      return NetworkImage(imagePath);
+    } else if (imagePath.startsWith('assets/')) {
+      return AssetImage(imagePath);
+    } else {
+      return FileImage(File(imagePath));
+    }
   }
 
 
