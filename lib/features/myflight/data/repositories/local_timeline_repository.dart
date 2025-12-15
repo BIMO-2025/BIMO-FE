@@ -26,6 +26,48 @@ class LocalTimelineRepository {
     print('✅ 타임라인 로컬 저장 완료: $flightId (${events.length}개)');
   }
 
+  /// 원본 타임라인 저장 (AI 초기화용)
+  Future<void> saveOriginalTimeline(String flightId, List<LocalTimelineEvent> events) async {
+    final box = await Hive.openBox<LocalTimelineEvent>('original_timelines');
+    final key = 'original_$flightId';
+    
+    // 기존 원본 타임라인 삭제
+    final existingKeys = box.keys.where((k) => k.toString().startsWith(key)).toList();
+    for (var k in existingKeys) {
+      await box.delete(k);
+    }
+    
+    // 새 원본 타임라인 저장
+    for (int i = 0; i < events.length; i++) {
+      await box.put('${key}_$i', events[i]);
+    }
+    
+    print('✅ 원본 타임라인 저장 완료: $flightId (${events.length}개)');
+  }
+
+  /// 원본 타임라인 로드 (AI 초기화용)
+  Future<List<LocalTimelineEvent>> loadOriginalTimeline(String flightId) async {
+    final box = await Hive.openBox<LocalTimelineEvent>('original_timelines');
+    final key = 'original_$flightId';
+    
+    final events = <LocalTimelineEvent>[];
+    int index = 0;
+    while (true) {
+      final event = box.get('${key}_$index');
+      if (event == null) break;
+      events.add(event);
+      index++;
+    }
+    
+    if (events.isNotEmpty) {
+      print('✅ 원본 타임라인 로드 완료: $flightId (${events.length}개)');
+    } else {
+      print('⚠️ 원본 타임라인 없음: $flightId');
+    }
+    
+    return events;
+  }
+
   /// 비행 ID로 타임라인 조회
   Future<List<LocalTimelineEvent>> getTimeline(String flightId) async {
     final allEvents = _box.values.where((e) => e.flightId == flightId).toList();

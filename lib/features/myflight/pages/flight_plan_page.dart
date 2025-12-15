@@ -797,27 +797,32 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
                           setState(() {
                             _showMoreOptions = false;
                           });
-                          // 비행 종료 페이지로 이동
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder:
-                                  (context) => FlightPlanEndPage(
-                                    arrivalCity: '파리',
-                                    airline: '에어프랑스항공',
-                                    route: 'INC→CDG',
-                                    departureCode: 'DXB',
-                                    departureCity: '두바이',
-                                    arrivalCode: 'INC',
-                                    arrivalCityName: '대한민국',
-                                    duration: '13h 30m',
-                                    departureTime: '10:30 AM',
-                                    arrivalTime: '09:30 PM',
-                                    date: '2025.11.26. (토)',
-                                    rating: null, // 평점 없음 (리뷰 작성 전)
-                                  ),
-                            ),
-                          );
+                          
+                          if (_currentFlight != null) {
+                            // 실제 비행 데이터를 FlightPlanEndPage에 전달
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => FlightPlanEndPage(
+                                  arrivalCity: _getCityName(_currentFlight!.destination),
+                                  airline: '대한항공', // TODO: 항공사 정보 추가 필요
+                                  route: '${_currentFlight!.origin}→${_currentFlight!.destination}',
+                                  departureCode: _currentFlight!.origin,
+                                  departureCity: _getCityName(_currentFlight!.origin),
+                                  arrivalCode: _currentFlight!.destination,
+                                  arrivalCityName: _getCityName(_currentFlight!.destination),
+                                  duration: _currentFlight!.totalDuration,
+                                  departureTime: '${_currentFlight!.departureTime.hour.toString().padLeft(2, '0')}:${_currentFlight!.departureTime.minute.toString().padLeft(2, '0')}',
+                                  arrivalTime: '${_currentFlight!.arrivalTime.hour.toString().padLeft(2, '0')}:${_currentFlight!.arrivalTime.minute.toString().padLeft(2, '0')}',
+                                  date: '${_currentFlight!.departureTime.year}.${_currentFlight!.departureTime.month.toString().padLeft(2, '0')}.${_currentFlight!.departureTime.day.toString().padLeft(2, '0')}. (${_getWeekday(_currentFlight!.departureTime)})',
+                                ),
+                              ),
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('비행 정보를 불러올 수 없습니다.')),
+                            );
+                          }
                         },
                       ),
                       // 플랜 저장하기
@@ -1202,13 +1207,29 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
                         // 초기화 버튼
                         Expanded(
                           child: GestureDetector(
-                            onTap: () {
+                            onTap: () async {
+                              print('🔄 AI 초기화 버튼 클릭');
+                              print('📊 현재 이벤트 수: ${_events.length}');
+                              print('📊 초기 이벤트 수: ${_initialEvents.length}');
+                              
                               Navigator.pop(context);
+                              
                               // 초기 타임라인으로 복원
                               setState(() {
                                 _events = List.from(_initialEvents);
                                 _selectedEvent = null;
+                                print('✅ setState 완료 - 새 이벤트 수: ${_events.length}');
                               });
+                              
+                              // Hive에 저장
+                              await _saveTimelineToHive();
+                              
+                              // 성공 메시지
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('AI 추천 플랜으로 초기화되었습니다.')),
+                                );
+                              }
                             },
                             child: Container(
                               padding: EdgeInsets.symmetric(

@@ -971,7 +971,9 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
             final localTimelineRepo = LocalTimelineRepository();
             await localTimelineRepo.init();
             await localTimelineRepo.saveTimeline(localFlight.id, timelineEvents);
-            print('✅ Hive에 타임라인 저장 완료');
+            // 원본도 저장 (AI 초기화용)
+            await localTimelineRepo.saveOriginalTimeline(localFlight.id, timelineEvents);
+            print('✅ Hive에 타임라인 저장 완료(원본 포함)');
           }
         } catch (e) {
           print('⚠️ 타임라인 생성 실패 (비행은 저장됨): $e');
