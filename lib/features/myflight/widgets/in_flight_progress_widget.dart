@@ -119,34 +119,78 @@ class _InFlightProgressWidgetState extends State<InFlightProgressWidget> {
     return widget.timeline.isNotEmpty ? widget.timeline.last['title'] as String : null;
   }
 
-  List<String> get _activityList {
-    // 현재, 다음, 다다음 활동 반환
-    final activities = <String>[];
+  int get _currentActivityIndex {
+    // 현재 진행 중인 활동의 인덱스 찾기
     int cumulativeMinutes = 0;
-    int currentIndex = -1;
-
-    // 현재 활동 인덱스 찾기
     for (int i = 0; i < widget.timeline.length; i++) {
       final duration = widget.timeline[i]['duration'] as int;
       if (_elapsedSeconds < (cumulativeMinutes + duration) * 60) {
-        currentIndex = i;
-        break;
+        return i;
       }
       cumulativeMinutes += duration;
     }
+    return widget.timeline.length - 1; // 마지막 항목
+  }
 
-    if (currentIndex == -1) currentIndex = widget.timeline.length - 1;
-
-    // 이전, 현재, 다음 활동 가져오기
+  List<Widget> _buildTimelineItems() {
+    if (widget.timeline.isEmpty) return [];
+    
+   final currentIndex = _currentActivityIndex;
+    final items = <Widget>[];
+    
+    // 이전 항목 (있으면)
     if (currentIndex > 0) {
-      activities.add(widget.timeline[currentIndex - 1]['title'] as String);
+      items.add(
+        Text(
+          widget.timeline[currentIndex - 1]['title'] as String,
+          style: AppTextStyles.body.copyWith(
+            color: Colors.white.withOpacity(0.3),
+          ),
+        ),
+      );
+      items.add(SizedBox(height: context.h(8)));
+    } else {
+      // 첫 번째 항목일 때 위에 빈 공간
+      items.add(SizedBox(height: context.h(24)));
     }
-    activities.add(widget.timeline[currentIndex]['title'] as String);
+    
+    // 현재 항목 (파란색 배경)
+    items.add(
+      Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: context.w(16),
+          vertical: context.h(8),
+        ),
+        decoration: BoxDecoration(
+          color: AppColors.blue1,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          widget.timeline[currentIndex]['title'] as String,
+          style: AppTextStyles.body.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+    
+    items.add(SizedBox(height: context.h(8)));
+    
+    // 다음 항목 (있으면)
     if (currentIndex < widget.timeline.length - 1) {
-      activities.add(widget.timeline[currentIndex + 1]['title'] as String);
+      items.add(
+        Text(
+          widget.timeline[currentIndex + 1]['title'] as String,
+          style: AppTextStyles.body.copyWith(
+            color: Colors.white.withOpacity(0.3),
+          ),
+        ),
+      );
     }
-
-    return activities;
+    
+    return items;
   }
 
   @override
@@ -368,7 +412,7 @@ class _InFlightProgressWidgetState extends State<InFlightProgressWidget> {
 
                 SizedBox(height: context.h(16)),
 
-                // 현재 활동
+                // 가사 보기 스타일 타임라인
                 Column(
                   children: [
                     Text(
@@ -377,21 +421,9 @@ class _InFlightProgressWidgetState extends State<InFlightProgressWidget> {
                         color: Colors.white.withOpacity(0.5),
                       ),
                     ),
-                    SizedBox(height: context.h(4)),
-                    Text(
-                      _currentActivity ?? '이륙 및 안정',
-                      style: AppTextStyles.body.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    SizedBox(height: context.h(4)),
-                    Text(
-                      '첫 번째 가능한 활동 (비빔밥 or 볼로기)',
-                      style: AppTextStyles.smallBody.copyWith(
-                        color: Colors.white.withOpacity(0.3),
-                      ),
-                    ),
+                    SizedBox(height: context.h(8)),
+                    // 타임라인 항목들 (가사처럼 흐름)
+                    ..._buildTimelineItems(),
                   ],
                 ),
               ],

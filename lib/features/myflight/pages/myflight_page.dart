@@ -274,12 +274,12 @@ class _MyFlightPageState extends State<MyFlightPage> {
             
             return GestureDetector(
               onTap: () async {
-                // 진행 중 비행 클릭 → 읽기 전용 FlightPlanPage
+                // 진행 중 비행 클릭 → FlightPlanPage (읽기 전용 모드)
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => FlightPlanPage(
-                      isReadOnly: true, // 편집 불가 모드
+                      isReadOnly: true,
                       flightId: flight.id,
                     ),
                   ),
