@@ -62,20 +62,11 @@ class _NicknameSetupPageState extends State<NicknameSetupPage> {
 
     setState(() {
       _isLoading = true;
+      _isDuplicate = false;
     });
 
     try {
-      // 1. 중복 체크 (선택 사항: API가 따로 있다면)
-      // final isAvailable = await _userService.checkNicknameAvailability(nickname);
-      // if (!isAvailable) {
-      //   setState(() {
-      //     _isDuplicate = true;
-      //     _isLoading = false;
-      //   });
-      //   return;
-      // }
-
-      // 2. 닉네임 업데이트
+      // 닉네임 업데이트
       final success = await _userService.updateNickname(widget.userId, nickname);
       
       if (success && mounted) {
@@ -84,8 +75,8 @@ class _NicknameSetupPageState extends State<NicknameSetupPage> {
         final storage = AuthTokenStorage();
         await storage.saveUserInfo(name: nickname);
             
-        // 홈으로 이동
-        context.go(RouteNames.home);
+        // 수면 패턴 설정 페이지로 이동
+        context.go(RouteNames.sleepPattern);
       } else if (!success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('닉네임 설정에 실패했습니다. 다시 시도해주세요.')),

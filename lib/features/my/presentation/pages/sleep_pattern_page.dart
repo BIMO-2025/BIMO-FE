@@ -172,7 +172,7 @@ class _SleepPatternPageState extends State<SleepPatternPage> {
               // 수면 패턴 선택 박스 (탭 + 피커)
               _buildSleepPatternBox(context),
 
-              SizedBox(height: context.h(32)),
+              SizedBox(height: context.h(81)),
 
               // 수정하기 버튼
               PrimaryButton(
@@ -211,7 +211,7 @@ class _SleepPatternPageState extends State<SleepPatternPage> {
               width: context.w(280),
               height: context.h(45),
               decoration: BoxDecoration(
-                color: Colors.transparent,
+                color: AppColors.white.withOpacity(0.05), // 전체 배경
                 borderRadius: BorderRadius.circular(context.w(14)),
               ),
               child: Row(
@@ -240,10 +240,9 @@ class _SleepPatternPageState extends State<SleepPatternPage> {
                             fontWeight: FontWeight.w600, // 세미볼드
                             height: 1.2, // 120%
                             letterSpacing: -0.225, // -1.5% of 15
-                            color:
-                                _selectedTab == 0
-                                    ? AppColors.white
-                                    : AppColors.white.withOpacity(0.4),
+                            color: _selectedTab == 0
+                                ? AppColors.white // 100%
+                                : AppColors.white.withOpacity(0.4),
                           ),
                         ),
                       ),
@@ -273,10 +272,9 @@ class _SleepPatternPageState extends State<SleepPatternPage> {
                             fontWeight: FontWeight.w600, // 세미볼드
                             height: 1.2, // 120%
                             letterSpacing: -0.225, // -1.5% of 15
-                            color:
-                                _selectedTab == 1
-                                    ? AppColors.white
-                                    : AppColors.white.withOpacity(0.4),
+                            color: _selectedTab == 1
+                                ? AppColors.white // 100%
+                                : AppColors.white.withOpacity(0.4),
                           ),
                         ),
                       ),
@@ -295,18 +293,21 @@ class _SleepPatternPageState extends State<SleepPatternPage> {
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  // 피커
-                  _buildTimePicker(context),
-                  // 선택 영역 박스 (중앙)
+                  // 피커 (280px 박스 내부에서 패딩)
+                  Container(
+                    width: context.w(280),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: context.w(48.5)),
+                      child: _buildTimePicker(context),
+                    ),
+                  ),
+                  // 선택 영역 박스
                   IgnorePointer(
                     child: Container(
                       width: context.w(280),
                       height: context.h(44),
                       decoration: BoxDecoration(
-                        border: Border.all(
-                          color: AppColors.white.withOpacity(0.1),
-                          width: 1,
-                        ),
+                        color: AppColors.white.withOpacity(0.05),
                         borderRadius: BorderRadius.circular(context.w(14)),
                       ),
                     ),
@@ -338,6 +339,7 @@ class _SleepPatternPageState extends State<SleepPatternPage> {
             ),
             itemExtent: 44,
             backgroundColor: Colors.transparent,
+            selectionOverlay: Container(color: Colors.transparent), // 선택 배경 제거
             onSelectedItemChanged: (int index) {
               setState(() {
                 if (_selectedTab == 0) {
@@ -348,10 +350,38 @@ class _SleepPatternPageState extends State<SleepPatternPage> {
               });
             },
             children: List.generate(24, (index) {
-              return Center(
-                child: Text(
-                  '${index.toString().padLeft(2, '0')} 시',
-                  style: AppTextStyles.large.copyWith(color: AppColors.white),
+              return Align(
+                alignment: Alignment.centerLeft,
+                child: RichText(
+                  text: TextSpan(
+                    children: [
+                      TextSpan(
+                        text: index.toString().padLeft(2, '0'),
+                        style: TextStyle(
+                          fontFamily: 'Pretendard',
+                          fontSize: context.fs(20),
+                          fontWeight: FontWeight.w600, // 세미볼드
+                          height: 1.2, // 120%
+                          letterSpacing: 0,
+                          color: AppColors.white,
+                        ),
+                      ),
+                      WidgetSpan(
+                        child: SizedBox(width: context.w(4)), // 4px 간격
+                      ),
+                      TextSpan(
+                        text: '시',
+                        style: TextStyle(
+                          fontFamily: 'Pretendard',
+                          fontSize: context.fs(20),
+                          fontWeight: FontWeight.w400, // 레귤러
+                          height: 1.2, // 120%
+                          letterSpacing: 0,
+                          color: AppColors.white,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               );
             }),
@@ -365,6 +395,7 @@ class _SleepPatternPageState extends State<SleepPatternPage> {
             ),
             itemExtent: 44,
             backgroundColor: Colors.transparent,
+            selectionOverlay: Container(color: Colors.transparent), // 선택 배경 제거
             onSelectedItemChanged: (int index) {
               setState(() {
                 if (_selectedTab == 0) {
@@ -376,10 +407,38 @@ class _SleepPatternPageState extends State<SleepPatternPage> {
             },
             children: List.generate(12, (index) {
               final minute = index * 5;
-              return Center(
-                child: Text(
-                  '${minute.toString().padLeft(2, '0')} 분',
-                  style: AppTextStyles.large.copyWith(color: AppColors.white),
+              return Align(
+                alignment: Alignment.centerRight,
+                child: RichText(
+                  text: TextSpan(
+                    children: [
+                      TextSpan(
+                        text: minute.toString().padLeft(2, '0'),
+                        style: TextStyle(
+                          fontFamily: 'Pretendard',
+                          fontSize: context.fs(20),
+                          fontWeight: FontWeight.w600, // 세미볼드
+                          height: 1.2, // 120%
+                          letterSpacing: 0,
+                          color: AppColors.white,
+                        ),
+                      ),
+                      WidgetSpan(
+                        child: SizedBox(width: context.w(4)), // 4px 간격
+                      ),
+                      TextSpan(
+                        text: '분',
+                        style: TextStyle(
+                          fontFamily: 'Pretendard',
+                          fontSize: context.fs(20),
+                          fontWeight: FontWeight.w400, // 레귤러
+                          height: 1.2, // 120%
+                          letterSpacing: 0,
+                          color: AppColors.white,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               );
             }),
