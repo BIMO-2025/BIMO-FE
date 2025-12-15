@@ -19,6 +19,10 @@ import '../data/models/create_flight_request.dart';
 import '../data/models/timeline_request.dart';
 import '../../../core/storage/auth_token_storage.dart';
 import '../data/repositories/flight_repository.dart';
+import '../models/flight_model.dart';
+import '../../../core/state/flight_state.dart';
+import '../../../core/state/timeline_state.dart';
+import 'package:go_router/go_router.dart';
 // import '../../home/data/datasources/airline_api_service.dart'; // Removed
 
 /// 비행 등록 페이지
@@ -880,6 +884,12 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
   }
 
   void _goToFinish() async {
+      // 중복 호출 방지
+      if (_isLoading) {
+        print('⚠️ 이미 처리 중입니다.');
+        return;
+      }
+      
       // 로딩 화면 표시
       setState(() {
         _isLoading = true;
@@ -908,29 +918,34 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
         await flightRepository.saveFlight(userId, createRequest);
         print('✅ 비행 저장 완료');
         
-        // 4. 타임라인 생성 API 호출
-        // seat_class는 현재 UI에서 제거되었으므로 기본값 "ECONOMY" 사용
+        // 4. 로컬에 비행 즉시 저장 (FlightState)
+        final newFlight = _convertToLocalFlight(selectedFlight);
+        FlightState().addFlight(newFlight);
+        print('✅ 로컬 비행 저장 완료');
+        
+        // 5. 타임라인 생성 API 호출
         final timelineRequest = TimelineRequest.fromFlightSearchData(
           data: selectedFlight,
           seatClass: 'ECONOMY',
-          flightGoal: _selectedFlightGoal ?? 'SLEEP_FOCUS', // 기본값
+          flightGoal: _selectedFlightGoal ?? '시차적응',
         );
-        await flightRepository.generateTimeline(timelineRequest);
+        final timelineData = await flightRepository.generateTimeline(timelineRequest);
         print('✅ 타임라인 생성 완료');
         
-        // 5. 성공 시 비행 플랜 페이지로 이동
+        // 6. 타임라인 응답을 TimelineState에 저장
+        if (timelineData != null) {
+          TimelineState().timelineData = timelineData;
+          print('✅ 타임라인 로컬 저장 완료');
+        }
+        
+        // 7. 성공 시 비행 플랜 페이지로 이동 (GoRouter 사용)
         if (mounted) {
           setState(() {
             _isLoading = false;
           });
           _rotationController?.stop();
           
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const FlightPlanPage(),
-            ),
-          );
+          context.go('/flight-plan');
         }
       } catch (e) {
         // 에러 처리
@@ -945,13 +960,80 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
           // 에러 메시지 표시
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('비행 등록에 실패했습니다: $e'),
+              content: Text('비행 등록에 실패했습니다'),
               backgroundColor: Colors.red,
             ),
           );
         }
       }
     }
+  
+  /// FlightSearchData를 Flight 모델로 변환 (로컬 저장용)
+  Flight _convertToLocalFlight(FlightSearchData data) {
+    // 공항 코드에서 도시 이름 추론
+    String getCityName(String airportCode) {
+      const cityMap = {
+        'ICN': '인천',
+        'GMP': '김포',
+        'PUS': '부산',
+        'CJU': '제주',
+        'NRT': '도쿄',
+        'HND': '도쿄',
+        'JFK': '뉴욕',
+        'LAX': '로스앤젤레스',
+        'YYZ': '토론토',
+        'LHR': '런던',
+        'CDG': '파리',
+        'DXB': '두바이',
+      };
+      return cityMap[airportCode] ?? airportCode;
+    }
+    
+    // Duration 포맷
+    String formatDuration(int minutes) {
+      final hours = minutes ~/ 60;
+      final mins = minutes % 60;
+      return '${hours}h ${mins}m';
+    }
+    
+    // 시간 포맷 (HH:MM AM/PM)
+    String formatTime(String isoTime) {
+      try {
+        final dt = DateTime.parse(isoTime.endsWith('Z') ? isoTime : '${isoTime}Z');
+        final hour = dt.hour;
+        final minute = dt.minute;
+        final period = hour >= 12 ? 'PM' : 'AM';
+        final hour12 = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+        return '${hour12.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $period';
+      } catch (e) {
+        return isoTime;
+      }
+    }
+    
+    // 날짜 포맷 (YYYY.MM.DD. (요일))
+    String formatDate(String isoTime) {
+      try {
+        final dt = DateTime.parse(isoTime.endsWith('Z') ? isoTime : '${isoTime}Z');
+        const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
+        final weekday = weekdays[dt.weekday % 7];
+        return '${dt.year}.${dt.month.toString().padLeft(2, '0')}.${dt.day.toString().padLeft(2, '0')}. ($weekday)';
+      } catch (e) {
+        return '';
+      }
+    }
+    
+    return Flight(
+      departureCode: data.departure.airport,
+      departureCity: getCityName(data.departure.airport),
+      arrivalCode: data.arrival.airport,
+      arrivalCity: getCityName(data.arrival.airport),
+      duration: formatDuration(data.duration),
+      departureTime: formatTime(data.departure.time),
+      arrivalTime: formatTime(data.arrival.time),
+      rating: null,
+      date: formatDate(data.departure.time),
+    );
+  }
   
   
   /// 로딩 화면

@@ -8,6 +8,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/responsive_extensions.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/state/flight_state.dart';
+import '../../../core/state/timeline_state.dart';
 import '../models/flight_model.dart';
 import 'flight_plan_end_page.dart';
 import 'myflight_page.dart';
@@ -192,12 +193,45 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
 
   /// 비행 정보
   Widget _buildFlightInfo(BuildContext context) {
+    // TimelineState에서 flight_info 가져오기
+    final timelineData = TimelineState().timelineData;
+    final flightInfo = timelineData?['flight_info'] as Map<String, dynamic>?;
+    
+    // FlightState에서 가장 최근 비행 가져오기 (날짜용)
+    final flights = FlightState().scheduledFlights;
+    final latestFlight = flights.isNotEmpty ? flights.last : null;
+    
+    // API 데이터 또는 기본값
+    final origin = flightInfo?['origin'] as String? ?? 'DXB';
+    final destination = flightInfo?['destination'] as String? ?? 'ICN';
+    final totalDuration = flightInfo?['total_duration'] as String? ?? '14h 15m';
+    final date = latestFlight?.date ?? '2025.11.25. (토)';
+    
+    // 공항 코드에서 도시 이름 추론
+    String getCityName(String airportCode) {
+      const cityMap = {
+        'ICN': '인천',
+        'GMP': '김포',
+        'PUS': '부산',
+        'CJU': '제주',
+        'NRT': '도쿄',
+        'HND': '도쿄',
+        'JFK': '뉴욕',
+        'LAX': '로스앤젤레스',
+        'YYZ': '토론토',
+        'LHR': '런던',
+        'CDG': '파리',
+        'DXB': '두바이',
+      };
+      return cityMap[airportCode] ?? airportCode;
+    }
+    
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // DXB → ICN
+          // Origin → Destination
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -206,12 +240,12 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Text(
-                    'DXB',
+                    origin,
                     style: AppTextStyles.display.copyWith(color: Colors.white),
                   ),
                   const SizedBox(height: 0),
                   Text(
-                    '두바이',
+                    getCityName(origin),
                     style: AppTextStyles.body.copyWith(
                       color: Colors.white.withOpacity(0.5),
                     ),
@@ -234,12 +268,12 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Text(
-                    'ICN',
+                    destination,
                     style: AppTextStyles.display.copyWith(color: Colors.white),
                   ),
                   const SizedBox(height: 0),
                   Text(
-                    '인천',
+                    getCityName(destination),
                     style: AppTextStyles.body.copyWith(
                       color: Colors.white.withOpacity(0.5),
                     ),
@@ -255,9 +289,9 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
             text: TextSpan(
               style: AppTextStyles.body.copyWith(color: Colors.white),
               children: [
-                const TextSpan(text: '2025.11.25. (토) | '),
+                TextSpan(text: '$date | '),
                 TextSpan(
-                  text: '14h 15m',
+                  text: totalDuration,
                   style: AppTextStyles.bigBody.copyWith(color: Colors.white),
                 ),
               ],
@@ -287,38 +321,27 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox(
-                    height: context.h(79), // 총 높이 79px 고정
-                    child: Stack(
-                      clipBehavior: Clip.none, // 원이 잘리지 않도록
+                  IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         // 타임라인 원과 선 (왼쪽)
-                        Positioned(
-                          left: 0,
-                          top: 0,
-                          child: SizedBox(
-                            width: context.w(13),
-                            height: context.h(79),
-                            child: CustomPaint(
-                              painter: TimelineLinePainter(
-                                circleSize: context.w(13),
-                                lineStartOffset: context.h(
-                                  13 + 8,
-                                ), // 원(13) + 간격(8)
-                                lineEndOffset: context.h(
-                                  79 - 8,
-                                ), // 총 높이(79) - 박스 하단 여백(8)
-                                isActive: event.isActive, // 새로 추가된 이벤트만 파란색
-                                isEditable: event.isEditable,
-                                isSelected: isSelected, // 선택된 이벤트
-                              ),
+                        SizedBox(
+                          width: context.w(13),
+                          child: CustomPaint(
+                            painter: TimelineLinePainter(
+                              circleSize: context.w(13),
+                              lineStartOffset: context.h(13 + 8), // 원(13) + 간격(8)
+                              lineEndOffset: null, // 자동 계산
+                              isActive: event.isActive,
+                              isEditable: event.isEditable,
+                              isSelected: isSelected,
                             ),
                           ),
                         ),
+                        SizedBox(width: context.w(16)), // 간격 16px
                         // 이벤트 카드 (오른쪽)
-                        Positioned(
-                          left: context.w(13 + 16), // 원(13) + 간격(16)
-                          top: 0,
+                        Expanded(
                           child: _buildTimelineEvent(
                             context,
                             event,
@@ -366,7 +389,9 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
       },
       child: Container(
         width: context.w(306), // 카드 너비 306px (375 - 20*2 - 13 - 16 = 306)
-        height: context.h(72), // 박스 높이 72px 고정
+        constraints: BoxConstraints(
+          minHeight: context.h(72), // 최소 높이 72px
+        ),
         padding: EdgeInsets.symmetric(
           horizontal: context.w(24), // 좌우 패딩 24px
           vertical: context.h(14), // 상하 패딩 14px
@@ -427,12 +452,10 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
               ],
             ),
             SizedBox(height: context.h(4)), // 상단 Row와 설명 사이 간격 4px
-            // 설명
-            Expanded(
-              child: Text(
-                event.description,
-                style: AppTextStyles.smallBody.copyWith(color: Colors.white),
-              ),
+            // 설명 - Expanded 제거하고 자동 높이
+            Text(
+              event.description,
+              style: AppTextStyles.smallBody.copyWith(color: Colors.white),
             ),
           ],
         ),
@@ -2638,45 +2661,60 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
 
   /// 타임라인 이벤트 목록 (더미 데이터)
   List<TimelineEvent> _getTimelineEvents() {
-    return [
-      TimelineEvent(
-        icon: 'assets/images/myflight/airplane.png',
-        title: '이륙 및 안정',
-        time: '09:00 AM - 11:00 AM',
-        description: 'BIMO와 함께 스마트한 비행을 시작합니다.',
-      ),
-      TimelineEvent(
-        icon: 'assets/images/myflight/meal.png',
-        title: '예상 저녁 식사',
-        time: '11:00 AM - 12:00 PM',
-        description: '첫 번째 기내식이 제공될 예상 시간입니다.',
-      ),
-      TimelineEvent(
-        icon: 'assets/images/myflight/moon.png',
-        title: '앵커 수면',
-        time: '12:00 PM - 05:00 PM',
-        description: '시차 적응을 위한 핵심 수면 시간입니다.',
-      ),
-      TimelineEvent(
-        icon: null,
-        title: '자유 시간',
-        time: '05:00 PM - 09:00 PM',
-        description: '자유롭게 일정을 등록하실 수 있습니다.',
-        isEditable: true, // 수정 권장
-      ),
-      TimelineEvent(
-        icon: 'assets/images/myflight/meal.png',
-        title: '예상 아침 식사',
-        time: '09:00 PM - 10:00 PM',
-        description: '두 번째 기내식이 제공될 예상 시간입니다.',
-      ),
-      TimelineEvent(
-        icon: 'assets/images/myflight/airplane.png',
-        title: '착륙 및 안정',
-        time: '11:00 PM - 01:00 AM',
-        description: 'BIMO와 함께 스마트한 비행을 마무리합니다.',
-      ),
-    ];
+    // TimelineState에서 API 응답 가져오기
+    final timelineData = TimelineState().timelineData;
+    
+    if (timelineData == null || timelineData['timeline_events'] == null) {
+      // API 데이터가 없으면 빈 리스트 반환
+      return [];
+    }
+    
+    final events = timelineData['timeline_events'] as List<dynamic>;
+    
+    return events.map((event) {
+      final iconType = event['icon_type'] as String?;
+      final type = event['type'] as String?;
+      
+      // icon_type을 asset 경로로 매핑
+      String? iconPath;
+      if (iconType != null) {
+        iconPath = _mapIconTypeToAsset(iconType, type);
+      }
+      
+      // isEditable 판단 (자유 시간만 true)
+      final isEditable = type == 'FREE_TIME';
+      
+      return TimelineEvent(
+        icon: iconPath,
+        title: event['title'] as String? ?? '',
+        time: event['display_time'] as String? ?? '',
+        description: event['description'] as String? ?? '',
+        isEditable: isEditable,
+        isActive: false,
+      );
+    }).toList();
+  }
+  
+  /// icon_type을 asset 경로로 매핑
+  String? _mapIconTypeToAsset(String iconType, String? eventType) {
+    // FREE_TIME은 아이콘 없음
+    if (eventType == 'FREE_TIME') {
+      return null;
+    }
+    
+    switch (iconType.toLowerCase()) {
+      case 'airplane_takeoff':
+      case 'airplane_landing':
+      case 'airplane':
+        return 'assets/images/myflight/airplane.png';
+      case 'meal':
+        return 'assets/images/myflight/meal.png';
+      case 'moon':
+      case 'sleep':
+        return 'assets/images/myflight/moon.png';
+      default:
+        return null;
+    }
   }
 }
 
@@ -2703,7 +2741,7 @@ class TimelineEvent {
 class TimelineLinePainter extends CustomPainter {
   final double circleSize;
   final double lineStartOffset;
-  final double lineEndOffset;
+  final double? lineEndOffset; // nullable로 변경
   final bool isActive; // 활성화 상태
   final bool isEditable; // 수정 권장 여부
   final bool isSelected; // 선택 상태
@@ -2711,7 +2749,7 @@ class TimelineLinePainter extends CustomPainter {
   TimelineLinePainter({
     required this.circleSize,
     required this.lineStartOffset,
-    required this.lineEndOffset,
+    this.lineEndOffset, // required 제거
     this.isActive = false,
     this.isEditable = false,
     this.isSelected = false,
@@ -2778,7 +2816,7 @@ class TimelineLinePainter extends CustomPainter {
       );
     }
 
-    // 타임라인 세로선
+    // 타임라인 세로선 - lineEndOffset이 null이면 전체 높이 사용
     final linePaint =
         Paint()
           ..color = Colors.white
@@ -2787,7 +2825,7 @@ class TimelineLinePainter extends CustomPainter {
 
     canvas.drawLine(
       Offset(centerX, lineStartOffset),
-      Offset(centerX, lineEndOffset),
+      Offset(centerX, lineEndOffset ?? size.height),
       linePaint,
     );
   }
@@ -2795,6 +2833,7 @@ class TimelineLinePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant TimelineLinePainter oldDelegate) {
     return oldDelegate.isActive != isActive ||
-        oldDelegate.isEditable != isEditable;
+        oldDelegate.isEditable != isEditable ||
+        oldDelegate.isSelected != isSelected;
   }
 }

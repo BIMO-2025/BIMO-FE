@@ -10,6 +10,7 @@ import '../../../features/home/presentation/pages/airline_detail_page.dart';
 import '../../../features/home/data/mock_airlines.dart';
 import '../../../features/auth/presentation/pages/login_page.dart';
 import '../../../features/myflight/pages/myflight_page.dart';
+import '../../../features/myflight/pages/flight_plan_page.dart';
 
 /// 앱의 라우팅 설정을 관리하는 클래스
 class AppRouter {
@@ -53,6 +54,11 @@ class AppRouter {
         path: RouteNames.myFlight,
         name: 'myFlight',
         builder: (context, state) => const MyFlightPage(),
+      ),
+      GoRoute(
+        path: '/flight-plan',
+        name: 'flight-plan',
+        builder: (context, state) => const FlightPlanPage(),
       ),
       GoRoute(
         path: RouteNames.nicknameSetup,

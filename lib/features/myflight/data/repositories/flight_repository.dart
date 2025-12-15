@@ -307,7 +307,7 @@ class FlightRepository {
 
   /// 타임라인 생성
   /// POST /wellness/flight-timeline
-  Future<void> generateTimeline(TimelineRequest request) async {
+  Future<Map<String, dynamic>?> generateTimeline(TimelineRequest request) async {
     try {
       print('🚀 타임라인 생성 API 호출: /wellness/flight-timeline');
       print('📦 Request Body: ${request.toJson()}');
@@ -319,12 +319,14 @@ class FlightRepository {
       
       if (response.statusCode == 200) {
         print('✅ 타임라인 생성 성공');
+        print('📦 Timeline Response: ${response.data}');
+        return response.data as Map<String, dynamic>?;
       } else {
         throw Exception('타임라인 생성 실패: ${response.statusCode}');
       }
     } catch (e) {
       print('❌ 타임라인 생성 에러: $e');
-      rethrow;
+      return null;
     }
   }
 
