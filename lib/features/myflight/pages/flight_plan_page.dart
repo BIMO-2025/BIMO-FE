@@ -203,9 +203,22 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
             left: context.w(20),
             top: context.h(21),
             child: GestureDetector(
-              onTap: () {
+              onTap: () async {
                 print('🔙 FlightPlanPage 뒤로가기 버튼 클릭');
-                Navigator.pop(context);
+                // 저장 확인 모달 표시
+                final shouldSave = await _showSaveConfirmationModal(context);
+                if (shouldSave != null) {
+                  if (shouldSave) {
+                    // 저장하고 뒤로가기
+                    await _saveTimelineToHive();
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                    }
+                  } else {
+                    // 저장하지 않고 뒤로가기 (변경사항 버림)
+                    Navigator.pop(context);
+                  }
+                }
               },
               child: Container(
                 width: 40,
@@ -1248,6 +1261,143 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
                     ),
                   ],
                 ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// 플랜 저장 확인 모달 표시
+  Future<bool?> _showSaveConfirmationModal(BuildContext context) async {
+    return await showDialog<bool>(
+      context: context,
+      barrierDismissible: false, // 바깥 영역 클릭 시 닫히지 않음
+      barrierColor: Colors.black.withOpacity(0.3), // 배경 어둡게
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+            child: Container(
+              width: context.w(300),
+              padding: EdgeInsets.only(
+                top: 0,
+                right: context.w(20),
+                bottom: context.w(20),
+                left: context.w(20),
+              ),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1A1A1A), // #1A1A1A
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.1), // 흰색 10%
+                  width: 1,
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // 헤더 영역
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.only(
+                      top: context.h(20),
+                      bottom: context.h(10),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // 제목
+                        Text(
+                          '플랜 저장',
+                          style: AppTextStyles.large.copyWith(
+                            color: Colors.white,
+                          ),
+                        ),
+                        SizedBox(height: context.h(10)),
+                        // 질문
+                        Padding(
+                          padding: EdgeInsets.only(
+                            left: context.w(14),
+                            right: context.w(14),
+                            top: context.h(10),
+                          ),
+                          child: Text(
+                            '플랜을 저장하시겠습니까?',
+                            style: AppTextStyles.body.copyWith(
+                              color: Colors.white,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: context.h(16)),
+                  // 버튼들
+                  Row(
+                    children: [
+                      // 저장 안 함 버튼
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.pop(context, false); // 저장하지 않음
+                          },
+                          child: Container(
+                            padding: EdgeInsets.symmetric(
+                              vertical: context.h(16),
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            child: Center(
+                              child: Text(
+                                '저장 안 함',
+                                style: AppTextStyles.buttonText.copyWith(
+                                  color: Colors.white,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: context.w(16)),
+                      // 저장 버튼
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.pop(context, true); // 저장함
+                          },
+                          child: Container(
+                            padding: EdgeInsets.symmetric(
+                              vertical: context.h(16),
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.blue1,
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            child: Center(
+                              child: Text(
+                                '저장',
+                                style: AppTextStyles.buttonText.copyWith(
+                                  color: Colors.white,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
