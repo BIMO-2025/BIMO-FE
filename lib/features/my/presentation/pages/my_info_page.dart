@@ -7,6 +7,9 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/responsive_extensions.dart';
 import 'nickname_edit_page.dart';
+import 'sleep_pattern_setting_page.dart';
+
+import '../../data/repositories/user_repository_impl.dart';
 
 /// 내 정보 페이지
 class MyInfoPage extends StatefulWidget {
@@ -20,6 +23,41 @@ class _MyInfoPageState extends State<MyInfoPage> {
   String _name = '사용자';
   String _email = '';
   // String _snsProvider = '카카오톡'; // TODO: 저장된 Provider 정보가 있다면 로드
+  
+  TimeOfDay? _sleepStart;
+  TimeOfDay? _sleepEnd;
+  final _userRepository = UserRepositoryImpl();
+
+  Future<void> _saveSleepPattern() async {
+    if (_sleepStart == null || _sleepEnd == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('취침 시간과 기상 시간을 모두 선택해주세요.')),
+      );
+      return;
+    }
+
+    try {
+      final startStr = '${_sleepStart!.hour.toString().padLeft(2, '0')}:${_sleepStart!.minute.toString().padLeft(2, '0')}';
+      final endStr = '${_sleepEnd!.hour.toString().padLeft(2, '0')}:${_sleepEnd!.minute.toString().padLeft(2, '0')}';
+
+      await _userRepository.updateSleepPattern(
+        sleepPatternStart: startStr,
+        sleepPatternEnd: endStr,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('수면 패턴이 저장되었습니다.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('저장 실패: $e')),
+        );
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -37,6 +75,40 @@ class _MyInfoPageState extends State<MyInfoPage> {
         _email = userInfo['email'] ?? '';
       });
     }
+
+    // API에서 최신 정보(수면 패턴 포함) 조회
+    try {
+      final profile = await _userRepository.getUserProfile();
+      if (mounted) {
+        setState(() {
+          // 이름/이메일 최신화
+          if (profile['name'] != null) _name = profile['name'];
+          if (profile['email'] != null) _email = profile['email'];
+
+          // 수면 패턴 설정
+          if (profile['sleepPatternStart'] != null) {
+            final parts = (profile['sleepPatternStart'] as String).split(':');
+            if (parts.length == 2) {
+              _sleepStart = TimeOfDay(
+                hour: int.parse(parts[0]),
+                minute: int.parse(parts[1]),
+              );
+            }
+          }
+          if (profile['sleepPatternEnd'] != null) {
+            final parts = (profile['sleepPatternEnd'] as String).split(':');
+            if (parts.length == 2) {
+              _sleepEnd = TimeOfDay(
+                hour: int.parse(parts[0]),
+                minute: int.parse(parts[1]),
+              );
+            }
+          }
+        });
+      }
+    } catch (e) {
+      print('프로필 로드 실패: $e');
+    }
   }
 
   Future<void> _logout() async {
@@ -48,6 +120,35 @@ class _MyInfoPageState extends State<MyInfoPage> {
     
     // 2. 로그인 화면으로 이동 (스택 초기화)
     context.go(RouteNames.login);
+  }
+
+  Future<void> _updateSleepPattern(TimeOfDay? start, TimeOfDay? end) async {
+    if (start == null || end == null) return;
+
+    try {
+      final startStr = '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}';
+      final endStr = '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}';
+
+      await _userRepository.updateSleepPattern(
+        sleepPatternStart: startStr,
+        sleepPatternEnd: endStr,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('수면 패턴이 저장되었습니다.'),
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('저장 실패: $e')),
+        );
+      }
+    }
   }
 
   void _showLogoutModal(BuildContext context) {
@@ -395,6 +496,60 @@ class _MyInfoPageState extends State<MyInfoPage> {
 
               SizedBox(height: context.h(16)),
 
+              // 수면 패턴 설정 버튼
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const SleepPatternSettingPage(),
+                    ),
+                  ).then((_) => _loadUserInfo()); // 돌아오면 정보 갱신
+                },
+                child: Container(
+                  width: context.w(335),
+                  padding: EdgeInsets.all(context.w(20)),
+                  decoration: BoxDecoration(
+                    color: AppColors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(context.w(14)),
+                  ),
+                  child: Row(
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '수면 패턴 설정',
+                            style: AppTextStyles.bigBody.copyWith(
+                              color: AppColors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(height: context.h(4)),
+                          Text(
+                            _sleepStart != null && _sleepEnd != null
+                                ? '${_sleepStart!.hour.toString().padLeft(2, '0')}:${_sleepStart!.minute.toString().padLeft(2, '0')} - ${_sleepEnd!.hour.toString().padLeft(2, '0')}:${_sleepEnd!.minute.toString().padLeft(2, '0')}'
+                                : '수면 시간을 설정해주세요',
+                            style: AppTextStyles.body.copyWith(
+                              color: AppColors.white.withOpacity(0.6),
+                              fontSize: context.fs(14),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Spacer(),
+                      Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        color: AppColors.white.withOpacity(0.4),
+                        size: context.w(16),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              SizedBox(height: context.h(16)),
+
               // BIMO 탈퇴하기 버튼
               Center(
                 child: GestureDetector(
@@ -413,6 +568,71 @@ class _MyInfoPageState extends State<MyInfoPage> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildTimeRow(
+    String label,
+    TimeOfDay? time,
+    Function(TimeOfDay) onTimeSelected,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(
+          label,
+          style: AppTextStyles.body.copyWith(
+            color: AppColors.white.withOpacity(0.8),
+          ),
+        ),
+        const Spacer(),
+        GestureDetector(
+          onTap: () async {
+            final pickedTime = await showTimePicker(
+              context: context,
+              initialTime: time ?? TimeOfDay.now(),
+              builder: (context, child) {
+                return Theme(
+                  data: ThemeData.dark().copyWith(
+                    colorScheme: const ColorScheme.dark(
+                      primary: Color(0xFF007AFF),
+                      onPrimary: Colors.white,
+                      surface: Color(0xFF1A1A1A),
+                      onSurface: Colors.white,
+                    ),
+                    dialogBackgroundColor: const Color(0xFF1A1A1A),
+                  ),
+                  child: child!,
+                );
+              },
+            );
+            if (pickedTime != null) {
+              onTimeSelected(pickedTime);
+            }
+          },
+          child: Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: context.w(12),
+              vertical: context.h(8),
+            ),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A1A1A),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: AppColors.white.withOpacity(0.1),
+              ),
+            ),
+            child: Text(
+              time != null
+                  ? '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}'
+                  : '선택',
+              style: AppTextStyles.body.copyWith(
+                color: AppColors.white,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

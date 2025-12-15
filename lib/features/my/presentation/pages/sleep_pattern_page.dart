@@ -5,6 +5,7 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/responsive_extensions.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/primary_button.dart';
+import '../../data/repositories/user_repository_impl.dart';
 
 /// 수면 패턴 설정 페이지
 class SleepPatternPage extends StatefulWidget {
@@ -25,6 +26,84 @@ class _SleepPatternPageState extends State<SleepPatternPage> {
   // 기상 시간
   int _wakeupHour = 6;
   int _wakeupMinute = 0;
+
+  final _userRepository = UserRepositoryImpl();
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSleepPattern();
+  }
+
+  Future<void> _loadSleepPattern() async {
+    try {
+      final data = await _userRepository.getSleepPattern();
+      if (mounted) {
+        if (data['sleepPatternStart'] != null) {
+          final parts = (data['sleepPatternStart'] as String).split(':');
+          if (parts.length == 2) {
+            setState(() {
+              _bedtimeHour = int.parse(parts[0]);
+              _bedtimeMinute = int.parse(parts[1]);
+            });
+          }
+        }
+        if (data['sleepPatternEnd'] != null) {
+          final parts = (data['sleepPatternEnd'] as String).split(':');
+          if (parts.length == 2) {
+            setState(() {
+              _wakeupHour = int.parse(parts[0]);
+              _wakeupMinute = int.parse(parts[1]);
+            });
+          }
+        }
+      }
+    } catch (e) {
+      print('수면 패턴 로드 실패: $e');
+    }
+  }
+
+  Future<void> _saveSleepPattern() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final startStr = '${_bedtimeHour.toString().padLeft(2, '0')}:${_bedtimeMinute.toString().padLeft(2, '0')}';
+      final endStr = '${_wakeupHour.toString().padLeft(2, '0')}:${_wakeupMinute.toString().padLeft(2, '0')}';
+
+      print('🔵 수면 패턴 저장 시작');
+      print('🔵 취침: $startStr, 기상: $endStr');
+
+      await _userRepository.updateSleepPattern(
+        sleepPatternStart: startStr,
+        sleepPatternEnd: endStr,
+      );
+
+      print('🔵 저장 완료!');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('수면 패턴이 저장되었습니다.')),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      print('🔴 저장 실패: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('저장 실패: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -98,19 +177,8 @@ class _SleepPatternPageState extends State<SleepPatternPage> {
               // 수정하기 버튼
               PrimaryButton(
                 text: '수정하기',
-                isEnabled: true,
-                onTap: () {
-                  // TODO: 수면 패턴 저장 로직
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        '취침 시간: ${_bedtimeHour.toString().padLeft(2, '0')}:${_bedtimeMinute.toString().padLeft(2, '0')}\n'
-                        '기상 시간: ${_wakeupHour.toString().padLeft(2, '0')}:${_wakeupMinute.toString().padLeft(2, '0')}',
-                      ),
-                    ),
-                  );
-                  Navigator.pop(context);
-                },
+                isEnabled: !_isLoading,
+                onTap: _saveSleepPattern,
               ),
 
               // 버튼 아래 여백 (하단 인디케이터 고려)
@@ -260,6 +328,7 @@ class _SleepPatternPageState extends State<SleepPatternPage> {
     final currentMinute = _selectedTab == 0 ? _bedtimeMinute : _wakeupMinute;
 
     return Row(
+      key: ValueKey('picker_tab_$_selectedTab'), // 탭 전환 시 피커 재생성
       children: [
         // 시간 선택
         Expanded(

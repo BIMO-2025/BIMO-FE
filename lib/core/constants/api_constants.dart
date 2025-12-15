@@ -1,7 +1,7 @@
 /// API 관련 상수
 class ApiConstants {
   /// Base URL
-  static const String baseUrl = 'https://myron-effaceable-patiently.ngrok-free.dev/';
+  static const String baseUrl = 'https://nonsubtile-shea-wretched.ngrok-free.dev/';
 
   /// API 타임아웃 (밀리초)
   static const int connectTimeout = 30000; // 30초
@@ -41,4 +41,7 @@ class ApiConstants {
   static const String flightsSearch = 'search/airlines';
   static const String locationsSearch = 'flights/locations';
   static const String searchAirportIATA = 'search/airportIATACode';
+
+  // 수면 패턴 관련
+  static const String sleepPattern = '${_apiPrefix}user/sleep-pattern';
 }
