@@ -505,7 +505,7 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
                   if (isSelected)
                     Padding(
                       padding: EdgeInsets.only(
-                        top: 0, // 위 간격 0
+                        top: context.h(4), // 위 간격 4px
                         bottom: context.h(8), // 아래 간격 8px
                       ),
                       child: _buildActionButtons(context, event),
