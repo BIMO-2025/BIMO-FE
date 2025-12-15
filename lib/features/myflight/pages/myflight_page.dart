@@ -20,6 +20,7 @@ import '../../home/presentation/pages/airline_review_page.dart';
 import '../data/repositories/local_flight_repository.dart';
 import '../data/models/local_flight.dart';
 import '../data/repositories/local_timeline_repository.dart';
+import 'inflight_timeline_page.dart';
 import '../../../../core/utils/responsive_extensions.dart';
 import '../../../../core/storage/auth_token_storage.dart';
 import '../data/repositories/flight_repository.dart';
@@ -267,20 +268,27 @@ class _MyFlightPageState extends State<MyFlightPage> {
         final flight = snapshot.data!;
         
         // 타임라인 데이터 로드
-        return FutureBuilder<List<Map<String, dynamic>>>(
-          future: _loadTimelineForFlight(flight.id),
+        return FutureBuilder<List<LocalTimelineEvent>>(
+          future: _loadTimelineEventsForFlight(flight.id),
           builder: (context, timelineSnapshot) {
-            final timeline = timelineSnapshot.data ?? [];
+            final timelineEvents = timelineSnapshot.data ?? [];
             
             return GestureDetector(
               onTap: () async {
-                // 진행 중 비행 클릭 → 읽기 전용 FlightPlanPage
+                // 진행 중 비행 클릭 → InFlightTimelinePage (가사 보기 스타일)
+                if (timelineEvents.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('타임라인 데이터가 없습니다.')),
+                  );
+                  return;
+                }
+                
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => FlightPlanPage(
-                      isReadOnly: true, // 편집 불가 모드
-                      flightId: flight.id,
+                    builder: (context) => InFlightTimelinePage(
+                      flight: flight,
+                      timeline: timelineEvents,
                     ),
                   ),
                 );
@@ -303,14 +311,26 @@ class _MyFlightPageState extends State<MyFlightPage> {
     );
   }
   
-  /// 비행의 타임라인 데이터 로드
-  Future<List<Map<String, dynamic>>> _loadTimelineForFlight(String flightId) async {
+  /// 비행의 타임라인 이벤트 로드 (LocalTimelineEvent 객체)
+  Future<List<LocalTimelineEvent>> _loadTimelineEventsForFlight(String flightId) async {
     try {
       final localTimelineRepo = LocalTimelineRepository();
       await localTimelineRepo.init();
       final events = await localTimelineRepo.getTimeline(flightId);
       
-      print('📅 타임라인 로드: ${events.length}개 이벤트');
+      print('📅 타임라인 이벤트 로드: ${events.length}개');
+      
+      return events;
+    } catch (e) {
+      print('⚠️ 타임라인 이벤트 로드 실패: $e');
+      return [];
+    }
+  }
+  
+  /// 비행의 타임라인 데이터 로드 (InFlightProgressWidget용 Map 형식)
+  Future<List<Map<String, dynamic>>> _loadTimelineForFlight(String flightId) async {
+    try {
+      final events = await _loadTimelineEventsForFlight(flightId);
       
       // LocalTimelineEvent → Map 변환
       return events.map((e) {
