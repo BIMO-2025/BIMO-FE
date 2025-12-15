@@ -1,7 +1,7 @@
 /// API 관련 상수
 class ApiConstants {
   /// Base URL
-  static const String baseUrl = 'https://myron-effaceable-patiently.ngrok-free.dev/';
+  static const String baseUrl = 'https://nonsubtile-shea-wretched.ngrok-free.dev/';
 
   /// API 타임아웃 (밀리초)
   static const int connectTimeout = 30000; // 30초
@@ -29,6 +29,7 @@ class ApiConstants {
   // 리뷰 관련
   static const String reviews = '$_apiPrefix/reviews';
   static const String myReviews = '$_apiPrefix/reviews/my';
+  static String userReviews(String userId) => '${_apiPrefix}reviews/users/$userId/reviews';
 
   // 항공사 검색 관련 (feature/home에서 추가)
   static const String airlinesPopularWeekly = 'airlines/popular/weekly';
@@ -42,4 +43,7 @@ class ApiConstants {
   static const String flightsSearch = 'search/airlines';
   static const String locationsSearch = 'flights/locations';
   static const String searchAirportIATA = 'search/airportIATACode';
+
+  // 수면 패턴 관련
+  static const String sleepPattern = '${_apiPrefix}user/sleep-pattern';
 }

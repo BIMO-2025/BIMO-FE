@@ -16,6 +16,7 @@ import '../widgets/airport_search_bottom_sheet.dart';
 import '../widgets/date_selection_bottom_sheet.dart';
 import 'airline_detail_page.dart';
 import '../../../../core/utils/airport_keyword_mapper.dart';
+import '../../../../core/utils/airline_name_mapper.dart';
 
 class AirlineSearchResultPage extends StatefulWidget {
   final int initialTabIndex;
@@ -742,7 +743,7 @@ class _AirlineSearchResultPageState extends State<AirlineSearchResultPage> {
               
               // Airline Name (bigBody 스타일)
               Text(
-                airline.name,
+                AirlineNameMapper.toKorean(airline.name), // 한국어로 변환
                 style: AppTextStyles.bigBody.copyWith(
                   color: Colors.white,
                 ),
