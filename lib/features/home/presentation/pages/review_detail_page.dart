@@ -1,7 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/responsive_extensions.dart';
+import '../../domain/models/review_model.dart'; // Review 모델 import
 import 'airline_review_page.dart'; // For Review class
 
 class ReviewDetailPage extends StatefulWidget {
@@ -338,43 +340,31 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
               SizedBox(height: context.h(24)),
 
               // Photos
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    // First 3 images - fixed width
-                    ...List.generate(
-                      widget.review.images.length > 3
-                          ? 3
-                          : widget.review.images.length,
-                      (index) {
-                        return Container(
-                          width: context.w(100),
-                          height: context.w(100),
-                          margin: EdgeInsets.only(right: context.w(8)),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(context.w(12)),
-                            color: const Color(0xFF333333),
-                            // image: DecorationImage(...)
-                          ),
-                        );
-                      },
-                    ),
-                    // Fourth image - constrained to avoid overflow
-                    if (widget.review.images.length > 3)
-                      Container(
-                        width: context.w(100),
-                        height: context.w(100),
-                        margin: EdgeInsets.only(right: context.w(8)),
-                        decoration: BoxDecoration(
+              if (widget.review.images.isNotEmpty)
+                SizedBox(
+                  height: context.w(100),
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: widget.review.images.length,
+                    separatorBuilder: (context, index) => SizedBox(width: context.w(8)),
+                    itemBuilder: (context, index) {
+                      return GestureDetector(
+                        onTap: () {
+                          _showFullScreenImage(context, index);
+                        },
+                        child: ClipRRect(
                           borderRadius: BorderRadius.circular(context.w(12)),
-                          color: const Color(0xFF333333),
-                          // image: DecorationImage(...)
+                          child: Container(
+                            width: context.w(100),
+                            height: context.w(100),
+                            color: const Color(0xFF333333),
+                            child: _buildReviewImage(widget.review.images[index]),
+                          ),
                         ),
-                      ),
-                  ],
+                      );
+                    },
+                  ),
                 ),
-              ),
               SizedBox(height: context.h(24)),
 
               // Footer
@@ -417,6 +407,16 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _showFullScreenImage(BuildContext context, int initialIndex) {
+    showDialog(
+      context: context,
+      builder: (context) => _FullScreenImageViewer(
+        images: widget.review.images,
+        initialIndex: initialIndex,
       ),
     );
   }
@@ -483,4 +483,194 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
       ),
     );
   }
+
+  Widget _buildReviewImage(String imagePath) {
+    if (imagePath.startsWith('http')) {
+      return Image.network(
+        imagePath,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Image.network(
+            'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=800&q=80', // 비행기 대체 이미지
+            fit: BoxFit.cover,
+          );
+        },
+      );
+    } else if (imagePath.startsWith('assets/')) {
+      return Image.asset(
+        imagePath,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+           return Container(color: const Color(0xFF333333));
+        },
+      );
+    } else {
+      return Image.file(
+        File(imagePath), 
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+           return Container(color: const Color(0xFF333333));
+        },
+      );
+    }
+  }
 }
+
+class _FullScreenImageViewer extends StatefulWidget {
+  final List<String> images;
+  final int initialIndex;
+
+  const _FullScreenImageViewer({
+    required this.images,
+    required this.initialIndex,
+  });
+
+  @override
+  State<_FullScreenImageViewer> createState() => _FullScreenImageViewerState();
+}
+
+class _FullScreenImageViewerState extends State<_FullScreenImageViewer> {
+  late PageController _pageController;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.black,
+      insetPadding: EdgeInsets.zero,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Image PageView
+          PageView.builder(
+            controller: _pageController,
+            itemCount: widget.images.length,
+            onPageChanged: (index) {
+              setState(() {
+                _currentIndex = index;
+              });
+            },
+            itemBuilder: (context, index) {
+              return InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 4.0,
+                child: _buildFullImage(widget.images[index]),
+              );
+            },
+          ),
+
+          // Close Button
+          Positioned(
+            top: context.h(40), // 더 위로 (50 -> 40)
+            right: context.w(20),
+            child: GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Image.asset(
+                'assets/images/my/clear.png',
+                width: context.w(32), // 크기 32
+                height: context.h(32),
+              ),
+            ),
+          ),
+
+          // Left Arrow (Previous)
+          if (_currentIndex > 0)
+            Positioned(
+              left: context.w(10),
+              child: GestureDetector(
+                onTap: () {
+                  _pageController.previousPage(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                  );
+                },
+                child: Image.asset(
+                  'assets/images/search/back_arrow_icon.png',
+                  width: context.w(32), // 크기 32
+                  height: context.h(32),
+                ),
+              ),
+            ),
+
+          // Right Arrow (Next)
+          if (_currentIndex < widget.images.length - 1)
+            Positioned(
+              right: context.w(10),
+              child: GestureDetector(
+                onTap: () {
+                  _pageController.nextPage(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                  );
+                },
+                child: Transform.scale(
+                  scaleX: -1, // 좌우 반전
+                  child: Image.asset(
+                    'assets/images/search/back_arrow_icon.png',
+                    width: context.w(32), // 크기 32
+                    height: context.h(32),
+                  ),
+                ),
+              ),
+            ),
+            
+          // Page Indicator
+          Positioned(
+            bottom: context.h(60),
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: context.w(12),
+                vertical: context.h(6),
+              ),
+              decoration: BoxDecoration(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(context.w(20)),
+              ),
+              child: Text(
+                '${_currentIndex + 1} / ${widget.images.length}',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: context.fs(14),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFullImage(String imagePath) {
+    if (imagePath.startsWith('http')) {
+      return Image.network(
+        imagePath,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          return Image.network(
+            'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=800&q=80', // 비행기 대체 이미지
+            fit: BoxFit.contain,
+          );
+        },
+      );
+    } else if (imagePath.startsWith('assets/')) {
+      return Image.asset(imagePath, fit: BoxFit.contain);
+    } else {
+      return Image.file(File(imagePath), fit: BoxFit.contain);
+    }
+  }
+}
+

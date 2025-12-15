@@ -20,6 +20,7 @@ import '../../../../core/network/router/route_names.dart';
 import '../../../../core/storage/auth_token_storage.dart';
 import '../../../myflight/pages/myflight_page.dart';
 import '../../../../core/services/notification_service.dart';
+import '../../../../core/utils/airline_name_mapper.dart';
 
 /// 홈 화면 메인 페이지
 class HomePage extends StatefulWidget {
@@ -125,7 +126,7 @@ class _HomePageState extends State<HomePage> {
       // 응답 데이터를 UI 모델로 변환
       final List<AirlineData> airlineDataList = top3.map((airline) {
         return AirlineData(
-          name: airline.name,
+          name: AirlineNameMapper.toKorean(airline.name), // 한국어로 변환
           rating: airline.rating,
           logoPath: airline.logoUrl.isNotEmpty
               ? airline.logoUrl

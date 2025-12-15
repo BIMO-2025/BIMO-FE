@@ -4,6 +4,7 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/responsive_extensions.dart';
 import '../../data/datasources/airline_api_service.dart';
 import '../../data/models/popular_airline_response.dart';
+import '../../../../core/utils/airline_name_mapper.dart';
 
 /// 인기 항공사 전체 목록 페이지
 class PopularAirlinesPage extends StatefulWidget {
@@ -189,7 +190,7 @@ class _PopularAirlinesPageState extends State<PopularAirlinesPage> {
                     children: [
                       // 항공사 이름 (메인과 동일한 스타일)
                       Text(
-                        airline.name,
+                        AirlineNameMapper.toKorean(airline.name), // 한국어로 변환
                         style: AppTextStyles.bigBody.copyWith(
                           fontSize: context.fs(15), // 메인과 동일: 15pt
                           color: AppColors.white,

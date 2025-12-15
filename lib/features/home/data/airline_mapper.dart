@@ -65,6 +65,11 @@ class AirlineMapper {
     'klm': 'KLM',
     'klm네덜란드항공': 'KLM',
     '터키항공': 'Turkish Airlines',
+    '에어링구스': 'Aer Lingus',
+    '에어링': 'Aer Lingus',
+    '이지젯': 'EasyJet',
+    '라이언에어': 'Ryanair',
+    '라이언': 'Ryanair',
     
     // 중동 항공사
     '에미레이트': 'Emirates',
@@ -72,6 +77,23 @@ class AirlineMapper {
     '에티하드': 'Etihad Airways',
     '에티하드항공': 'Etihad Airways',
     '카타르항공': 'Qatar Airways',
+    
+    // 캐나다 항공사
+    '에어캐나다': 'Air Canada',
+    '캐나다': 'Air Canada',
+    '웨스트젯': 'WestJet',
+    
+    // 국가명 기반 검색
+    '일본': 'Japan Airlines',
+    '중국': 'Air China',
+    '싱가포르': 'Singapore Airlines',
+    '타이': 'Thai Airways',
+    '베트남': 'Vietnam Airlines',
+    '필리핀': 'Philippine Airlines',
+    '터키': 'Turkish Airlines',
+    '영국': 'British Airways',
+    '프랑스': 'Air France',
+    '독일': 'Lufthansa',
   };
 
   // 항공사 코드 → 한국어 이름 매핑
