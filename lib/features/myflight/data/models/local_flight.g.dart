@@ -27,7 +27,7 @@ class LocalFlightAdapter extends TypeAdapter<LocalFlight> {
       lastModified: fields[7] as DateTime,
       flightGoal: fields[8] as String?,
       seatClass: fields[9] as String?,
-      forceInProgress: fields[10] as bool,
+      forceInProgress: fields[10] as bool?,
     );
   }
 
