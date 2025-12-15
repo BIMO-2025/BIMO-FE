@@ -21,8 +21,13 @@ import 'myflight_page.dart';
 /// 비행 플랜 페이지
 class FlightPlanPage extends StatefulWidget {
   final String? flightId; // 표시할 비행 ID (null이면 최신 비행)
+  final bool isReadOnly; // 읽기 전용 모드 (편집 불가)
   
-  const FlightPlanPage({super.key, this.flightId});
+  const FlightPlanPage({
+    super.key,
+    this.flightId,
+    this.isReadOnly = false, // 기본값: 편집 가능
+  });
 
   @override
   State<FlightPlanPage> createState() => _FlightPlanPageState();

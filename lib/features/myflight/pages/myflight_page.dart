@@ -252,6 +252,9 @@ class _MyFlightPageState extends State<MyFlightPage> {
           const SizedBox(height: 100), // 하단 여백 (탭바 공간)
         ],
       ),
+    );
+  }
+  
   /// 진행 중인 비행 섹션 (오프라인 모드)
   Widget _buildInFlightSection() {
     return FutureBuilder<LocalFlight?>(
