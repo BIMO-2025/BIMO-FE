@@ -74,7 +74,8 @@ class _MyPageState extends State<MyPage> {
           print('✅ 프로필 사진 업로드 성공: $response');
           
           // 3. 응답에서 새로운 photo_url 받아서 저장
-          final newPhotoUrl = response['photo_url'];
+          // 명세에 따르면 response['user']['photo_url'] 형태일 가능성 높음
+          final newPhotoUrl = response['user']?['photo_url'] ?? response['photo_url'];
           if (newPhotoUrl != null) {
             final storage = AuthTokenStorage();
             await storage.saveUserInfo(photoUrl: newPhotoUrl);

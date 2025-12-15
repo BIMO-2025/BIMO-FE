@@ -12,6 +12,7 @@ import '../widgets/date_selection_bottom_sheet.dart';
 import 'airline_search_result_page.dart';
 import 'popular_airlines_page.dart';
 import '../../domain/models/airport.dart';
+import '../../domain/models/airline.dart'; // Airline 모델 import
 import '../../data/datasources/airline_api_service.dart';
 import '../../data/models/popular_airline_response.dart';
 import '../../../my/presentation/pages/my_page.dart';
@@ -21,6 +22,8 @@ import '../../../../core/storage/auth_token_storage.dart';
 import '../../../myflight/pages/myflight_page.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../core/utils/airline_name_mapper.dart';
+import 'package:go_router/go_router.dart';
+import '../../domain/models/airline.dart';
 
 /// 홈 화면 메인 페이지
 class HomePage extends StatefulWidget {
@@ -126,6 +129,8 @@ class _HomePageState extends State<HomePage> {
       // 응답 데이터를 UI 모델로 변환
       final List<AirlineData> airlineDataList = top3.map((airline) {
         return AirlineData(
+          id: airline.id, // 추가
+          code: airline.code, // 추가
           name: AirlineNameMapper.toKorean(airline.name), // 한국어로 변환
           rating: airline.rating,
           logoPath: airline.logoUrl.isNotEmpty
@@ -159,16 +164,22 @@ class _HomePageState extends State<HomePage> {
   List<AirlineData> _getDefaultAirlines() {
     return [
       AirlineData(
+        id: '1',
+        code: 'KE',
         name: '대한항공',
         rating: 4.3,
         logoPath: 'assets/images/home/korean_air_logo.png',
       ),
       AirlineData(
+        id: '2',
+        code: 'OZ',
         name: '아시아나항공',
         rating: 4.3,
         logoPath: 'assets/images/home/asiana_logo.png',
       ),
       AirlineData(
+        id: '3',
+        code: 'TW',
         name: '티웨이항공',
         rating: 4.0,
         logoPath: 'assets/images/home/tway_logo.png',
@@ -292,6 +303,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                 );
               },
+              onItemTap: (data) => _navigateToAirlineDetail(data),
             ),
         ],
       ),
@@ -532,5 +544,29 @@ class _HomePageState extends State<HomePage> {
     }
     
     return uniqueAirlines.values.toList();
+  }
+
+
+  void _navigateToAirlineDetail(AirlineData data) {
+    // AirlineData -> Airline 변환 (상세 페이지 이동용)
+    // 필수 필드는 더미값으로 채우고, code를 통해 상세 조회 유도
+    final airline = Airline(
+      name: data.name,
+      code: data.code,
+      englishName: '', 
+      logoPath: data.logoPath,
+      imagePath: '',
+      tags: [],
+      rating: data.rating,
+      reviewCount: 0,
+      detailRating: const AirlineDetailRating(seatComfort: 0, foodAndBeverage: 0, service: 0, cleanliness: 0, punctuality: 0),
+      reviewSummary: const AirlineReviewSummary(goodPoints: [], badPoints: []),
+      basicInfo: const AirlineBasicInfo(headquarters: '', hubAirport: '', alliance: '', classes: ''),
+    );
+
+    context.pushNamed(
+      'airline-detail',
+      extra: airline,
+    );
   }
 }

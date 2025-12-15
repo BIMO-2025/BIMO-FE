@@ -423,7 +423,7 @@ class AirlineApiService {
   }) async {
     try {
       final url = '${ApiConstants.baseUrl}${ApiConstants.airlinesReviews}/$airlineCode/reviews';
-      print('🚀 API 호출 (리뷰 목록): $url?sort=$sort&limit=$limit&offset=$offset');
+      print('🚀 API 호출 (기본 리뷰 목록): $url');
 
       final response = await _apiClient.get(
         '${ApiConstants.airlinesReviews}/$airlineCode/reviews',
@@ -434,8 +434,7 @@ class AirlineApiService {
         },
       );
 
-      print('✅ 응답 성공 (리뷰 목록): ${response.statusCode}');
-      print('📄 응답 데이터 (리뷰 목록): ${response.data}');
+      print('✅ 응답 성공 (기본 리뷰 목록): ${response.statusCode}');
 
       if (response.statusCode == 200) {
         return AirlineReviewsResponse.fromJson(
@@ -447,14 +446,76 @@ class AirlineApiService {
         );
       }
     } on DioException catch (e) {
-      print('❌ DioException 발생 (리뷰 목록): ${e.type}');
-      print('❌ 에러 메시지: ${e.message}');
-      print('❌ 응답: ${e.response?.data}');
+      print('❌ DioException 발생 (기본 리뷰 목록): ${e.type}');
       throw _handleDioError(e);
-    } catch (e, stackTrace) {
-      print('❌ 예상치 못한 에러 (리뷰 목록): $e');
-      print('❌ 스택 트레이스: $stackTrace');
-      throw Exception('Unexpected error: $e');
+    } catch (e) {
+       print('❌ 예상치 못한 에러 (기본 리뷰 목록): $e');
+       throw Exception('Unexpected error: $e');
+    }
+  }
+
+  /// 필터 적용된 항공사 리뷰 목록 조회 (상세 조회 API 사용)
+  Future<AirlineReviewsResponse> getFilteredAirlineReviews({
+    required String airlineCode,
+    String sort = 'latest',
+    int limit = 20,
+    int offset = 0,
+    String? departureAirport,
+    String? arrivalAirport,
+    String? period,
+    int? minRating,
+    bool? photoOnly,
+  }) async {
+    try {
+      final url = '${ApiConstants.baseUrl}reviews/detailed/$airlineCode';
+      print('🚀 API 호출 (필터 리뷰 목록): $url');
+      
+      final Map<String, dynamic> queryParams = {
+        'sort': sort,
+        'limit': limit,
+        'offset': offset,
+      };
+
+      if (departureAirport != null && departureAirport.isNotEmpty && departureAirport != '전체') {
+        queryParams['departure_airport'] = departureAirport;
+      }
+      if (arrivalAirport != null && arrivalAirport.isNotEmpty && arrivalAirport != '전체') {
+        queryParams['arrival_airport'] = arrivalAirport;
+      }
+      if (period != null && period != '전체') {
+        queryParams['period'] = period;
+      }
+      if (minRating != null) {
+        queryParams['min_rating'] = minRating;
+      }
+      if (photoOnly == true) {
+        queryParams['photo_only'] = true;
+      }
+      
+      print('📦 필터 파라미터: $queryParams');
+
+      final response = await _apiClient.get(
+        'reviews/detailed/$airlineCode',
+        queryParameters: queryParams,
+      );
+
+      print('✅ 응답 성공 (필터 리뷰 목록): ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        return AirlineReviewsResponse.fromJson(
+          response.data as Map<String, dynamic>,
+        );
+      } else {
+        throw Exception(
+          'Failed to get airline reviews: ${response.statusCode}',
+        );
+      }
+    } on DioException catch (e) {
+      print('❌ DioException 발생 (필터 리뷰 목록): ${e.type}');
+      throw _handleDioError(e);
+    } catch (e) {
+       print('❌ 예상치 못한 에러 (필터 리뷰 목록): $e');
+       throw Exception('Unexpected error: $e');
     }
   }
 

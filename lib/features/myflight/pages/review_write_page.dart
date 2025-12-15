@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'dart:io';
+import 'dart:convert'; // jsonEncode 사용을 위해 추가
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
@@ -131,50 +132,56 @@ class _ReviewWritePageState extends State<ReviewWritePage> {
       // 경로
       final route = '${widget.departureCode}-${widget.arrivalCode}';
 
-      // TODO: 사진 업로드 처리
-      // 사진이 선택되었다면, 먼저 업로드 API를 통해 URL을 받아야 함
-      // 현재는 사진 업로드 API 엔드포인트가 필요함
-      String? imageUrl;
-      if (_selectedImages.isNotEmpty) {
-        // 예시: 첫 번째 이미지만 업로드
-        // final uploadedUrl = await _uploadImage(_selectedImages[0]);
-        // imageUrl = uploadedUrl;
-        print('⚠️ 사진 ${_selectedImages.length}개 선택됨 - 업로드 API 필요');
-      }
+      // FormData 생성 (multipart/form-data)
+      final formData = FormData();
 
-      // API 요청 데이터
-      final requestData = {
-        'airlineCode': airlineCode,
-        'airlineName': airlineName,
-        'overallRating': overallRating,
-        'ratings': {
+      // 일반 필드 추가
+      formData.fields.addAll([
+        MapEntry('userId', userId),
+        MapEntry('userNickname', userNickname),
+        MapEntry('airlineCode', airlineCode),
+        MapEntry('airlineName', airlineName),
+        MapEntry('route', route),
+        MapEntry('text', _reviewController.text.trim()),
+        MapEntry('overallRating', overallRating.toString()), 
+        MapEntry('flightNumber', widget.flightNumber),
+        // ratings는 JSON String으로 변환하여 전송
+        MapEntry('ratings', jsonEncode({
           'checkIn': _punctualityRating,
           'cleanliness': _cleanlinessRating,
           'inflightMeal': _foodRating,
           'seatComfort': _seatRating,
           'service': _serviceRating,
-        },
-        'route': route,
-        'flightNumber': widget.flightNumber, // 편명 추가
-        'text': _reviewController.text.trim(),
-        'userId': userId,
-        'userNickname': userNickname,
-      };
+        })),
+        // isVerified 추가
+        const MapEntry('isVerified', 'false'),
+      ]);
 
-      // 이미지 URL이 있으면 추가
-      if (imageUrl != null && imageUrl.isNotEmpty) {
-        requestData['imageUrl'] = imageUrl;
+      // 이미지 파일 추가
+      if (_selectedImages.isNotEmpty) {
+        for (var i = 0; i < _selectedImages.length; i++) {
+          final image = _selectedImages[i];
+          formData.files.add(MapEntry(
+            'images', // 서버가 기대하는 필드명 (images)
+            await MultipartFile.fromFile(
+              image.path,
+              filename: image.name,
+            ),
+          ));
+        }
+        print('📸 이미지 ${_selectedImages.length}장 포함됨');
       }
 
-      print('🚀 리뷰 제출: $requestData');
+      print('🚀 리뷰 제출 (FormData): 유저=$userId, 항공사=$airlineCode');
 
       Response response;
       // 수정 모드일 때는 PUT, 생성 모드일 때는 POST
       if (widget.isEditMode && widget.existingReview?.reviewId != null) {
         print('📝 리뷰 수정 모드: ${widget.existingReview!.reviewId}');
+        // 수정 API도 FormData를 지원하는지 명세 확인 필요하지만, 일단 동일하게 처리
         response = await _apiClient.put(
           '/reviews/${widget.existingReview!.reviewId}',
-          data: requestData,
+          data: formData, 
           options: Options(
             headers: {
               'ngrok-skip-browser-warning': 'true',
@@ -185,7 +192,7 @@ class _ReviewWritePageState extends State<ReviewWritePage> {
         print('✍️ 리뷰 생성 모드');
         response = await _apiClient.post(
           '/reviews',
-          data: requestData,
+          data: formData, // FormData 전달
           options: Options(
             headers: {
               'ngrok-skip-browser-warning': 'true',

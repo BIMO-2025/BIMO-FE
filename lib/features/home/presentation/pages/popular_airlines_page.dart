@@ -5,6 +5,8 @@ import '../../../../core/utils/responsive_extensions.dart';
 import '../../data/datasources/airline_api_service.dart';
 import '../../data/models/popular_airline_response.dart';
 import '../../../../core/utils/airline_name_mapper.dart';
+import 'package:go_router/go_router.dart';
+import '../../domain/models/airline.dart';
 
 /// 인기 항공사 전체 목록 페이지
 class PopularAirlinesPage extends StatefulWidget {
@@ -45,10 +47,12 @@ class _PopularAirlinesPageState extends State<PopularAirlinesPage> {
         _isLoading = false;
       });
     } catch (e) {
-      setState(() {
-        _errorMessage = '인기 항공사를 불러오는데 실패했습니다: $e';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = '인기 항공사를 불러오는데 실패했습니다: $e';
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -140,129 +144,152 @@ class _PopularAirlinesPageState extends State<PopularAirlinesPage> {
     );
   }
 
-
   /// 항공사 아이템 위젯
   Widget _buildAirlineItem(PopularAirlineResponse airline, int rank) {
-    return Container(
-      width: context.w(335),
-      height: context.h(90), // 메인과 동일한 높이
-      padding: EdgeInsets.symmetric(
-        horizontal: context.w(20),
-        vertical: context.h(16),
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(context.w(12)),
-      ),
-      child: Row(
-        children: [
-          // 텍스트 영역 (순위 + 항공사 정보)
-          Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // 순위 번호 (메인과 동일한 스타일)
-                SizedBox(
-                  width: context.w(30),
-                  child: Text(
-                    '$rank',
-                    style: TextStyle(
-                      fontFamily: 'Pretendard',
-                      fontSize: context.fs(25), // 메인과 동일: 25pt
-                      fontWeight: FontWeight.w600, // SemiBold
-                      height: 1.0,
-                      letterSpacing: -context.fs(0.5), // -2%
-                      color:
-                          rank <= 3
-                              ? AppColors.yellow1 // 1-3위는 노란색
-                              : AppColors.white,
+    return GestureDetector(
+      onTap: () => _navigateToAirlineDetail(airline),
+      child: Container(
+        width: context.w(335),
+        height: context.h(90), 
+        padding: EdgeInsets.symmetric(
+          horizontal: context.w(20),
+          vertical: context.h(16),
+        ),
+        decoration: BoxDecoration(
+          color: AppColors.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(context.w(12)),
+        ),
+        child: Row(
+          children: [
+            // 텍스트 영역 (순위 + 항공사 정보)
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // 순위 번호
+                  SizedBox(
+                    width: context.w(30),
+                    child: Text(
+                      '$rank',
+                      style: TextStyle(
+                        fontFamily: 'Pretendard',
+                        fontSize: context.fs(25), 
+                        fontWeight: FontWeight.w600, 
+                        height: 1.0,
+                        letterSpacing: -context.fs(0.5), 
+                        color:
+                            rank <= 3
+                                ? AppColors.yellow1 
+                                : AppColors.white,
+                      ),
                     ),
                   ),
-                ),
 
-                SizedBox(width: context.w(16)),
+                  SizedBox(width: context.w(16)),
 
-                // 항공사 정보 (이름 + 평점)
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // 항공사 이름 (메인과 동일한 스타일)
-                      Text(
-                        AirlineNameMapper.toKorean(airline.name), // 한국어로 변환
-                        style: AppTextStyles.bigBody.copyWith(
-                          fontSize: context.fs(15), // 메인과 동일: 15pt
-                          color: AppColors.white,
-                        ),
-                      ),
-                      SizedBox(height: context.h(4)),
-                      // 평점 (메인과 동일한 스타일)
-                      RichText(
-                        text: TextSpan(
-                          style: AppTextStyles.smallBody.copyWith(
-                            fontSize: context.fs(13), // 메인과 동일: 13pt
+                  // 항공사 정보 (이름 + 평점)
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // 항공사 이름
+                        Text(
+                          AirlineNameMapper.toKorean(airline.name), 
+                          style: AppTextStyles.bigBody.copyWith(
+                            fontSize: context.fs(15), 
+                            color: AppColors.white,
                           ),
-                          children: [
-                            TextSpan(
-                              text: '${airline.rating}',
-                              style: AppTextStyles.smallBody.copyWith(
-                                fontSize: context.fs(13),
-                                color: AppColors.white, // 화이트 100%
-                              ),
-                            ),
-                            TextSpan(
-                              text: '/5.0',
-                              style: AppTextStyles.smallBody.copyWith(
-                                fontSize: context.fs(13),
-                                color: AppColors.white.withOpacity(0.5), // 화이트 50%
-                              ),
-                            ),
-                          ],
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          SizedBox(width: context.w(12)),
-
-          // 항공사 로고
-          Container(
-            width: context.w(50),
-            height: context.h(50),
-            decoration: BoxDecoration(
-              color: AppColors.white, // 흰색 배경
-              borderRadius: BorderRadius.circular(context.w(14)), // 코너 반경 14
-            ),
-            padding: EdgeInsets.all(context.w(8)), // 내부 패딩
-            child: airline.logoUrl.isNotEmpty
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(context.w(6)),
-                    child: Image.network(
-                      airline.logoUrl,
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Icon(
-                          Icons.flight,
-                          color: AppColors.white.withOpacity(0.3),
-                          size: context.w(24),
-                        );
-                      },
+                        SizedBox(height: context.h(4)),
+                        // 평점
+                        RichText(
+                          text: TextSpan(
+                            style: AppTextStyles.smallBody.copyWith(
+                              fontSize: context.fs(13), 
+                            ),
+                            children: [
+                              TextSpan(
+                                text: '${airline.rating}',
+                                style: AppTextStyles.smallBody.copyWith(
+                                  fontSize: context.fs(13),
+                                  color: AppColors.white, 
+                                ),
+                              ),
+                              TextSpan(
+                                text: '/5.0',
+                                style: AppTextStyles.smallBody.copyWith(
+                                  fontSize: context.fs(13),
+                                  color: AppColors.white.withOpacity(0.5), 
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                  )
-                : Icon(
-                    Icons.flight,
-                    color: AppColors.white.withOpacity(0.3),
-                    size: context.w(24),
                   ),
-          ),
-        ],
+                ],
+              ),
+            ),
+
+            SizedBox(width: context.w(12)),
+
+            // 항공사 로고
+            Container(
+              width: context.w(50),
+              height: context.h(50),
+              decoration: BoxDecoration(
+                color: AppColors.white, // 흰색 배경
+                borderRadius: BorderRadius.circular(context.w(14)), // 코너 반경 14
+              ),
+              padding: EdgeInsets.all(context.w(8)), // 내부 패딩
+              child: airline.logoUrl.isNotEmpty
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(context.w(6)),
+                      child: Image.network(
+                        airline.logoUrl,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Icon(
+                            Icons.flight,
+                            color: AppColors.white.withOpacity(0.3),
+                            size: context.w(24),
+                          );
+                        },
+                      ),
+                    )
+                  : Icon(
+                      Icons.flight,
+                      color: AppColors.white.withOpacity(0.3),
+                      size: context.w(24),
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }
-}
 
+  void _navigateToAirlineDetail(PopularAirlineResponse data) {
+    // PopularAirlineResponse -> Airline 변환
+    final airline = Airline(
+      name: data.name,
+      code: data.code,
+      englishName: '', 
+      logoPath: data.logoUrl,
+      imagePath: '',
+      tags: [],
+      rating: data.rating,
+      reviewCount: data.reviewCount,
+      detailRating: const AirlineDetailRating(seatComfort: 0, foodAndBeverage: 0, service: 0, cleanliness: 0, punctuality: 0),
+      reviewSummary: const AirlineReviewSummary(goodPoints: [], badPoints: []),
+      basicInfo: const AirlineBasicInfo(headquarters: '', hubAirport: '', alliance: '', classes: ''),
+    );
+
+    context.pushNamed(
+      'airline-detail',
+      extra: airline,
+    );
+  }
+}

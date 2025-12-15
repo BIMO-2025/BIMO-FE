@@ -1,7 +1,7 @@
 /// API 관련 상수
 class ApiConstants {
   /// Base URL
-  static const String baseUrl = 'https://myron-effaceable-patiently.ngrok-free.dev/';
+  static const String baseUrl = 'https://nonsubtile-shea-wretched.ngrok-free.dev/';
 
   /// API 타임아웃 (밀리초)
   static const int connectTimeout = 30000; // 30초
@@ -20,6 +20,7 @@ class ApiConstants {
   static const String userProfile = '${_apiPrefix}user/profile';
   static const String updateNickname = '${_apiPrefix}user/nickname';
   static const String checkNickname = '${_apiPrefix}user/nickname/check';
+  static const String updateProfilePhoto = '${_apiPrefix}user/profile/photo'; // 프로필 사진 업데이트
 
   // 항공사 관련
   static const String airlines = '$_apiPrefix/airlines';
