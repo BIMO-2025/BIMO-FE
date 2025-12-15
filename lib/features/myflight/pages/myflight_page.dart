@@ -19,6 +19,7 @@ import '../../home/presentation/pages/airline_search_result_page.dart';
 import '../../home/presentation/pages/airline_review_page.dart';
 import '../data/repositories/local_flight_repository.dart';
 import '../data/models/local_flight.dart';
+import '../data/models/local_timeline_event.dart';
 import '../data/repositories/local_timeline_repository.dart';
 import 'inflight_timeline_page.dart';
 import '../../../../core/utils/responsive_extensions.dart';
@@ -293,16 +294,23 @@ class _MyFlightPageState extends State<MyFlightPage> {
                   ),
                 );
               },
-              child: InFlightProgressWidget(
-                departureCode: flight.origin,
-                departureCity: _getCityName(flight.origin),
-                arrivalCode: flight.destination,
-                arrivalCity: _getCityName(flight.destination),
-                departureTime: _formatTimeToAmPm(flight.departureTime),
-                arrivalTime: _formatTimeToAmPm(flight.arrivalTime),
-                totalDurationMinutes: _parseDurationToMinutes(flight.totalDuration),
-                departureDateTime: flight.departureTime,
-                timeline: timeline,
+              child: FutureBuilder<List<Map<String, dynamic>>>(
+                future: _loadTimelineForFlight(flight.id),
+                builder: (context, mapSnapshot) {
+                  final timeline = mapSnapshot.data ?? [];
+                  
+                  return InFlightProgressWidget(
+                    departureCode: flight.origin,
+                    departureCity: _getCityName(flight.origin),
+                    arrivalCode: flight.destination,
+                    arrivalCity: _getCityName(flight.destination),
+                    departureTime: _formatTimeToAmPm(flight.departureTime),
+                    arrivalTime: _formatTimeToAmPm(flight.arrivalTime),
+                    totalDurationMinutes: _parseDurationToMinutes(flight.totalDuration),
+                    departureDateTime: flight.departureTime,
+                    timeline: timeline,
+                  );
+                },
               ),
             );
           },
@@ -333,7 +341,7 @@ class _MyFlightPageState extends State<MyFlightPage> {
       final events = await _loadTimelineEventsForFlight(flightId);
       
       // LocalTimelineEvent → Map 변환
-      return events.map((e) {
+      return events.map<Map<String, dynamic>>((e) {
         // startTime과 endTime으로 duration 계산 (분 단위)
         final duration = e.endTime.difference(e.startTime).inMinutes;
         return {

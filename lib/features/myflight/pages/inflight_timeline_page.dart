@@ -238,7 +238,7 @@ class _InFlightTimelinePageState extends State<InFlightTimelinePage> {
         SizedBox(height: context.h(8)),
         Text(
           '${(progress * 100).toInt()}% 완료',
-          style: AppTextStyles.small.copyWith(color: Colors.white70),
+          style: AppTextStyles.body.copyWith(color: Colors.white70),
         ),
       ],
     );
@@ -306,12 +306,12 @@ class _InFlightTimelinePageState extends State<InFlightTimelinePage> {
             SizedBox(height: context.h(8)),
             Text(
               event.description,
-              style: AppTextStyles.small.copyWith(color: Colors.white90),
+              style: AppTextStyles.body.copyWith(color: Colors.white70),
             ),
             SizedBox(height: context.h(8)),
             Text(
               '${_formatTime(event.startTime)} - ${_formatTime(event.endTime)}',
-              style: AppTextStyles.small.copyWith(color: Colors.white70),
+              style: AppTextStyles.body.copyWith(color: Colors.white70),
             ),
           ],
         ],
