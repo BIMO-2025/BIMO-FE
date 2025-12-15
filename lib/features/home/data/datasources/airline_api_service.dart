@@ -496,6 +496,74 @@ class AirlineApiService {
     }
   }
 
+  /// 리뷰 수정
+  ///
+  /// [reviewId] 리뷰 ID
+  /// [reviewData] 수정할 리뷰 데이터
+  Future<Map<String, dynamic>> updateReview({
+    required String reviewId,
+    required Map<String, dynamic> reviewData,
+  }) async {
+    try {
+      final url = '${ApiConstants.baseUrl}/reviews/$reviewId';
+      print('🚀 API 호출 (리뷰 수정): $url');
+      print('📦 요청 데이터: $reviewData');
+
+      final response = await _apiClient.put(
+        '/reviews/$reviewId',
+        data: reviewData,
+      );
+
+      print('✅ 응답 성공 (리뷰 수정): ${response.statusCode}');
+      print('📄 응답 데이터 (리뷰 수정): ${response.data}');
+
+      if (response.statusCode == 200) {
+        return response.data as Map<String, dynamic>;
+      } else {
+        throw Exception(
+          'Failed to update review: ${response.statusCode}',
+        );
+      }
+    } on DioException catch (e) {
+      print('❌ DioException 발생 (리뷰 수정): ${e.type}');
+      print('❌ 에러 메시지: ${e.message}');
+      print('❌ 응답: ${e.response?.data}');
+      throw _handleDioError(e);
+    } catch (e, stackTrace) {
+      print('❌ 예상치 못한 에러 (리뷰 수정): $e');
+      print('❌ 스택 트레이스: $stackTrace');
+      throw Exception('Unexpected error: $e');
+    }
+  }
+
+  /// 리뷰 삭제
+  /// DELETE /reviews/{review_id}
+  Future<void> deleteReview({required String reviewId}) async {
+    try {
+      final url = '${ApiConstants.baseUrl}/reviews/$reviewId';
+      print('🚀 API 호출 (리뷰 삭제): $url');
+
+      final response = await _apiClient.delete(
+        '/reviews/$reviewId',
+      );
+
+      print('✅ 응답 성공 (리뷰 삭제): ${response.statusCode}');
+      print('📄 응답 데이터 (리뷰 삭제): ${response.data}');
+      
+      if (response.statusCode != 200) {
+        throw Exception('Failed to delete review: ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      print('❌ DioException 발생 (리뷰 삭제): ${e.type}');
+      print('❌ 에러 메시지: ${e.message}');
+      print('❌ 응답: ${e.response?.data}');
+      throw _handleDioError(e);
+    } catch (e) {
+      print('❌ 예상치 못한 에러 (리뷰 삭제): $e');
+      throw Exception('Unexpected error: $e');
+    }
+  }
+
   /// Dio 에러 핸들링
   Exception _handleDioError(DioException e) {
     switch (e.type) {

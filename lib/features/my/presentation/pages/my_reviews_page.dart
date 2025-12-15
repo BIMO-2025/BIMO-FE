@@ -109,6 +109,8 @@ class _MyReviewsPageState extends State<MyReviewsPage> {
               content: reviewData['text'] ?? '',
               images: (reviewData['imageUrls'] as List?)?.cast<String>() ?? [],
               detailRatings: reviewData['ratings'] as Map<String, dynamic>?, // 세부 평점 추가
+              reviewId: reviewData['id'], // 리뷰 ID 매핑
+              userId: reviewData['userId'], // 사용자 ID 매핑
             );
           }).toList();
           _isLoading = false;
@@ -198,6 +200,7 @@ class _MyReviewsPageState extends State<MyReviewsPage> {
                         final review = _myReviews[index];
                         return GestureDetector(
                           onTap: () {
+                            print('👉 [MyReviewsPage] 상세 이동 시도');
                             Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -206,7 +209,15 @@ class _MyReviewsPageState extends State<MyReviewsPage> {
                                   isMyReview: true,
                                 ),
                               ),
-                            );
+                            ).then((result) {
+                              print('🔙 [MyReviewsPage] 복귀 (then). result: $result');
+                              if (result == true && mounted) {
+                                print('💨 마이페이지로 탈출 (pop)');
+                                Navigator.pop(context);
+                              } else {
+                                print('👀 단순 조회 종료 (pop 안함)');
+                              }
+                            });
                           },
                           child: ReviewCard(
                             review: review,

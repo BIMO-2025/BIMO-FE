@@ -13,6 +13,7 @@ import '../../../core/network/api_client.dart';
 import '../../../core/storage/auth_token_storage.dart';
 import '../../../core/network/router/route_names.dart';
 import '../widgets/flight_card_widget.dart' show DashedLinePainter;
+import '../../home/domain/models/review_model.dart'; // Review 모델 import
 
 /// 리뷰 작성 페이지
 class ReviewWritePage extends StatefulWidget {
@@ -23,16 +24,20 @@ class ReviewWritePage extends StatefulWidget {
   final String flightNumber;
   final String date;
   final String stopover;
+  final bool isEditMode; // 수정 모드 플래그
+  final Review? existingReview; // 기존 리뷰 데이터
 
   const ReviewWritePage({
     super.key,
     required this.departureCode,
-    required this.departureCity,
+    this.departureCity = '',
     required this.arrivalCode,
-    required this.arrivalCity,
+    this.arrivalCity = '',
     required this.flightNumber,
-    required this.date,
-    required this.stopover,
+    this.date = '',
+    this.stopover = '',
+    this.isEditMode = false,
+    this.existingReview,
   });
 
   @override
@@ -53,6 +58,24 @@ class _ReviewWritePageState extends State<ReviewWritePage> {
   int _punctualityRating = 0;
 
   bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // 수정 모드일 때 기존 데이터로 필드 채우기
+    if (widget.isEditMode && widget.existingReview != null) {
+      _reviewController.text = widget.existingReview!.content;
+      
+      // detailRatings에서 별점 가져오기
+      if (widget.existingReview!.detailRatings != null) {
+        _seatRating = (widget.existingReview!.detailRatings!['seatComfort'] as num?)?.toInt() ?? 0;
+        _foodRating = (widget.existingReview!.detailRatings!['inflightMeal'] as num?)?.toInt() ?? 0;
+        _serviceRating = (widget.existingReview!.detailRatings!['service'] as num?)?.toInt() ?? 0;
+        _cleanlinessRating = (widget.existingReview!.detailRatings!['cleanliness'] as num?)?.toInt() ?? 0;
+        _punctualityRating = (widget.existingReview!.detailRatings!['checkIn'] as num?)?.toInt() ?? 0;
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -145,27 +168,52 @@ class _ReviewWritePageState extends State<ReviewWritePage> {
 
       print('🚀 리뷰 제출: $requestData');
 
-      // API 호출 (ngrok 헤더 명시적 추가)
-      final response = await _apiClient.post(
-        '/reviews',
-        data: requestData,
-        options: Options(
-          headers: {
-            'ngrok-skip-browser-warning': 'true',
-          },
-        ),
-      );
+      Response response;
+      // 수정 모드일 때는 PUT, 생성 모드일 때는 POST
+      if (widget.isEditMode && widget.existingReview?.reviewId != null) {
+        print('📝 리뷰 수정 모드: ${widget.existingReview!.reviewId}');
+        response = await _apiClient.put(
+          '/reviews/${widget.existingReview!.reviewId}',
+          data: requestData,
+          options: Options(
+            headers: {
+              'ngrok-skip-browser-warning': 'true',
+            },
+          ),
+        );
+      } else {
+        print('✍️ 리뷰 생성 모드');
+        response = await _apiClient.post(
+          '/reviews',
+          data: requestData,
+          options: Options(
+            headers: {
+              'ngrok-skip-browser-warning': 'true',
+            },
+          ),
+        );
+      }
 
-      print('✅ 리뷰 제출 성공: ${response.data}');
+      print('✅ 리뷰 ${widget.isEditMode ? "수정" : "제출"} 성공: ${response.data}');
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('리뷰가 등록되었습니다!')),
-      );
+      // 스낵바는 상위 페이지에서 처리 (화면 전환 이슈 방지)
+      // ScaffoldMessenger.of(context).showSnackBar(
+      //   SnackBar(content: Text('리뷰가 ${widget.isEditMode ? "수정" : "등록"}되었습니다!')),
+      // );
 
-      // 홈 화면으로 이동
-      context.go(RouteNames.home);
+      if (widget.isEditMode) {
+        // 수정 모드: 이전 화면으로 돌아가기 (수정된 데이터 반환)
+        Navigator.pop(context, response.data); 
+      } else {
+        // 등록 모드: 홈 화면으로 이동 (여기선 띄워도 됨, 하지만 일관성을 위해 제거하거나 유지)
+        // 등록은 바로 홈으로 가므로 띄워주는게 좋음.
+        ScaffoldMessenger.of(context).showSnackBar(
+           const SnackBar(content: Text('리뷰가 등록되었습니다!')),
+        );
+        context.go(RouteNames.home);
+      }
     } catch (e) {
       print('❌ 리뷰 제출 실패: $e');
       
@@ -213,17 +261,43 @@ class _ReviewWritePageState extends State<ReviewWritePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.black,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            // 스크롤 가능한 컨텐츠
+      backgroundColor: const Color(0xFF131313),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF131313),
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        leadingWidth: context.w(60),
+        leading: Padding(
+          padding: EdgeInsets.only(left: context.w(20)),
+          child: GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: SizedBox(
+              width: context.w(40),
+              height: context.h(40),
+              child: Image.asset(
+                'assets/images/search/back_arrow_icon.png',
+                width: context.w(40),
+                height: context.h(40),
+                fit: BoxFit.contain,
+              ),
+            ),
+          ),
+        ),
+        title: Text(
+          widget.isEditMode ? '리뷰 수정하기' : '리뷰 작성하기',
+          style: AppTextStyles.large.copyWith(color: Colors.white),
+        ),
+        centerTitle: true,
+      ),
+      body: Stack(
+        children: [
+          // 스크롤 가능한 컨텐츠
           Positioned.fill(
             child: SingleChildScrollView(
               padding: EdgeInsets.only(
                 left: context.w(20),
                 right: context.w(20),
-                top: context.h(82) + context.h(8), // 헤더 + 간격 8px
+                top: context.h(16), // 헤더 제거 후 패딩 조정
                 bottom: context.h(100), // 하단 여백
               ),
               child: Column(
@@ -321,80 +395,27 @@ class _ReviewWritePageState extends State<ReviewWritePage> {
             ),
           ),
           
-          // 헤더 (뒤로가기 + 타이틀) - 마지막에 배치하여 항상 위에 표시
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              height: context.h(82),
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Color(0xFF1A1A1A), // 위쪽: #1A1A1A (100%)
-                    Color(0x001A1A1A), // 아래쪽: rgba(26, 26, 26, 0) (0%)
-                  ],
-                ),
-              ),
-              child: Stack(
-                children: [
-                  // 뒤로가기 버튼 (왼쪽)
-                  Positioned(
-                    left: context.w(20),
-                    top: context.h(21),
-                    child: GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: Container(
-                        width: 40,
-                        height: 40,
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.05),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.1),
-                            width: 1,
-                          ),
-                        ),
-                        child: ClipOval(
-                          child: BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
-                            child: Center(
-                              child: Image.asset(
-                                'assets/images/myflight/back.png',
-                                width: 24,
-                                height: 24,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  // 타이틀 (중앙)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    top: context.h(31),
-                    child: Center(
-                      child: Text(
-                        '리뷰 작성하기',
-                        style: AppTextStyles.large.copyWith(color: Colors.white),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
         ],
       ),
-      ),
+
     );
+  }
+
+  String _getAirlineLogo(String flightNumber) {
+    if (flightNumber.isEmpty) return 'assets/images/home/korean_air_logo.png'; // 기본값
+    
+    final code = flightNumber.replaceAll(RegExp(r'[0-9]'), '').toUpperCase();
+    
+    switch (code) {
+      case 'KE':
+        return 'assets/images/home/korean_air_logo.png';
+      case 'OZ':
+        return 'assets/images/home/asiana_logo.png';
+      case 'TW':
+        return 'assets/images/home/tway_logo.png';
+      default:
+        return 'assets/images/home/korean_air_logo.png'; // 매칭 안되면 기본값
+    }
   }
 
   /// 항공편 정보 카드 (AddFlightPage 스타일)
@@ -422,7 +443,7 @@ class _ReviewWritePageState extends State<ReviewWritePage> {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(14),
                     child: Image.asset(
-                      'assets/images/home/korean_air_logo.png',
+                      _getAirlineLogo(widget.flightNumber),
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) {
                         return const Icon(Icons.flight, color: Colors.blue);
@@ -441,17 +462,10 @@ class _ReviewWritePageState extends State<ReviewWritePage> {
                         color: Colors.white,
                       ),
                     ),
-                    const SizedBox(height: 0),
-                    Text(
-                      '09:00',
-                      style: AppTextStyles.smallBody.copyWith(
-                        color: Colors.white.withOpacity(0.5),
-                      ),
-                    ),
                   ],
                 ),
                 const SizedBox(width: 16),
-                // 중앙: 점선 + 비행기 + 시간
+                // 중앙: 점선 + 비행기
                 Expanded(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -501,14 +515,6 @@ class _ReviewWritePageState extends State<ReviewWritePage> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 4),
-                      // 비행 시간
-                      Text(
-                        '14h 30m',
-                        style: AppTextStyles.smallBody.copyWith(
-                          color: Colors.white,
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -523,100 +529,95 @@ class _ReviewWritePageState extends State<ReviewWritePage> {
                         color: Colors.white,
                       ),
                     ),
-                    const SizedBox(height: 0),
-                    Text(
-                      '19:40',
-                      style: AppTextStyles.smallBody.copyWith(
-                        color: Colors.white.withOpacity(0.5),
-                      ),
-                    ),
                   ],
                 ),
               ],
             ),
           ),
           
-          // 구분선 (전체 너비)
-          Container(
-            height: 1,
-            color: Colors.white.withOpacity(0.1),
-          ),
-          
-          // 하단 섹션 (패딩 적용)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 날짜
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '날짜',
-                        style: AppTextStyles.smallBody.copyWith(
-                          color: Colors.white.withOpacity(0.5),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        widget.date,
-                        style: AppTextStyles.smallBody.copyWith(color: Colors.white),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                // 편명
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '편명',
-                        style: AppTextStyles.smallBody.copyWith(
-                          color: Colors.white.withOpacity(0.5),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        widget.flightNumber,
-                        style: AppTextStyles.smallBody.copyWith(color: Colors.white),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                // 경유 여부
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '경유 여부 (1편)',
-                        style: AppTextStyles.smallBody.copyWith(
-                          color: Colors.white.withOpacity(0.5),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        widget.stopover,
-                        style: AppTextStyles.smallBody.copyWith(color: Colors.white),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+          if (!widget.isEditMode) ...[
+            // 구분선 (전체 너비)
+            Container(
+              height: 1,
+              color: Colors.white.withOpacity(0.1),
             ),
-          ),
+            
+            // 하단 섹션 (패딩 적용)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 날짜
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '날짜',
+                          style: AppTextStyles.smallBody.copyWith(
+                            color: Colors.white.withOpacity(0.5),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          widget.date,
+                          style: AppTextStyles.smallBody.copyWith(color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // 편명
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '편명',
+                          style: AppTextStyles.smallBody.copyWith(
+                            color: Colors.white.withOpacity(0.5),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          widget.flightNumber,
+                          style: AppTextStyles.smallBody.copyWith(color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // 경유 여부
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '경유 여부 (1편)',
+                          style: AppTextStyles.smallBody.copyWith(
+                            color: Colors.white.withOpacity(0.5),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          widget.stopover,
+                          style: AppTextStyles.smallBody.copyWith(color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -806,7 +807,7 @@ class _ReviewWritePageState extends State<ReviewWritePage> {
                       ),
                     )
                   : Text(
-                      '리뷰 작성하기',
+                      widget.isEditMode ? '수정하기' : '리뷰 작성하기',
                       style: AppTextStyles.body.copyWith(
                         color: Colors.white,
                       ),
