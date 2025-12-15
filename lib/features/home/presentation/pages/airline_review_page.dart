@@ -2,6 +2,8 @@ import 'dart:io'; // File 클래스 사용을 위해 추가
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/responsive_extensions.dart';
+import '../../../../core/utils/airline_name_mapper.dart'; // AirlineNameMapper import
+import '../../../../core/storage/auth_token_storage.dart'; // AuthTokenStorage import
 import '../../domain/models/airline.dart';
 import '../../domain/models/review_model.dart'; // Review 모델 import
 import '../../data/datasources/airline_api_service.dart';
@@ -29,11 +31,13 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
   bool _isFilterActive = false;
   String _selectedSort = '최신순';
   final List<String> _sortOptions = ['최신순', '추천순', '평점 높은 순', '평점 낮은 순'];
+  Map<String, dynamic> _filterOptions = {}; // 필터 옵션 저장
   
   // API 데이터
   bool _isLoading = true;
   List<ReviewItem> _apiReviews = [];
   AirlineReviewsResponse? _reviewsResponse;
+  String? _currentUserId; // 현재 로그인한 사용자 ID
 
   // Mock Data for Reviews (fallback)
   final List<Review> _reviews = [
@@ -72,7 +76,16 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
   @override
   void initState() {
     super.initState();
+    _loadCurrentUserId();
     _loadReviews();
+  }
+
+  Future<void> _loadCurrentUserId() async {
+    final storage = AuthTokenStorage();
+    final userInfo = await storage.getUserInfo();
+    setState(() {
+      _currentUserId = userInfo['userId'];
+    });
   }
 
   Future<void> _loadReviews() async {
@@ -84,9 +97,11 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
       final response = await _apiService.getAirlineReviews(
         airlineCode: widget.airline.code,
         sort: _getSortParam(_selectedSort),
-        limit: 20,
+        limit: 100,
         offset: 0,
       );
+
+      if (!mounted) return;
 
       setState(() {
         _reviewsResponse = response;
@@ -103,6 +118,7 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
       }
     } catch (e) {
       print('⚠️ 리뷰 API 실패, mock 데이터 사용: $e');
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
       });
@@ -122,6 +138,16 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
       default:
         return 'latest';
     }
+  }
+
+  int? _parseRating(String? ratingStr) {
+    if (ratingStr == null || ratingStr == '전체') return null;
+    // "5점" -> 5
+    final match = RegExp(r'(\d+)').firstMatch(ratingStr);
+    if (match != null) {
+      return int.tryParse(match.group(1)!);
+    }
+    return null;
   }
 
   @override
@@ -150,7 +176,7 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
           ),
         ),
           title: Text(
-            widget.airline.name,
+            AirlineNameMapper.toKorean(widget.airline.name), // 한국어 변환
           style: TextStyle(
             fontFamily: 'Pretendard',
             fontSize: context.fs(17),
@@ -166,6 +192,7 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
             _buildRatingHeader(context),
             _buildPhotoReviews(context),
             _buildFilterBar(context),
+            if (_isFilterActive) _buildActiveFilters(context), // 필터 칩 추가
             _buildReviewList(context),
           ],
         ),
@@ -231,25 +258,48 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
                 children: List.generate(5, (index) {
                   double roundedRating = (rating * 2).round() / 2;
                   
-                  IconData icon;
-                  Color color;
-
+                  // 전체 별
                   if (roundedRating >= index + 1) {
-                    icon = Icons.star;
-                    color = AppColors.yellow1;
-                  } else if (roundedRating >= index + 0.5) {
-                    icon = Icons.star_half;
-                    color = AppColors.yellow1;
-                  } else {
-                    icon = Icons.star;
-                    color = Colors.white.withOpacity(0.5);
+                    return Icon(
+                      Icons.star,
+                      color: AppColors.yellow1,
+                      size: context.w(20),
+                    );
+                  } 
+                  // 반 별 (테두리 없이)
+                  else if (roundedRating >= index + 0.5) {
+                    return SizedBox(
+                      width: context.w(20),
+                      height: context.w(20),
+                      child: Stack(
+                        children: [
+                          // 배경 (회색 별)
+                          Icon(
+                            Icons.star,
+                            color: Colors.white.withOpacity(0.5),
+                            size: context.w(20),
+                          ),
+                          // 반만 채워진 노란색 별
+                          ClipRect(
+                            clipper: _HalfClipper(),
+                            child: Icon(
+                              Icons.star,
+                              color: AppColors.yellow1,
+                              size: context.w(20),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  } 
+                  // 빈 별
+                  else {
+                    return Icon(
+                      Icons.star,
+                      color: Colors.white.withOpacity(0.5),
+                      size: context.w(20),
+                    );
                   }
-
-                  return Icon(
-                    icon,
-                    color: color,
-                    size: context.w(20),
-                  );
                 }),
               ),
             ],
@@ -348,6 +398,9 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
           tags: tags,
           content: apiReview.text,
           images: apiReview.imageUrls,
+          userId: apiReview.userId, // userId 추가
+          detailRatings: apiReview.ratings.toJson(), // 세부 평점 (Map으로 변환)
+          reviewId: apiReview.reviewId, // reviewId 추가 (좋아요 API용)
         );
       }).toList();
     } else {
@@ -561,23 +614,27 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
           GestureDetector(
             onTap: () async {
               if (_isFilterActive) {
-                // If filter is active, just clear it without opening bottom sheet
+                // If filter is active, clear it
                 setState(() {
                   _isFilterActive = false;
+                  _filterOptions = {}; // 필터 초기화
                 });
+                _loadReviews(); // 초기화된 목록 로드
               } else {
                 // Open filter bottom sheet
-                final result = await showModalBottomSheet<bool>(
+                final result = await showModalBottomSheet(
                   context: context,
                   isScrollControlled: true,
                   backgroundColor: Colors.transparent,
                   builder: (context) => const ReviewFilterBottomSheet(),
                 );
                 
-                if (result != null) {
+                if (result != null && result is Map<String, dynamic>) {
                   setState(() {
-                    _isFilterActive = result;
+                    _isFilterActive = result['applied'] ?? false;
+                    _filterOptions = result;
                   });
+                  _loadReviews(); // 필터 적용된 목록 로드
                 }
               }
             },
@@ -606,6 +663,130 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
     );
   }
 
+  Widget _buildActiveFilters(BuildContext context) {
+    if (!_isFilterActive) return const SizedBox.shrink();
+
+    final chips = <Widget>[];
+
+    // 1. 노선 필터 칩
+    final dep = _filterOptions['departureAirport'];
+    final arr = _filterOptions['arrivalAirport'];
+    if (dep != null && dep != '전체' && arr != null && arr != '전체') {
+       // 공항 코드만 추출 (예: "인천 (ICN)" -> "ICN")
+       final depCode = RegExp(r'\((.*?)\)').firstMatch(dep)?.group(1) ?? dep;
+       final arrCode = RegExp(r'\((.*?)\)').firstMatch(arr)?.group(1) ?? arr;
+       
+       chips.add(_buildFilterChip(
+         label: '$depCode → $arrCode',
+         onDeleted: () {
+           setState(() {
+             _filterOptions['departureAirport'] = '전체';
+             _filterOptions['arrivalAirport'] = '전체';
+             _checkFilterStatus();
+           });
+         },
+       ));
+    }
+
+    // 2. 기간 필터 칩
+    final period = _filterOptions['period'];
+    if (period != null && period != '전체') {
+      chips.add(_buildFilterChip(
+        label: period,
+        onDeleted: () {
+          setState(() {
+            _filterOptions['period'] = '전체';
+             _checkFilterStatus();
+          });
+        },
+      ));
+    }
+
+    // 3. 평점 필터 칩
+    final ratingStr = _filterOptions['minRatingRaw']; // 원본 문자열 사용 권장하거나, _filterOptions에 저장된 값 확인
+    // _parseRating을 통해 int로 저장했으므로, 다시 확인. 
+    // 기존 코드에서는 _parseRating 결과를 저장하지 않고 _filterOptions['minRating']에는 문자열이 들어있을 수 있음.
+    // 확인: _loadReviews에서 _parseRating을 호출해서 보냄. _filterOptions 자체에는 바텀시트에서 받은 원본(Map)이 들어있음(문자열).
+    final ratingVal = _filterOptions['minRating']; 
+    if (ratingVal != null && ratingVal != '전체') {
+      chips.add(_buildFilterChip(
+        label: ratingVal, // "4점" 등
+        onDeleted: () {
+          setState(() {
+            _filterOptions['minRating'] = '전체';
+             _checkFilterStatus();
+          });
+        },
+      ));
+    }
+
+    // 4. 사진 필터 칩
+    if (_filterOptions['photoOnly'] == true) {
+      chips.add(_buildFilterChip(
+        label: '사진 리뷰만',
+        onDeleted: () {
+          setState(() {
+            _filterOptions['photoOnly'] = false;
+             _checkFilterStatus();
+          });
+        },
+      ));
+    }
+
+    if (chips.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(context.w(20), 0, context.w(20), context.h(16)),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Wrap(
+          spacing: context.w(8),
+          runSpacing: context.h(8),
+          children: chips,
+        ),
+      ),
+    );
+  }
+
+  void _checkFilterStatus() {
+     // 모든 필터가 해제되었는지 확인
+     final dep = _filterOptions['departureAirport'];
+     final arr = _filterOptions['arrivalAirport'];
+     final period = _filterOptions['period'];
+     final rating = _filterOptions['minRating'];
+     final photoOnly = _filterOptions['photoOnly'];
+
+     if ((dep == null || dep == '전체') &&
+         (arr == null || arr == '전체') &&
+         (period == null || period == '전체') &&
+         (rating == null || rating == '전체') &&
+         (photoOnly != true)) {
+       _isFilterActive = false;
+     } else {
+       _isFilterActive = true;
+     }
+  }
+
+  Widget _buildFilterChip({required String label, required VoidCallback onDeleted}) {
+    return Chip(
+      label: Text(
+        label,
+        style: TextStyle(
+          fontFamily: 'Pretendard',
+          fontSize: 12, // context.fs 사용 불가시 하드코딩 혹은 수정
+          color: Colors.white,
+        ),
+      ),
+      backgroundColor: const Color(0xFF333333),
+      deleteIcon: const Icon(Icons.close, size: 16, color: Color(0xFF8E8E93)),
+      onDeleted: onDeleted,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide.none,
+      ),
+    );
+  }
+
   Widget _buildReviewList(BuildContext context) {
     if (_isLoading) {
       return Center(
@@ -620,8 +801,82 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
     List<Review> displayReviews = [];
     
     if (_apiReviews.isNotEmpty) {
-      // API 데이터를 Mock Review 형식으로 변환
-      displayReviews = _apiReviews.map((apiReview) {
+      // 1. 클라이언트 사이드 필터링
+      List<ReviewItem> filteredItems = List.from(_apiReviews);
+      
+      if (_isFilterActive) {
+        filteredItems = filteredItems.where((item) {
+          // 노선 필터 (유연한 로직)
+          final filterDep = _filterOptions['departureAirport'];
+          final filterArr = _filterOptions['arrivalAirport'];
+          
+          if (filterDep != null && filterDep != '전체') {
+            // "ICN"이 route("ICN-CDG")에 포함되는지 확인
+            if (!item.route.contains(filterDep)) {
+               print('🔍 노선 필터 제외: route(${item.route}) does not contain $filterDep');
+               return false;
+            }
+          }
+          if (filterArr != null && filterArr != '전체') {
+            if (!item.route.contains(filterArr)) {
+               print('🔍 노선 필터 제외: route(${item.route}) does not contain $filterArr');
+               return false;
+            }
+          }
+          
+          // 평점 필터 (범위)
+          // "5점" -> 5.0
+          // "4점" -> 4.0 <= rating < 5.0
+          final ratingStr = _filterOptions['minRating'];
+          final rating = _parseRating(ratingStr);
+          
+          if (rating != null) {
+            if (rating == 5) {
+              if (item.overallRating < 5.0) return false;
+            } else {
+              // 해당 점수 대 (예: 4점대 -> 4.0 ~ 4.9)
+              if (item.overallRating < rating || item.overallRating >= rating + 1) return false;
+            }
+          }
+          
+          // 사진 리뷰 필터
+          if (_filterOptions['photoOnly'] == true && item.imageUrls.isEmpty) return false;
+          
+          // 기간 필터
+          final period = _filterOptions['period'];
+          if (period != null && period != '전체') {
+            final date = DateTime.tryParse(item.createdAt);
+            if (date != null) {
+              final now = DateTime.now();
+              final diff = now.difference(date).inDays;
+              if (period == '최근 3개월' && diff > 90) return false;
+              if (period == '최근 6개월' && diff > 180) return false;
+              if (period == '최근 1년' && diff > 365) return false;
+            }
+          }
+          
+          return true;
+        }).toList();
+      }
+      
+      // 2. 클라이언트 사이드 정렬 (필터링된 결과에 적용)
+      switch (_selectedSort) {
+        case '최신순':
+          filteredItems.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          break;
+        case '추천순':
+          filteredItems.sort((a, b) => b.likes.compareTo(a.likes));
+          break;
+        case '평점 높은 순':
+          filteredItems.sort((a, b) => b.overallRating.compareTo(a.overallRating));
+          break;
+        case '평점 낮은 순':
+          filteredItems.sort((a, b) => a.overallRating.compareTo(b.overallRating));
+          break;
+      }
+
+      // 3. 변환
+      displayReviews = filteredItems.map((apiReview) {
         // 날짜 포맷팅 (YYYY-MM-DD)
         String formattedDate = apiReview.createdAt;
         if (formattedDate.length >= 10) {
@@ -634,9 +889,10 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
         if (apiReview.flightNumber != null && apiReview.flightNumber!.isNotEmpty) {
           tags.add(apiReview.flightNumber!);
         }
-        if (apiReview.seatClass != null && apiReview.seatClass!.isNotEmpty) {
-          tags.add(apiReview.seatClass!);
-        }
+        // 좌석 등급 제거 (요구사항에 따라)
+        // if (apiReview.seatClass != null && apiReview.seatClass!.isNotEmpty) {
+        //   tags.add(apiReview.seatClass!);
+        // }
 
         return Review(
           nickname: apiReview.userNickname,
@@ -647,6 +903,9 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
           tags: tags,
           content: apiReview.text,
           images: apiReview.imageUrls, // 이미지 URL 리스트 연결
+          userId: apiReview.userId, // userId 추가
+          detailRatings: apiReview.ratings.toJson(), // 세부 평점 (Map으로 변환)
+          reviewId: apiReview.reviewId, // reviewId 추가 (좋아요 API용)
         );
       }).toList();
     } else {
@@ -662,7 +921,12 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
       separatorBuilder: (context, index) => SizedBox(height: context.h(12)),
       itemBuilder: (context, index) {
         final review = displayReviews[index];
-        return ReviewCard(review: review);
+        // 현재 사용자의 리뷰인지 확인
+        final isMyReview = _currentUserId != null && review.userId == _currentUserId;
+        return ReviewCard(
+          review: review,
+          isMyReview: isMyReview, // 본인 리뷰면 신고하기 버튼 숨김
+        );
       },
     );
   }
@@ -681,4 +945,15 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
     return number.toString().replaceAllMapped(
         RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},');
   }
+}
+
+/// Custom clipper to show half of a star
+class _HalfClipper extends CustomClipper<Rect> {
+  @override
+  Rect getClip(Size size) {
+    return Rect.fromLTRB(0, 0, size.width / 2, size.height);
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Rect> oldClipper) => false;
 }

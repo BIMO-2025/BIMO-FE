@@ -3,26 +3,86 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/responsive_extensions.dart';
 import '../../domain/models/review_model.dart';
+import '../../data/datasources/airline_api_service.dart'; // API Service import
 import '../pages/review_detail_page.dart';
 
-class ReviewCard extends StatelessWidget {
+class ReviewCard extends StatefulWidget {
   final Review review;
   final VoidCallback? onTap;
+  final bool isMyReview; // 나의 리뷰인지 여부
 
   const ReviewCard({
     super.key,
     required this.review,
     this.onTap,
+    this.isMyReview = false, // 기본값은 false
   });
+
+  @override
+  State<ReviewCard> createState() => _ReviewCardState();
+}
+
+class _ReviewCardState extends State<ReviewCard> {
+  final AirlineApiService _apiService = AirlineApiService();
+  late int _currentLikes;
+  bool _isLiking = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentLikes = widget.review.likes;
+  }
+
+  // 좋아요 처리
+  Future<void> _handleLike() async {
+    print('🔥 좋아요 클릭됨!');
+    print('  - isMyReview: ${widget.isMyReview}');
+    print('  - reviewId: ${widget.review.reviewId}');
+    print('  - _isLiking: $_isLiking');
+    
+    if (widget.isMyReview || _isLiking || widget.review.reviewId == null) {
+      print('❌ 좋아요 처리 중단');
+      return;
+    }
+
+    print('✅ 좋아요 API 호출 시작');
+    setState(() {
+      _isLiking = true;
+    });
+
+    try {
+      final updatedLikes = await _apiService.addReviewLike(
+        reviewId: widget.review.reviewId!,
+      );
+
+      print('✅ 좋아요 성공! 업데이트된 개수: $updatedLikes');
+      if (mounted) {
+        setState(() {
+          _currentLikes = updatedLikes;
+          _isLiking = false;
+        });
+      }
+    } catch (e) {
+      print('❌ 좋아요 실패: $e');
+      if (mounted) {
+        setState(() {
+          _isLiking = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap ?? () {
+      onTap: widget.onTap ?? () {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ReviewDetailPage(review: review),
+            builder: (context) => ReviewDetailPage(
+              review: widget.review,
+              isMyReview: widget.isMyReview, // isMyReview 파라미터 전달
+            ),
           ),
         );
       },
@@ -44,11 +104,11 @@ class ReviewCard extends StatelessWidget {
                     CircleAvatar(
                       radius: context.w(16),
                       backgroundColor: const Color(0xFF333333),
-                      backgroundImage: _getImageProvider(review.profileImage),
+                      backgroundImage: _getImageProvider(widget.review.profileImage),
                       onBackgroundImageError: (_, __) {}, 
-                      child: review.profileImage.isEmpty 
+                      child: widget.review.profileImage.isEmpty 
                           ? Text(
-                              review.nickname.isNotEmpty ? review.nickname[0] : 'U',
+                              widget.review.nickname.isNotEmpty ? widget.review.nickname[0] : 'U',
                               style: const TextStyle(color: Colors.white),
                             )
                           : null,
@@ -58,7 +118,7 @@ class ReviewCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          review.nickname,
+                          widget.review.nickname,
                           style: TextStyle(
                             fontFamily: 'Pretendard',
                             fontSize: context.fs(14),
@@ -72,7 +132,7 @@ class ReviewCard extends StatelessWidget {
                             Icon(Icons.star, color: Colors.white, size: context.w(12)),
                             SizedBox(width: context.w(2)),
                             Text(
-                              '${review.rating}',
+                              '${widget.review.rating}',
                               style: TextStyle(
                                 fontFamily: 'Pretendard',
                                 fontSize: context.fs(12),
@@ -95,13 +155,19 @@ class ReviewCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                Text(
-                  '좋아요 ${review.likes}',
-                  style: TextStyle(
-                    fontFamily: 'Pretendard',
-                    fontSize: context.fs(13),
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.yellow1,
+                // 좋아요 (본인 리뷰가 아닐 때만 클릭 가능)
+                GestureDetector(
+                  onTap: widget.isMyReview ? null : _handleLike,
+                  child: Text(
+                    '좋아요 $_currentLikes',
+                    style: TextStyle(
+                      fontFamily: 'Pretendard',
+                      fontSize: context.fs(13),
+                      fontWeight: FontWeight.w500,
+                      color: _isLiking 
+                          ? AppColors.yellow1.withOpacity(0.5)
+                          : AppColors.yellow1,
+                    ),
                   ),
                 ),
               ],
@@ -109,9 +175,9 @@ class ReviewCard extends StatelessWidget {
             SizedBox(height: context.h(12)),
             
             // Tags
-            if (review.tags.isNotEmpty) ...[
+            if (widget.review.tags.isNotEmpty) ...[
               Row(
-                children: review.tags.map((tag) {
+                children: widget.review.tags.map((tag) {
                   return Container(
                     margin: EdgeInsets.only(right: context.w(6)),
                     padding: EdgeInsets.symmetric(
@@ -138,14 +204,14 @@ class ReviewCard extends StatelessWidget {
             ],
 
             // Photos
-            if (review.images.isNotEmpty) ...[
+            if (widget.review.images.isNotEmpty) ...[
               SizedBox(
                 height: context.w(80),
                 width: context.w(315),
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   padding: EdgeInsets.zero,
-                  itemCount: review.images.length,
+                  itemCount: widget.review.images.length,
                   separatorBuilder: (context, index) => SizedBox(width: context.w(8)),
                   itemBuilder: (context, index) {
                     return ClipRRect(
@@ -153,7 +219,7 @@ class ReviewCard extends StatelessWidget {
                       child: SizedBox(
                         width: context.w(80),
                         height: context.w(80),
-                        child: _buildReviewImage(review.images[index]),
+                        child: _buildReviewImage(widget.review.images[index]),
                       ),
                     );
                   },
@@ -174,18 +240,21 @@ class ReviewCard extends StatelessWidget {
                 ),
                 children: [
                   TextSpan(
-                    text: review.content.length > 100 
-                        ? '${review.content.substring(0, 100)}...' 
-                        : review.content,
+                    text: widget.review.content.length > 100 
+                        ? '${widget.review.content.substring(0, 100)}...' 
+                        : widget.review.content,
                   ),
-                  if (review.content.length > 100)
+                  if (widget.review.content.length > 100)
                     WidgetSpan(
                       child: GestureDetector(
                         onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => ReviewDetailPage(review: review),
+                              builder: (context) => ReviewDetailPage(
+                                review: widget.review,
+                                isMyReview: widget.isMyReview, // isMyReview 파라미터 전달
+                              ),
                             ),
                           );
                         },
@@ -207,20 +276,12 @@ class ReviewCard extends StatelessWidget {
             SizedBox(height: context.h(12)),
 
             // Footer
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '신고하기',
-                  style: TextStyle(
-                    fontFamily: 'Pretendard',
-                    fontSize: context.fs(12),
-                    fontWeight: FontWeight.w400,
-                    color: const Color(0xFF555555),
-                  ),
-                ),
-                Text(
-                  review.date,
+            if (widget.isMyReview)
+              // 나의 리뷰인 경우 날짜만 표시
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  widget.review.date,
                   style: TextStyle(
                     fontFamily: 'Pretendard',
                     fontSize: context.fs(12),
@@ -228,8 +289,32 @@ class ReviewCard extends StatelessWidget {
                     color: const Color(0xFF8E8E93),
                   ),
                 ),
-              ],
-            ),
+              )
+            else
+              // 다른 사람의 리뷰인 경우 신고하기와 날짜 표시
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '신고하기',
+                    style: TextStyle(
+                      fontFamily: 'Pretendard',
+                      fontSize: context.fs(12),
+                      fontWeight: FontWeight.w400,
+                      color: const Color(0xFF555555),
+                    ),
+                  ),
+                  Text(
+                    widget.review.date,
+                    style: TextStyle(
+                      fontFamily: 'Pretendard',
+                      fontSize: context.fs(12),
+                      fontWeight: FontWeight.w400,
+                      color: const Color(0xFF8E8E93),
+                    ),
+                  ),
+                ],
+              ),
           ],
         ),
       ),

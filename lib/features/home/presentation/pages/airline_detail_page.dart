@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/responsive_extensions.dart';
+import '../../../../core/utils/airline_name_mapper.dart'; // AirlineNameMapper import
 import '../../domain/models/airline.dart';
 import '../../data/datasources/airline_api_service.dart';
 import '../../data/models/airline_detail_response.dart';
@@ -100,7 +101,7 @@ class _AirlineDetailPageState extends State<AirlineDetailPage> {
           ),
         ),
         title: Text(
-          widget.airline.name,
+          AirlineNameMapper.toKorean(widget.airline.name), // 한국어 변환
           style: TextStyle(
             fontFamily: 'Pretendard',
             fontSize: context.fs(17),
@@ -272,9 +273,9 @@ class _AirlineDetailPageState extends State<AirlineDetailPage> {
 
                 SizedBox(height: context.h(12)),
 
-                // 3. Airline Name
+                // 3. Airline Name (한국어)
                 Text(
-                  widget.airline.name,
+                  AirlineNameMapper.toKorean(widget.airline.name),
                   style: TextStyle(
                     fontFamily: 'Pretendard',
                     fontSize: context.fs(24),
@@ -283,6 +284,7 @@ class _AirlineDetailPageState extends State<AirlineDetailPage> {
                   ),
                 ),
                 SizedBox(height: context.h(4)),
+                // 영어 이름 (원본 유지)
                 Text(
                   widget.airline.englishName,
                   style: TextStyle(

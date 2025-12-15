@@ -29,3 +29,4 @@ class DateUtils {
     return {'year': year, 'month': month, 'week': week, 'weekLabel': weekLabel};
   }
 }
+

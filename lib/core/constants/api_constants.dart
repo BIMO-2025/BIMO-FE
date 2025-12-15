@@ -20,6 +20,7 @@ class ApiConstants {
   static const String userProfile = '${_apiPrefix}user/profile';
   static const String updateNickname = '${_apiPrefix}user/nickname';
   static const String checkNickname = '${_apiPrefix}user/nickname/check';
+  static const String updateProfilePhoto = '${_apiPrefix}user/profile/photo'; // 프로필 사진 업데이트
 
   // 항공사 관련
   static const String airlines = '$_apiPrefix/airlines';

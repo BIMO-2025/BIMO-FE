@@ -423,7 +423,7 @@ class AirlineApiService {
   }) async {
     try {
       final url = '${ApiConstants.baseUrl}${ApiConstants.airlinesReviews}/$airlineCode/reviews';
-      print('🚀 API 호출 (리뷰 목록): $url?sort=$sort&limit=$limit&offset=$offset');
+      print('🚀 API 호출 (기본 리뷰 목록): $url');
 
       final response = await _apiClient.get(
         '${ApiConstants.airlinesReviews}/$airlineCode/reviews',
@@ -434,8 +434,7 @@ class AirlineApiService {
         },
       );
 
-      print('✅ 응답 성공 (리뷰 목록): ${response.statusCode}');
-      print('📄 응답 데이터 (리뷰 목록): ${response.data}');
+      print('✅ 응답 성공 (기본 리뷰 목록): ${response.statusCode}');
 
       if (response.statusCode == 200) {
         return AirlineReviewsResponse.fromJson(
@@ -447,13 +446,181 @@ class AirlineApiService {
         );
       }
     } on DioException catch (e) {
-      print('❌ DioException 발생 (리뷰 목록): ${e.type}');
+      print('❌ DioException 발생 (기본 리뷰 목록): ${e.type}');
+      throw _handleDioError(e);
+    } catch (e) {
+       print('❌ 예상치 못한 에러 (기본 리뷰 목록): $e');
+       throw Exception('Unexpected error: $e');
+    }
+  }
+
+  /// 필터 적용된 항공사 리뷰 목록 조회 (상세 조회 API 사용)
+  Future<AirlineReviewsResponse> getFilteredAirlineReviews({
+    required String airlineCode,
+    String sort = 'latest',
+    int limit = 20,
+    int offset = 0,
+    String? departureAirport,
+    String? arrivalAirport,
+    String? period,
+    int? minRating,
+    bool? photoOnly,
+  }) async {
+    try {
+      final url = '${ApiConstants.baseUrl}reviews/detailed/$airlineCode';
+      print('🚀 API 호출 (필터 리뷰 목록): $url');
+      
+      final Map<String, dynamic> queryParams = {
+        'sort': sort,
+        'limit': limit,
+        'offset': offset,
+      };
+
+      if (departureAirport != null && departureAirport.isNotEmpty && departureAirport != '전체') {
+        queryParams['departure_airport'] = departureAirport;
+      }
+      if (arrivalAirport != null && arrivalAirport.isNotEmpty && arrivalAirport != '전체') {
+        queryParams['arrival_airport'] = arrivalAirport;
+      }
+      if (period != null && period != '전체') {
+        queryParams['period'] = period;
+      }
+      if (minRating != null) {
+        queryParams['min_rating'] = minRating;
+      }
+      if (photoOnly == true) {
+        queryParams['photo_only'] = true;
+      }
+      
+      print('📦 필터 파라미터: $queryParams');
+
+      final response = await _apiClient.get(
+        'reviews/detailed/$airlineCode',
+        queryParameters: queryParams,
+      );
+
+      print('✅ 응답 성공 (필터 리뷰 목록): ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        return AirlineReviewsResponse.fromJson(
+          response.data as Map<String, dynamic>,
+        );
+      } else {
+        throw Exception(
+          'Failed to get airline reviews: ${response.statusCode}',
+        );
+      }
+    } on DioException catch (e) {
+      print('❌ DioException 발생 (필터 리뷰 목록): ${e.type}');
+      throw _handleDioError(e);
+    } catch (e) {
+       print('❌ 예상치 못한 에러 (필터 리뷰 목록): $e');
+       throw Exception('Unexpected error: $e');
+    }
+  }
+
+  /// 리뷰에 좋아요 추가
+  ///
+  /// [reviewId] 리뷰 ID
+  /// Returns: 업데이트된 좋아요 수
+  Future<int> addReviewLike({
+    required String reviewId,
+  }) async {
+    try {
+      final url = '${ApiConstants.baseUrl}/reviews/$reviewId/like';
+      print('🚀 API 호출 (좋아요 추가): $url');
+
+      final response = await _apiClient.post(
+        '/reviews/$reviewId/like',
+      );
+
+      print('✅ 응답 성공 (좋아요 추가): ${response.statusCode}');
+      print('📄 응답 데이터 (좋아요 추가): ${response.data}');
+
+      if (response.statusCode == 200) {
+        final data = response.data as Map<String, dynamic>;
+        return data['likes'] as int? ?? 0;
+      } else {
+        throw Exception(
+          'Failed to add like: ${response.statusCode}',
+        );
+      }
+    } on DioException catch (e) {
+      print('❌ DioException 발생 (좋아요 추가): ${e.type}');
       print('❌ 에러 메시지: ${e.message}');
       print('❌ 응답: ${e.response?.data}');
       throw _handleDioError(e);
     } catch (e, stackTrace) {
-      print('❌ 예상치 못한 에러 (리뷰 목록): $e');
+      print('❌ 예상치 못한 에러 (좋아요 추가): $e');
       print('❌ 스택 트레이스: $stackTrace');
+      throw Exception('Unexpected error: $e');
+    }
+  }
+
+  /// 리뷰 수정
+  ///
+  /// [reviewId] 리뷰 ID
+  /// [reviewData] 수정할 리뷰 데이터
+  Future<Map<String, dynamic>> updateReview({
+    required String reviewId,
+    required Map<String, dynamic> reviewData,
+  }) async {
+    try {
+      final url = '${ApiConstants.baseUrl}/reviews/$reviewId';
+      print('🚀 API 호출 (리뷰 수정): $url');
+      print('📦 요청 데이터: $reviewData');
+
+      final response = await _apiClient.put(
+        '/reviews/$reviewId',
+        data: reviewData,
+      );
+
+      print('✅ 응답 성공 (리뷰 수정): ${response.statusCode}');
+      print('📄 응답 데이터 (리뷰 수정): ${response.data}');
+
+      if (response.statusCode == 200) {
+        return response.data as Map<String, dynamic>;
+      } else {
+        throw Exception(
+          'Failed to update review: ${response.statusCode}',
+        );
+      }
+    } on DioException catch (e) {
+      print('❌ DioException 발생 (리뷰 수정): ${e.type}');
+      print('❌ 에러 메시지: ${e.message}');
+      print('❌ 응답: ${e.response?.data}');
+      throw _handleDioError(e);
+    } catch (e, stackTrace) {
+      print('❌ 예상치 못한 에러 (리뷰 수정): $e');
+      print('❌ 스택 트레이스: $stackTrace');
+      throw Exception('Unexpected error: $e');
+    }
+  }
+
+  /// 리뷰 삭제
+  /// DELETE /reviews/{review_id}
+  Future<void> deleteReview({required String reviewId}) async {
+    try {
+      final url = '${ApiConstants.baseUrl}/reviews/$reviewId';
+      print('🚀 API 호출 (리뷰 삭제): $url');
+
+      final response = await _apiClient.delete(
+        '/reviews/$reviewId',
+      );
+
+      print('✅ 응답 성공 (리뷰 삭제): ${response.statusCode}');
+      print('📄 응답 데이터 (리뷰 삭제): ${response.data}');
+      
+      if (response.statusCode != 200) {
+        throw Exception('Failed to delete review: ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      print('❌ DioException 발생 (리뷰 삭제): ${e.type}');
+      print('❌ 에러 메시지: ${e.message}');
+      print('❌ 응답: ${e.response?.data}');
+      throw _handleDioError(e);
+    } catch (e) {
+      print('❌ 예상치 못한 에러 (리뷰 삭제): $e');
       throw Exception('Unexpected error: $e');
     }
   }
@@ -478,3 +645,4 @@ class AirlineApiService {
     }
   }
 }
+

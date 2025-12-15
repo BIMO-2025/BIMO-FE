@@ -9,6 +9,7 @@ import '../../../../core/constants/api_constants.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../home/presentation/pages/airline_review_page.dart'; // Review 클래스
 import '../../../home/presentation/pages/review_detail_page.dart';
+import '../../../home/presentation/widgets/review_card.dart'; // ReviewCard 추가
 
 /// 나의 리뷰 페이지
 class MyReviewsPage extends StatefulWidget {
@@ -69,24 +70,47 @@ class _MyReviewsPageState extends State<MyReviewsPage> {
         },
       );
 
+      print('🔍 나의 리뷰 API 응답 (Status ${response.statusCode}):');
+      print('📦 응답 데이터: ${response.data}');
+
       if (response.statusCode == 200) {
         final data = response.data;
         final reviews = data['reviews'] as List;
         
+        print('📝 리뷰 개수: ${reviews.length}');
+        if (reviews.isNotEmpty) {
+          print('📄 첫 번째 리뷰 샘플: ${reviews[0]}');
+        }
+        
         setState(() {
           _myReviews = reviews.map((reviewData) {
+            // 날짜 포맷팅 (ISO 8601 -> YYYY.MM.DD)
+            String formattedDate = reviewData['createdAt'] ?? '';
+            if (formattedDate.length >= 10) {
+              formattedDate = formattedDate.substring(0, 10).replaceAll('-', '.');
+            }
+
+            // 태그 생성: route + flightNumber
+            final tags = <String>[];
+            if (reviewData['route'] != null && reviewData['route'].toString().isNotEmpty) {
+              tags.add(reviewData['route']);
+            }
+            if (reviewData['flightNumber'] != null && reviewData['flightNumber'].toString().isNotEmpty) {
+              tags.add(reviewData['flightNumber']);
+            }
+
             return Review(
               nickname: reviewData['userNickname'] ?? _nickname,
               profileImage: reviewData['userProfileImage'] ?? _profileImage,
               rating: (reviewData['overallRating'] ?? 0).toDouble(),
-              date: reviewData['createdAt'] ?? '',
+              date: formattedDate,
               likes: reviewData['likes'] ?? 0,
-              tags: [
-                reviewData['airlineCode'] ?? '',
-                reviewData['airlineName'] ?? '',
-              ],
+              tags: tags,
               content: reviewData['text'] ?? '',
-              images: [], // TODO: 이미지 처리
+              images: (reviewData['imageUrls'] as List?)?.cast<String>() ?? [],
+              detailRatings: reviewData['ratings'] as Map<String, dynamic>?, // 세부 평점 추가
+              reviewId: reviewData['id'], // 리뷰 ID 매핑
+              userId: reviewData['userId'], // 사용자 ID 매핑
             );
           }).toList();
           _isLoading = false;
@@ -174,196 +198,34 @@ class _MyReviewsPageState extends State<MyReviewsPage> {
                       separatorBuilder: (context, index) => SizedBox(height: context.h(12)),
                       itemBuilder: (context, index) {
                         final review = _myReviews[index];
-                        return _buildReviewCard(context, review);
+                        return GestureDetector(
+                          onTap: () {
+                            print('👉 [MyReviewsPage] 상세 이동 시도');
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ReviewDetailPage(
+                                  review: review,
+                                  isMyReview: true,
+                                ),
+                              ),
+                            ).then((result) {
+                              print('🔙 [MyReviewsPage] 복귀 (then). result: $result');
+                              if (result == true && mounted) {
+                                print('💨 마이페이지로 탈출 (pop)');
+                                Navigator.pop(context);
+                              } else {
+                                print('👀 단순 조회 종료 (pop 안함)');
+                              }
+                            });
+                          },
+                          child: ReviewCard(
+                            review: review,
+                            isMyReview: true, // 나의 리뷰이므로 신고하기 버튼 숨김
+                          ),
+                        );
                       },
                     ),
     );
-  }
-
-  /// 리뷰 카드 위젯
-  Widget _buildReviewCard(BuildContext context, Review review) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder:
-                (context) => ReviewDetailPage(
-                  review: review,
-                  isMyReview: true, // 나의 리뷰임을 표시
-                ),
-          ),
-        );
-      },
-      child: Container(
-        padding: EdgeInsets.all(context.w(20)),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1A1A1A),
-          borderRadius: BorderRadius.circular(context.w(16)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // User Info
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: context.w(16),
-                      backgroundColor: const Color(0xFF333333),
-                      backgroundImage: _getImageProvider(review.profileImage),
-                    ),
-                    SizedBox(width: context.w(8)),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          review.nickname,
-                          style: TextStyle(
-                            fontFamily: 'Pretendard',
-                            fontSize: context.fs(14),
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                        ),
-                        SizedBox(height: context.h(2)),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.star,
-                              color: Colors.white,
-                              size: context.w(12),
-                            ),
-                            SizedBox(width: context.w(2)),
-                            Text(
-                              '${review.rating}',
-                              style: TextStyle(
-                                fontFamily: 'Pretendard',
-                                fontSize: context.fs(12),
-                                fontWeight: FontWeight.w500,
-                                color: Colors.white,
-                              ),
-                            ),
-                            Text(
-                              '/5.0',
-                              style: TextStyle(
-                                fontFamily: 'Pretendard',
-                                fontSize: context.fs(12),
-                                fontWeight: FontWeight.w400,
-                                color: const Color(0xFF8E8E93),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                Text(
-                  '좋아요 ${review.likes}',
-                  style: TextStyle(
-                    fontFamily: 'Pretendard',
-                    fontSize: context.fs(13),
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.yellow1,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: context.h(12)),
-
-            // Tags
-            Row(
-              children:
-                  review.tags.map((tag) {
-                    return Container(
-                      margin: EdgeInsets.only(right: context.w(6)),
-                      padding: EdgeInsets.symmetric(
-                        horizontal: context.w(8),
-                        vertical: context.h(4),
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF333333),
-                        borderRadius: BorderRadius.circular(context.w(4)),
-                      ),
-                      child: Text(
-                        tag,
-                        style: TextStyle(
-                          fontFamily: 'Pretendard',
-                          fontSize: context.fs(12),
-                          fontWeight: FontWeight.w400,
-                          color: const Color(0xFFCCCCCC),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-            ),
-            SizedBox(height: context.h(12)),
-
-            // Photos
-            SizedBox(
-              height: context.w(80),
-              width: context.w(315), // 콘텐츠 영역(295) + 오른쪽 확장(20)
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: EdgeInsets.zero,
-                itemCount: review.images.length,
-                separatorBuilder:
-                    (context, index) => SizedBox(width: context.w(8)),
-                itemBuilder: (context, index) {
-                  return Container(
-                    width: context.w(80),
-                    height: context.w(80),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(context.w(8)),
-                      color: const Color(0xFF333333),
-                      // image: DecorationImage(...)
-                    ),
-                  );
-                },
-              ),
-            ),
-            SizedBox(height: context.h(12)),
-
-            // Content
-            Text(
-              review.content,
-              style: TextStyle(
-                fontFamily: 'Pretendard',
-                fontSize: context.fs(14),
-                fontWeight: FontWeight.w400,
-                color: Colors.white,
-                height: 1.5,
-              ),
-            ),
-
-            SizedBox(height: context.h(12)),
-
-            // Footer (Date only, no report button for own reviews)
-            Text(
-              review.date,
-              style: TextStyle(
-                fontFamily: 'Pretendard',
-                fontSize: context.fs(12),
-                fontWeight: FontWeight.w400,
-                color: const Color(0xFF8E8E93),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  ImageProvider _getImageProvider(String imagePath) {
-    if (imagePath.startsWith('http')) {
-      return NetworkImage(imagePath);
-    } else if (imagePath.startsWith('assets/')) {
-      return AssetImage(imagePath);
-    } else {
-      return FileImage(File(imagePath));
-    }
   }
 }
