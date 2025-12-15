@@ -820,22 +820,11 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
                           });
                           
                           print('🔍 [DEBUG] 네비게이션 전 - context.go(\'/home\') 호출 예정');
-                          
-                          // FlightState에 비행 추가 (더미 데이터, 실제로는 현재 비행 정보 사용)
-                          final newFlight = Flight(
-                            departureCode: 'DXB',
-                            departureCity: '두바이',
-                            arrivalCode: 'ICN',
-                            arrivalCity: '인천',
-                            duration: '14h 15m',
-                            departureTime: '10:30 AM',
-                            arrivalTime: '09:30 PM',
-                          );
-                          FlightState().addFlight(newFlight);
-                          
                           print('🔍 [DEBUG] context.go(\'/home\') 호출 시작');
+                          
                           // 홈으로 이동 (탭바 유지)
                           context.go('/home');
+                          
                           print('🔍 [DEBUG] context.go(\'/home\') 호출 완료');
                           
                           // 저장 성공 메시지
@@ -1932,7 +1921,7 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
     }
 
     // 겹림 처리 및 이벤트 추가/수정
-    _executePlanUpdate(
+    _processAndSaveTimeline(
       originalEvent: originalEvent,
       title: title,
       startTime: startTime,
