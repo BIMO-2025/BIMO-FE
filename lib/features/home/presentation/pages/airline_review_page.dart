@@ -2,6 +2,7 @@ import 'dart:io'; // File 클래스 사용을 위해 추가
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/responsive_extensions.dart';
+import '../../../../core/utils/airline_name_mapper.dart'; // AirlineNameMapper import
 import '../../domain/models/airline.dart';
 import '../../domain/models/review_model.dart'; // Review 모델 import
 import '../../data/datasources/airline_api_service.dart';
@@ -153,7 +154,7 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
           ),
         ),
           title: Text(
-            widget.airline.name,
+            AirlineNameMapper.toKorean(widget.airline.name), // 한국어 변환
           style: TextStyle(
             fontFamily: 'Pretendard',
             fontSize: context.fs(17),

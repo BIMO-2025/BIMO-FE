@@ -208,7 +208,10 @@ class _MyReviewsPageState extends State<MyReviewsPage> {
                               ),
                             );
                           },
-                          child: ReviewCard(review: review),
+                          child: ReviewCard(
+                            review: review,
+                            isMyReview: true, // 나의 리뷰이므로 신고하기 버튼 숨김
+                          ),
                         );
                       },
                     ),

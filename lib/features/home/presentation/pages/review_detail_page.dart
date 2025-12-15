@@ -157,7 +157,7 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
           ),
         ),
         title: Text(
-          '${widget.review.nickname} 님의 리뷰',
+          widget.isMyReview ? '나의 리뷰' : '${widget.review.nickname} 님의 리뷰',
           style: AppTextStyles.large.copyWith(color: AppColors.white),
         ),
         centerTitle: true,
@@ -316,19 +316,41 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
               ),
               SizedBox(height: context.h(24)),
 
-              // Detail Ratings (Mock data for now as it's not in Review model yet)
-              _buildDetailRatingRow(context, '좌석 편안함', 2.4),
-              _buildDetailRatingRow(context, '기내식 및 음료', 3.8),
-              _buildDetailRatingRow(context, '서비스', 4.8),
-              _buildDetailRatingRow(context, '청결도', 2.7),
-              _buildDetailRatingRow(context, '시간 준수도 및 수속', 5.0),
+              // Detail Ratings (실제 데이터 매핑)
+              if (widget.review.detailRatings != null) ...[
+                _buildDetailRatingRow(
+                  context,
+                  '좌석 편안함',
+                  (widget.review.detailRatings!['seatComfort'] ?? 0).toDouble(),
+                ),
+                _buildDetailRatingRow(
+                  context,
+                  '기내식 및 음료',
+                  (widget.review.detailRatings!['inflightMeal'] ?? 0).toDouble(),
+                ),
+                _buildDetailRatingRow(
+                  context,
+                  '서비스',
+                  (widget.review.detailRatings!['service'] ?? 0).toDouble(),
+                ),
+                _buildDetailRatingRow(
+                  context,
+                  '청결도',
+                  (widget.review.detailRatings!['cleanliness'] ?? 0).toDouble(),
+                ),
+                _buildDetailRatingRow(
+                  context,
+                  '시간 준수도 및 수속',
+                  (widget.review.detailRatings!['checkIn'] ?? 0).toDouble(),
+                ),
+              ],
+
 
               SizedBox(height: context.h(24)),
 
               // Content
               Text(
-                widget.review.content.replaceAll('...더보기', '') +
-                    '\n그래서 말이죠 저희는 앞으로 이 항공사만 탈 것입니다 너무너무 좋고요 파리 갈 대 이것만 타겠습니다', // Extending content as per image
+                widget.review.content.replaceAll('...더보기', ''),
                 style: TextStyle(
                   fontFamily: 'Pretendard',
                   fontSize: context.fs(15),

@@ -8,11 +8,13 @@ import '../pages/review_detail_page.dart';
 class ReviewCard extends StatelessWidget {
   final Review review;
   final VoidCallback? onTap;
+  final bool isMyReview; // 나의 리뷰인지 여부
 
   const ReviewCard({
     super.key,
     required this.review,
     this.onTap,
+    this.isMyReview = false, // 기본값은 false
   });
 
   @override
@@ -22,7 +24,10 @@ class ReviewCard extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ReviewDetailPage(review: review),
+            builder: (context) => ReviewDetailPage(
+              review: review,
+              isMyReview: isMyReview, // isMyReview 파라미터 전달
+            ),
           ),
         );
       },
@@ -185,7 +190,10 @@ class ReviewCard extends StatelessWidget {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => ReviewDetailPage(review: review),
+                              builder: (context) => ReviewDetailPage(
+                                review: review,
+                                isMyReview: isMyReview, // isMyReview 파라미터 전달
+                              ),
                             ),
                           );
                         },
@@ -207,19 +215,11 @@ class ReviewCard extends StatelessWidget {
             SizedBox(height: context.h(12)),
 
             // Footer
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '신고하기',
-                  style: TextStyle(
-                    fontFamily: 'Pretendard',
-                    fontSize: context.fs(12),
-                    fontWeight: FontWeight.w400,
-                    color: const Color(0xFF555555),
-                  ),
-                ),
-                Text(
+            if (isMyReview)
+              // 나의 리뷰인 경우 날짜만 표시
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
                   review.date,
                   style: TextStyle(
                     fontFamily: 'Pretendard',
@@ -228,8 +228,32 @@ class ReviewCard extends StatelessWidget {
                     color: const Color(0xFF8E8E93),
                   ),
                 ),
-              ],
-            ),
+              )
+            else
+              // 다른 사람의 리뷰인 경우 신고하기와 날짜 표시
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '신고하기',
+                    style: TextStyle(
+                      fontFamily: 'Pretendard',
+                      fontSize: context.fs(12),
+                      fontWeight: FontWeight.w400,
+                      color: const Color(0xFF555555),
+                    ),
+                  ),
+                  Text(
+                    review.date,
+                    style: TextStyle(
+                      fontFamily: 'Pretendard',
+                      fontSize: context.fs(12),
+                      fontWeight: FontWeight.w400,
+                      color: const Color(0xFF8E8E93),
+                    ),
+                  ),
+                ],
+              ),
           ],
         ),
       ),
