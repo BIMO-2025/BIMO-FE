@@ -12,6 +12,7 @@ import '../../../core/state/timeline_state.dart';
 import '../data/repositories/local_timeline_repository.dart';
 import '../data/repositories/local_flight_repository.dart';
 import '../data/models/local_timeline_event.dart';
+import '../data/models/local_flight.dart';
 import '../models/flight_model.dart';
 import 'flight_plan_end_page.dart';
 import 'myflight_page.dart';
@@ -31,6 +32,7 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
   TimelineEvent? _selectedEvent; // 선택된 이벤트 (하나만)
   bool _showMoreOptions = false; // 더보기 옵션 메뉴 표시 여부
   List<TimelineEvent> _initialEvents = []; // 초기 타임라인 (AI 초기화용)
+  LocalFlight? _currentFlight; // 현재 표시 중인 비행 정보
 
   @override
   void initState() {
@@ -46,6 +48,7 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
       await localFlightRepo.init();
       
       String? targetFlightId = widget.flightId;
+      LocalFlight? targetFlight;
       
       // 2. flightId가 제공되지 않으면 가장 최근 비행 탐색
       if (targetFlightId == null) {
@@ -60,10 +63,17 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
         }
         
         scheduledFlights.sort((a, b) => a.departureTime.compareTo(b.departureTime));
-        targetFlightId = scheduledFlights.first.id;
+        targetFlight = scheduledFlights.first;
+        targetFlightId = targetFlight.id;
+      } else {
+        // flightId로 비행 정보 가져오기
+        targetFlight = await localFlightRepo.getFlight(targetFlightId);
       }
       
-      // 3. 해당 비행의 타임라인 로드
+      // 3. 현재 비행 정보 저장
+      _currentFlight = targetFlight;
+      
+      // 4. 해당 비행의 타임라인 로드
       final localTimelineRepo = LocalTimelineRepository();
       await localTimelineRepo.init();
       final localEvents = await localTimelineRepo.getTimeline(targetFlightId);
@@ -72,7 +82,7 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
         print('⚠️ 비행 $targetFlightId에 타임라인 없음, TimelineState 사용');
         _events = _getTimelineEvents();
       } else {
-        // 4. LocalTimelineEvent → TimelineEvent 변환
+        // 5. LocalTimelineEvent → TimelineEvent 변환
         _events = localEvents.map((le) {
           final data = le.toTimelineEvent() as Map<String, dynamic>;
           return TimelineEvent(
@@ -84,7 +94,7 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
             isActive: data['isActive'] as bool? ?? false,
           );
         }).toList();
-        print('✅ Hive에서 비행 $targetFlightId의 ${localEvents.length}H 타임라인 이벤트 로드');
+        print('✅ Hive에서 비행 $targetFlightId의 ${localEvents.length}개 타임라인 이벤트 로드');
       }
       
       _initialEvents = List.from(_events);
@@ -258,17 +268,90 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
     );
   }
 
+  /// 공항 코드에서 도시 이름 추론
+  String _getCityName(String airportCode) {
+    const cityMap = {
+      'ICN': '인천',
+      'GMP': '김포',
+      'PUS': '부산',
+      'CJU': '제주',
+      'NRT': '도쿄',
+      'HND': '도쿄',
+      'JFK': '뉴욕',
+      'LAX': '로스앤젤레스',
+      'YYZ': '토론토',
+      'LHR': '런던',
+      'CDG': '파리',
+      'DXB': '두바이',
+    };
+    return cityMap[airportCode] ?? airportCode;
+  }
+
+  /// 요일 반환
+  String _getWeekday(DateTime dateTime) {
+    switch (dateTime.weekday) {
+      case DateTime.monday:
+        return '월';
+      case DateTime.tuesday:
+        return '화';
+      case DateTime.wednesday:
+        return '수';
+      case DateTime.thursday:
+        return '목';
+      case DateTime.friday:
+        return '금';
+      case DateTime.saturday:
+        return '토';
+      case DateTime.sunday:
+        return '일';
+      default:
+        return '';
+    }
+  }
+
   /// 비행 정보
   Widget _buildFlightInfo(BuildContext context) {
-    // TimelineState에서 flight_info 가져오기
+    // _currentFlight 사용 (Hive에서 로드한 실제 데이터)
+    if (_currentFlight != null) {
+      final origin = _currentFlight!.origin;
+      final destination = _currentFlight!.destination;
+      final totalDuration = _currentFlight!.totalDuration;
+      
+      // 날짜 포맷팅
+      final dt = _currentFlight!.departureTime;
+      final weekday = _getWeekday(dt);
+      final date = '${dt.year}.${dt.month.toString().padLeft(2, '0')}.${dt.day.toString().padLeft(2, '0')}. ($weekday)';
+      
+      return Center(
+        child: Column(children: [
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Column(children: [
+              Text(origin, style: AppTextStyles.display.copyWith(color: Colors.white)),
+              Text(_getCityName(origin), style: AppTextStyles.body.copyWith(color: Colors.white.withOpacity(0.5))),
+            ]),
+            const SizedBox(width: 16),
+            SvgPicture.asset('assets/images/myflight/arrow.svg', width: 24, height: 24, colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn)),
+            const SizedBox(width: 16),
+            Column(children: [
+              Text(destination, style: AppTextStyles.display.copyWith(color: Colors.white)),
+              Text(_getCityName(destination), style: AppTextStyles.body.copyWith(color: Colors.white.withOpacity(0.5))),
+            ]),
+          ]),
+          const SizedBox(height: 8),
+          RichText(textAlign: TextAlign.center, text: TextSpan(style: AppTextStyles.body.copyWith(color: Colors.white), children: [
+            TextSpan(text: '$date | '),
+            TextSpan(text: totalDuration, style: AppTextStyles.bigBody.copyWith(color: Colors.white)),
+          ])),
+        ]),
+      );
+    }
+    
+    // Fallback: TimelineState 또는 기본값
     final timelineData = TimelineState().timelineData;
     final flightInfo = timelineData?['flight_info'] as Map<String, dynamic>?;
-    
-    // FlightState에서 가장 최근 비행 가져오기 (날짜용)
     final flights = FlightState().scheduledFlights;
     final latestFlight = flights.isNotEmpty ? flights.last : null;
     
-    // API 데이터 또는 기본값
     final origin = flightInfo?['origin'] as String? ?? 'DXB';
     final destination = flightInfo?['destination'] as String? ?? 'ICN';
     final totalDuration = flightInfo?['total_duration'] as String? ?? '14h 15m';

@@ -986,7 +986,13 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
           
           // 타임라인 성공 시 FlightPlanPage, 실패 시 MyFlight
           if (timelineSuccess) {
-            context.go('/flight-plan');
+            // Navigator.push 사용하여 뒤로가기 스택 유지
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const FlightPlanPage(),
+              ),
+            );
           } else {
             context.go('/myflight');
           }
