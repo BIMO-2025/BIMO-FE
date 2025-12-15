@@ -946,6 +946,7 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
         print('✅ Hive에 비행 저장 완료');
         
         // 5. 타임라인 생성 API 호출 (실패해도 계속 진행)
+        bool timelineSuccess = false;
         try {
           final timelineRequest = TimelineRequest.fromFlightSearchData(
             data: selectedFlight,
@@ -957,6 +958,7 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
           if (timelineData != null) {
             print('✅ 타임라인 생성 완료');
             TimelineState().timelineData = timelineData;
+            timelineSuccess = true;
             
             // Hive에 타임라인 저장 (비행은 이미 저장됨)
             final timelineEvents = (timelineData['timeline_events'] as List<dynamic>)
@@ -975,14 +977,19 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
           print('⚠️ 타임라인 생성 실패 (비행은 저장됨): $e');
         }
         
-        // 6. MyFlight 페이지로 이동 (저장된 비행 확인)
+        // 6. 성공 여부에 따라 페이지 이동
         if (mounted) {
           setState(() {
             _isLoading = false;
           });
           _rotationController?.stop();
           
-          context.go('/myflight');
+          // 타임라인 성공 시 FlightPlanPage, 실패 시 MyFlight
+          if (timelineSuccess) {
+            context.go('/flight-plan');
+          } else {
+            context.go('/myflight');
+          }
         }
       } catch (e) {
         // 에러 처리

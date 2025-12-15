@@ -78,19 +78,40 @@ class LocalTimelineEvent extends HiveObject {
   }
 
   /// TimelineEvent (UI 모델)로 변환
-  Map<String, dynamic> toTimelineEvent() {
+  dynamic toTimelineEvent() {
+    // FlightPlanPage의 TimelineEvent 형식으로 변환
     return {
-      'id': id,
+      'icon': _mapIconTypeToAsset(iconType, type),
       'title': title,
-      'description': description,
       'time': '${_formatTime(startTime)} - ${_formatTime(endTime)}',
-      'startTime': startTime,
-      'endTime': endTime,
-      'icon': iconType,
+      'description': description,
       'isEditable': isEditable,
       'isActive': isActive,
-      'type': type,
     };
+  }
+  
+  /// icon_type을 asset 경로로 매핑 (FlightPlanPage와 동일)
+  String? _mapIconTypeToAsset(String? iconType, String? eventType) {
+    // FREE_TIME은 아이콘 없음
+    if (eventType == 'FREE_TIME') {
+      return null;
+    }
+    
+    if (iconType == null) return null;
+    
+    switch (iconType.toLowerCase()) {
+      case 'airplane_takeoff':
+      case 'airplane_landing':
+      case 'airplane':
+        return 'assets/images/myflight/airplane.png';
+      case 'meal':
+        return 'assets/images/myflight/meal.png';
+      case 'moon':
+      case 'sleep':
+        return 'assets/images/myflight/moon.png';
+      default:
+        return null;
+    }
   }
 
   String _formatTime(DateTime dt) {

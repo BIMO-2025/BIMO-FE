@@ -9,6 +9,9 @@ import '../../../core/utils/responsive_extensions.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/state/flight_state.dart';
 import '../../../core/state/timeline_state.dart';
+import '../data/repositories/local_timeline_repository.dart';
+import '../data/repositories/local_flight_repository.dart';
+import '../data/models/local_timeline_event.dart';
 import '../models/flight_model.dart';
 import 'flight_plan_end_page.dart';
 import 'myflight_page.dart';
@@ -30,8 +33,65 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
   @override
   void initState() {
     super.initState();
-    _events = _getTimelineEvents();
-    _initialEvents = List.from(_events); // 초기 상태 저장
+    _loadTimelineFromHive();
+  }
+  
+  /// Hive에서 타임라인 로드 (가장 최근 예정된 비행 우선)
+  Future<void> _loadTimelineFromHive() async {
+    try {
+      // 1. 로컬 비행 저장소 초기화
+      final localFlightRepo = LocalFlightRepository();
+      await localFlightRepo.init();
+      
+      // 2. 예정된 비행 목록 가져오기 (최신순)
+      final scheduledFlights = await localFlightRepo.getScheduledFlights();
+      
+      if (scheduledFlights.isEmpty) {
+        // Hive에 데이터 없음 → TimelineState 사용
+        print('⚠️ Hive에 예정된 비행 없음, TimelineState 사용');
+        _events = _getTimelineEvents();
+        _initialEvents = List.from(_events);
+        if (mounted) setState(() {});
+        return;
+      }
+      
+      // 3. 가장 최근 비행 선택 (departureTime 기준 정렬)
+      scheduledFlights.sort((a, b) => a.departureTime.compareTo(b.departureTime));
+      final latestFlight = scheduledFlights.first;
+      
+      // 4. 해당 비행의 타임라인 로드
+      final localTimelineRepo = LocalTimelineRepository();
+      await localTimelineRepo.init();
+      final localEvents = await localTimelineRepo.getTimeline(latestFlight.id);
+      
+      if (localEvents.isEmpty) {
+        print('⚠️ 비행 ${latestFlight.id}에 타임라인 없음, TimelineState 사용');
+        _events = _getTimelineEvents();
+      } else {
+        // 5. LocalTimelineEvent → TimelineEvent 변환
+        _events = localEvents.map((le) {
+          final data = le.toTimelineEvent() as Map<String, dynamic>;
+          return TimelineEvent(
+            icon: data['icon'] as String?,
+            title: data['title'] as String,
+            time: data['time'] as String,
+            description: data['description'] as String,
+            isEditable: data['isEditable'] as bool? ?? false,
+            isActive: data['isActive'] as bool? ?? false,
+          );
+        }).toList();
+        print('✅ Hive에서 ${localEvents.length}개 타임라인 이벤트 로드');
+      }
+      
+      _initialEvents = List.from(_events);
+      if (mounted) setState(() {});
+      
+    } catch (e) {
+      print('❌ Hive 타임라인 로드 실패: $e');
+      _events = _getTimelineEvents();
+      _initialEvents = List.from(_events);
+      if (mounted) setState(() {});
+    }
   }
 
   @override
@@ -825,8 +885,33 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
                         // 삭제 버튼
                         Expanded(
                           child: GestureDetector(
-                            onTap: () {
+                            onTap: () async {
                               Navigator.pop(context);
+                              
+                              // Hive에서 비행 및 타임라인 삭제
+                              try {
+                                final localFlightRepo = LocalFlightRepository();
+                                await localFlightRepo.init();
+                                final scheduledFlights = await localFlightRepo.getScheduledFlights();
+                                
+                                if (scheduledFlights.isNotEmpty) {
+                                  scheduledFlights.sort((a, b) => a.departureTime.compareTo(b.departureTime));
+                                  final latestFlight = scheduledFlights.first;
+                                  
+                                  // 타임라인 삭제
+                                  final localTimelineRepo = LocalTimelineRepository();
+                                  await localTimelineRepo.init();
+                                  await localTimelineRepo.deleteTimeline(latestFlight.id);
+                                  
+                                  // 비행 삭제
+                                  await localFlightRepo.deleteFlight(latestFlight.id);
+                                  
+                                  print('✅ Hive에서 비행 ${latestFlight.id} 삭제 완료');
+                                }
+                              } catch (e) {
+                                print('❌ Hive 삭제 실패: $e');
+                              }
+                              
                               // 초기화하고 나가기
                               setState(() {
                                 _events = List.from(_initialEvents);
