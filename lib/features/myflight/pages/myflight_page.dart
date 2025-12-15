@@ -75,10 +75,10 @@ class _MyFlightPageState extends State<MyFlightPage> {
           date: '${lf.departureTime.year}.${lf.departureTime.month.toString().padLeft(2, '0')}.${lf.departureTime.day.toString().padLeft(2, '0')}. (${_getWeekday(lf.departureTime)})',
           departureCode: lf.origin,
           arrivalCode: lf.destination,
-          departureCity: lf.origin,
-          arrivalCity: lf.destination,
-          departureTime: '${lf.departureTime.hour.toString().padLeft(2, '0')}:${lf.departureTime.minute.toString().padLeft(2, '0')}',
-          arrivalTime: '${lf.arrivalTime.hour.toString().padLeft(2, '0')}:${lf.arrivalTime.minute.toString().padLeft(2, '0')}',
+          departureCity: _getCityName(lf.origin), // 한국어 도시명
+          arrivalCity: _getCityName(lf.destination), // 한국어 도시명
+          departureTime: _formatTimeToAmPm(lf.departureTime), // AM/PM 형식
+          arrivalTime: _formatTimeToAmPm(lf.arrivalTime), // AM/PM 형식
           duration: lf.totalDuration,
           rating: null,
         )).toList();
@@ -614,5 +614,42 @@ class _MyFlightPageState extends State<MyFlightPage> {
   String _getWeekday(DateTime date) {
     const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
     return weekdays[date.weekday - 1];
+  }
+  
+  /// 공항 코드 → 한국어 도시명 변환
+  String _getCityName(String airportCode) {
+    const cityMap = {
+      'ICN': '인천',
+      'GMP': '김포',
+      'PUS': '부산',
+      'CJU': '제주',
+      'YYZ': '토론토',
+      'JFK': '뉴욕',
+      'LAX': '로스앤젤레스',
+      'LHR': '런던',
+      'CDG': '파리',
+      'NRT': '도쿄',
+      'HND': '도쿄',
+      'PVG': '상하이',
+      'HKG': '홍콩',
+      'SIN': '싱가포르',
+      'BKK': '방콕',
+      'SYD': '시드니',
+      'DXB': '두바이',
+      'FRA': '프랑크푸르트',
+      'AMS': '암스테르담',
+      'ORD': '시카고',
+      'SFO': '샌프란시스코',
+    };
+    return cityMap[airportCode] ?? airportCode;
+  }
+  
+  /// 시간을 AM/PM 형식으로 변환
+  String _formatTimeToAmPm(DateTime dateTime) {
+    final hour = dateTime.hour;
+    final minute = dateTime.minute;
+    final period = hour >= 12 ? 'PM' : 'AM';
+    final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+    return '${displayHour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $period';
   }
 }
