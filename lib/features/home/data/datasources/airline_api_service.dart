@@ -458,6 +458,44 @@ class AirlineApiService {
     }
   }
 
+  /// 리뷰에 좋아요 추가
+  ///
+  /// [reviewId] 리뷰 ID
+  /// Returns: 업데이트된 좋아요 수
+  Future<int> addReviewLike({
+    required String reviewId,
+  }) async {
+    try {
+      final url = '${ApiConstants.baseUrl}/reviews/$reviewId/like';
+      print('🚀 API 호출 (좋아요 추가): $url');
+
+      final response = await _apiClient.post(
+        '/reviews/$reviewId/like',
+      );
+
+      print('✅ 응답 성공 (좋아요 추가): ${response.statusCode}');
+      print('📄 응답 데이터 (좋아요 추가): ${response.data}');
+
+      if (response.statusCode == 200) {
+        final data = response.data as Map<String, dynamic>;
+        return data['likes'] as int? ?? 0;
+      } else {
+        throw Exception(
+          'Failed to add like: ${response.statusCode}',
+        );
+      }
+    } on DioException catch (e) {
+      print('❌ DioException 발생 (좋아요 추가): ${e.type}');
+      print('❌ 에러 메시지: ${e.message}');
+      print('❌ 응답: ${e.response?.data}');
+      throw _handleDioError(e);
+    } catch (e, stackTrace) {
+      print('❌ 예상치 못한 에러 (좋아요 추가): $e');
+      print('❌ 스택 트레이스: $stackTrace');
+      throw Exception('Unexpected error: $e');
+    }
+  }
+
   /// Dio 에러 핸들링
   Exception _handleDioError(DioException e) {
     switch (e.type) {

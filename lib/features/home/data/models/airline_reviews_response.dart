@@ -65,6 +65,7 @@ class ReviewItem {
   final String createdAt; // 추가
   final String? flightNumber; // 추가
   final String? seatClass; // 추가
+  final String? reviewId; // 추가 (좋아요 API용)
 
   ReviewItem({
     required this.airlineCode,
@@ -81,6 +82,7 @@ class ReviewItem {
     required this.createdAt,
     this.flightNumber,
     this.seatClass,
+    this.reviewId, // 추가
   });
 
   factory ReviewItem.fromJson(Map<String, dynamic> json) {
@@ -102,6 +104,7 @@ class ReviewItem {
       createdAt: json['createdAt'] as String? ?? '',
       flightNumber: json['flightNumber'] as String?,
       seatClass: json['seatClass'] as String?,
+      reviewId: json['id'] as String?, // API 응답에서 reviewId 파싱
     );
   }
 }
@@ -130,5 +133,15 @@ class ReviewRatings {
       seatComfort: json['seatComfort'] as int? ?? 0,
       service: json['service'] as int? ?? 0,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'checkIn': checkIn,
+      'cleanliness': cleanliness,
+      'inflightMeal': inflightMeal,
+      'seatComfort': seatComfort,
+      'service': service,
+    };
   }
 }

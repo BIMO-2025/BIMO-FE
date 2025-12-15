@@ -8,6 +8,8 @@ class Review {
   final String content;
   final List<String> images;
   final Map<String, dynamic>? detailRatings; // 카테고리별 평점 (선택사항)
+  final String? userId; // 리뷰 작성자 ID (선택사항)
+  final String? reviewId; // 리뷰 ID (선택사항, 좋아요 API용)
 
   Review({
     required this.nickname,
@@ -19,5 +21,7 @@ class Review {
     required this.content,
     required this.images,
     this.detailRatings, // 선택적 필드
+    this.userId, // 선택적 필드
+    this.reviewId, // 선택적 필드
   });
 }

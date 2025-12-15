@@ -4,6 +4,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/responsive_extensions.dart';
 import '../../domain/models/review_model.dart'; // Review 모델 import
+import '../../data/datasources/airline_api_service.dart'; // API Service import
 import 'airline_review_page.dart'; // For Review class
 
 class ReviewDetailPage extends StatefulWidget {
@@ -21,6 +22,61 @@ class ReviewDetailPage extends StatefulWidget {
 }
 
 class _ReviewDetailPageState extends State<ReviewDetailPage> {
+  final AirlineApiService _apiService = AirlineApiService();
+  late int _currentLikes; // 현재 좋아요 수
+  bool _isLiking = false; // 좋아요 처리 중
+
+  @override
+  void initState() {
+    super.initState();
+    _currentLikes = widget.review.likes;
+  }
+
+  // 좋아요 처리
+  Future<void> _handleLike() async {
+    if (widget.isMyReview || _isLiking || widget.review.reviewId == null) {
+      return; // 본인 리뷰거나 처리 중이거나 reviewId가 없으면 무시
+    }
+
+    setState(() {
+      _isLiking = true;
+    });
+
+    try {
+      final updatedLikes = await _apiService.addReviewLike(
+        reviewId: widget.review.reviewId!,
+      );
+
+      if (mounted) {
+        setState(() {
+          _currentLikes = updatedLikes;
+          _isLiking = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('좋아요가 추가되었습니다.'),
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ 좋아요 실패: $e');
+      if (mounted) {
+        setState(() {
+          _isLiking = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('좋아요 추가 실패: $e'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
   // 메뉴 버튼을 표시하는 메서드
   void _showReviewMenu(BuildContext context, Offset buttonPosition) {
     showMenu(
@@ -275,15 +331,32 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
                       ),
                     ],
                   ),
-                  Text(
-                    '좋아요 ${widget.review.likes}',
-                    style: TextStyle(
-                      fontFamily: 'Pretendard',
-                      fontSize: context.fs(14),
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.yellow1,
+                  // 좋아요 표시 (본인 리뷰는 회색으로 비활성화, 다른 사람 리뷰는 클릭 가능)
+                  if (!widget.isMyReview)
+                    GestureDetector(
+                      onTap: _handleLike,
+                      child: Text(
+                        '좋아요 $_currentLikes',
+                        style: TextStyle(
+                          fontFamily: 'Pretendard',
+                          fontSize: context.fs(14),
+                          fontWeight: FontWeight.w500,
+                          color: _isLiking 
+                              ? AppColors.yellow1.withOpacity(0.5) 
+                              : AppColors.yellow1,
+                        ),
+                      ),
+                    )
+                  else
+                    Text(
+                      '좋아요 $_currentLikes',
+                      style: TextStyle(
+                        fontFamily: 'Pretendard',
+                        fontSize: context.fs(14),
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.yellow1, // 연두색으로 표시
+                      ),
                     ),
-                  ),
                 ],
               ),
               SizedBox(height: context.h(16)),

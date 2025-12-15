@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/responsive_extensions.dart';
 import '../../../../core/utils/airline_name_mapper.dart'; // AirlineNameMapper import
+import '../../../../core/storage/auth_token_storage.dart'; // AuthTokenStorage import
 import '../../domain/models/airline.dart';
 import '../../domain/models/review_model.dart'; // Review 모델 import
 import '../../data/datasources/airline_api_service.dart';
@@ -35,6 +36,7 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
   bool _isLoading = true;
   List<ReviewItem> _apiReviews = [];
   AirlineReviewsResponse? _reviewsResponse;
+  String? _currentUserId; // 현재 로그인한 사용자 ID
 
   // Mock Data for Reviews (fallback)
   final List<Review> _reviews = [
@@ -73,7 +75,16 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
   @override
   void initState() {
     super.initState();
+    _loadCurrentUserId();
     _loadReviews();
+  }
+
+  Future<void> _loadCurrentUserId() async {
+    final storage = AuthTokenStorage();
+    final userInfo = await storage.getUserInfo();
+    setState(() {
+      _currentUserId = userInfo['userId'];
+    });
   }
 
   Future<void> _loadReviews() async {
@@ -85,7 +96,7 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
       final response = await _apiService.getAirlineReviews(
         airlineCode: widget.airline.code,
         sort: _getSortParam(_selectedSort),
-        limit: 20,
+        limit: 100, // 리뷰 개수 제한 증가
         offset: 0,
       );
 
@@ -235,25 +246,48 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
                 children: List.generate(5, (index) {
                   double roundedRating = (rating * 2).round() / 2;
                   
-                  IconData icon;
-                  Color color;
-
+                  // 전체 별
                   if (roundedRating >= index + 1) {
-                    icon = Icons.star;
-                    color = AppColors.yellow1;
-                  } else if (roundedRating >= index + 0.5) {
-                    icon = Icons.star_half;
-                    color = AppColors.yellow1;
-                  } else {
-                    icon = Icons.star;
-                    color = Colors.white.withOpacity(0.5);
+                    return Icon(
+                      Icons.star,
+                      color: AppColors.yellow1,
+                      size: context.w(20),
+                    );
+                  } 
+                  // 반 별 (테두리 없이)
+                  else if (roundedRating >= index + 0.5) {
+                    return SizedBox(
+                      width: context.w(20),
+                      height: context.w(20),
+                      child: Stack(
+                        children: [
+                          // 배경 (회색 별)
+                          Icon(
+                            Icons.star,
+                            color: Colors.white.withOpacity(0.5),
+                            size: context.w(20),
+                          ),
+                          // 반만 채워진 노란색 별
+                          ClipRect(
+                            clipper: _HalfClipper(),
+                            child: Icon(
+                              Icons.star,
+                              color: AppColors.yellow1,
+                              size: context.w(20),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  } 
+                  // 빈 별
+                  else {
+                    return Icon(
+                      Icons.star,
+                      color: Colors.white.withOpacity(0.5),
+                      size: context.w(20),
+                    );
                   }
-
-                  return Icon(
-                    icon,
-                    color: color,
-                    size: context.w(20),
-                  );
                 }),
               ),
             ],
@@ -352,6 +386,9 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
           tags: tags,
           content: apiReview.text,
           images: apiReview.imageUrls,
+          userId: apiReview.userId, // userId 추가
+          detailRatings: apiReview.ratings.toJson(), // 세부 평점 (Map으로 변환)
+          reviewId: apiReview.reviewId, // reviewId 추가 (좋아요 API용)
         );
       }).toList();
     } else {
@@ -652,6 +689,9 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
           tags: tags,
           content: apiReview.text,
           images: apiReview.imageUrls, // 이미지 URL 리스트 연결
+          userId: apiReview.userId, // userId 추가
+          detailRatings: apiReview.ratings.toJson(), // 세부 평점 (Map으로 변환)
+          reviewId: apiReview.reviewId, // reviewId 추가 (좋아요 API용)
         );
       }).toList();
     } else {
@@ -667,7 +707,12 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
       separatorBuilder: (context, index) => SizedBox(height: context.h(12)),
       itemBuilder: (context, index) {
         final review = displayReviews[index];
-        return ReviewCard(review: review);
+        // 현재 사용자의 리뷰인지 확인
+        final isMyReview = _currentUserId != null && review.userId == _currentUserId;
+        return ReviewCard(
+          review: review,
+          isMyReview: isMyReview, // 본인 리뷰면 신고하기 버튼 숨김
+        );
       },
     );
   }
@@ -686,4 +731,15 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
     return number.toString().replaceAllMapped(
         RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},');
   }
+}
+
+/// Custom clipper to show half of a star
+class _HalfClipper extends CustomClipper<Rect> {
+  @override
+  Rect getClip(Size size) {
+    return Rect.fromLTRB(0, 0, size.width / 2, size.height);
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Rect> oldClipper) => false;
 }
