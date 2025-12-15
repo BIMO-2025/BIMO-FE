@@ -313,9 +313,13 @@ class _MyFlightPageState extends State<MyFlightPage> {
       print('📅 타임라인 로드: ${events.length}개 이벤트');
       
       // LocalTimelineEvent → Map 변환
-      return events.map((e) => {
-        'title': e.title,
-        'duration': e.durationMinutes, // duration이 아니라 durationMinutes
+      return events.map((e) {
+        // startTime과 endTime으로 duration 계산 (분 단위)
+        final duration = e.endTime.difference(e.startTime).inMinutes;
+        return {
+          'title': e.title,
+          'duration': duration,
+        };
       }).toList();
     } catch (e) {
       print('⚠️ 타임라인 로드 실패: $e');
