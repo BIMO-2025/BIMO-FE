@@ -17,6 +17,8 @@ import 'past_flights_list_page.dart';
 import 'ticket_verification_camera_page.dart';
 import '../../home/presentation/pages/home_page.dart';
 import '../../../../core/utils/responsive_extensions.dart';
+import '../../../../core/storage/auth_token_storage.dart';
+import '../data/repositories/flight_repository.dart';
 
 /// MyFlight 메인 페이지
 class MyFlightPage extends StatefulWidget {
@@ -32,6 +34,44 @@ class _MyFlightPageState extends State<MyFlightPage> {
   int _currentPastPage = 0; // 지난 비행 현재 페이지
   final bool _hasUnreadNotifications = false; // 알림 상태 (홈과 동일하게 관리)
   bool _isOfflineMode = true; // 오프라인 모드 (테스트용)
+  bool _isLoading = false; // 로딩 상태
+
+  @override
+  void initState() {
+    super.initState();
+    _loadScheduledFlights();
+  }
+
+  /// 예정된 비행 목록 불러오기
+  Future<void> _loadScheduledFlights() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final storage = AuthTokenStorage();
+      final userInfo = await storage.getUserInfo();
+      final userId = userInfo['userId'];
+
+      if (userId != null && userId.isNotEmpty) {
+        final repository = FlightRepository();
+        final flights = await repository.getMyFlights(userId, status: 'scheduled');
+        
+        // FlightState 업데이트
+        FlightState().scheduledFlights = flights;
+        
+        print('✅ ${flights.length}개 예정된 비행 로드 완료');
+      }
+    } catch (e) {
+      print('❌ 비행 목록 로드 실패: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

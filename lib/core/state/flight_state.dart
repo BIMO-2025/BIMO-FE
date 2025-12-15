@@ -17,6 +17,13 @@ class FlightState extends ChangeNotifier {
   // 예정된 비행 목록 getter
   List<Flight> get scheduledFlights => List.unmodifiable(_scheduledFlights);
   
+  // 예정된 비행 목록 setter (API 응답으로 전체 교체)
+  set scheduledFlights(List<Flight> flights) {
+    _scheduledFlights.clear();
+    _scheduledFlights.addAll(flights);
+    notifyListeners();
+  }
+  
   // 비행 추가
   void addFlight(Flight flight) {
     _scheduledFlights.add(flight);

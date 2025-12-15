@@ -3,71 +3,9 @@ import '../../../home/data/models/flight_search_response.dart';
 /// 비행 저장 API 요청 모델
 /// POST /users/{userId}/my-flights
 /// 
-/// IMPORTANT: 이 API는 "value" 래퍼 구조를 사용합니다:
-/// {
-///   "description": "...",
-///   "value": { /* 실제 데이터 */ }
-/// }
+/// IMPORTANT: Flat 구조 사용 (value wrapper 없음)
 class CreateFlightRequest {
   final String description;
-  final FlightValue value;
-
-  CreateFlightRequest({
-    required this.description,
-    required this.value,
-  });
-
-  /// FlightSearchData에서 CreateFlightRequest 생성
-  factory CreateFlightRequest.fromFlightSearchData(FlightSearchData data) {
-    // FlightSearchData는 departure/arrival이 FlightEndpoint 타입
-    // segments가 List<FlightSegment>?
-    
-    // 출발/도착 시간 (ISO 8601 형식, Z 포함 필수)
-    // API가 Z 없이 주면 수동으로 추가
-    String ensureZ(String time) => time.endsWith('Z') ? time : '${time}Z';
-    
-    final departureTime = ensureZ(data.departure.time);
-    final arrivalTime = ensureZ(data.arrival.time);
-    
-    // Segments 변환 (segments가 있으면)
-    final segments = (data.segments ?? []).map((seg) => FlightSegmentRequest(
-      operatingCarrier: seg.carrierCode,
-      flightNumber: seg.number, // 'number' 필드 사용
-      duration: seg.duration, // 이미 "XhYm" 형식 문자열
-      departure: SegmentPoint(
-        at: ensureZ(seg.departureTime), // Z 보장
-        iataCode: seg.departureAirport,
-      ),
-      arrival: SegmentPoint(
-        at: ensureZ(seg.arrivalTime), // Z 보장
-        iataCode: seg.arrivalAirport,
-      ),
-    )).toList();
-
-    return CreateFlightRequest(
-      description: '${data.departure.airport}-${data.arrival.airport} Flight',
-      value: FlightValue(
-        departureAirport: data.departure.airport,
-        departureTime: departureTime,
-        arrivalAirport: data.arrival.airport,
-        arrivalTime: arrivalTime,
-        hasStopover: (data.segments?.length ?? 1) > 1,
-        status: 'scheduled',
-        segments: segments,
-      ),
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'description': description,
-      'value': value.toJson(),
-    };
-  }
-}
-
-/// 실제 비행 데이터 (value 필드 안에 들어가는 내용)
-class FlightValue {
   final String departureAirport;
   final String departureTime;
   final String arrivalAirport;
@@ -76,7 +14,8 @@ class FlightValue {
   final String status;
   final List<FlightSegmentRequest> segments;
 
-  FlightValue({
+  CreateFlightRequest({
+    required this.description,
     required this.departureAirport,
     required this.departureTime,
     required this.arrivalAirport,
@@ -86,20 +25,56 @@ class FlightValue {
     required this.segments,
   });
 
+  /// FlightSearchData에서 CreateFlightRequest 생성
+  factory CreateFlightRequest.fromFlightSearchData(FlightSearchData data) {
+    // 출발/도착 시간 (ISO 8601 형식, Z 포함 필수)
+    String ensureZ(String time) => time.endsWith('Z') ? time : '${time}Z';
+    
+    final departureTime = ensureZ(data.departure.time);
+    final arrivalTime = ensureZ(data.arrival.time);
+    
+    // Segments 변환
+    final segments = (data.segments ?? []).map((seg) => FlightSegmentRequest(
+      operatingCarrier: seg.carrierCode,
+      flightNumber: seg.number,
+      duration: seg.duration,
+      departure: SegmentPoint(
+        at: ensureZ(seg.departureTime),
+        iataCode: seg.departureAirport,
+      ),
+      arrival: SegmentPoint(
+        at: ensureZ(seg.arrivalTime),
+        iataCode: seg.arrivalAirport,
+      ),
+    )).toList();
+
+    return CreateFlightRequest(
+      description: '${data.departure.airport}-${data.arrival.airport} Flight',
+      departureAirport: data.departure.airport,
+      departureTime: departureTime,
+      arrivalAirport: data.arrival.airport,
+      arrivalTime: arrivalTime,
+      hasStopover: (data.segments?.length ?? 1) > 1,
+      status: 'scheduled',
+      segments: segments,
+    );
+  }
+
   Map<String, dynamic> toJson() {
     return {
-      'arrivalAirport': arrivalAirport, // API 스펙 순서: arrival 먼저
-      'arrivalTime': arrivalTime,
+      'description': description,
       'departureAirport': departureAirport,
       'departureTime': departureTime,
+      'arrivalAirport': arrivalAirport,
+      'arrivalTime': arrivalTime,
       'hasStopover': hasStopover,
-      'segments': segments.map((s) => s.toJson()).toList(),
       'status': status,
+      'segments': segments.map((s) => s.toJson()).toList(),
     };
   }
 }
 
-/// 비행 세그먼트 정보 (요청용)
+/// 비행 세그먼트 정보
 class FlightSegmentRequest {
   final String operatingCarrier;
   final String flightNumber;

@@ -965,16 +965,7 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
           children: [
             // 회전하는 비행기 아이콘 (잔상 효과)
             _buildRotatingAirplane(),
-            const SizedBox(height: 8), // 로딩 컨테이너와 글자 간격 8px
-            // 안내 텍스트
-            Text(
-              // 1단계에서 넘어갈 때(검색 중) vs 2단계에서 넘어갈 때(생성 중)
-              _currentStep == 1 
-                  ? 'BIMO가\n비행편을 확인 중이에요' 
-                  : '최적의 비행 플랜을\n생성 중입니다',
-              textAlign: TextAlign.center,
-              style: AppTextStyles.large.copyWith(color: Colors.white),
-            ),
+            // 텍스트 제거 - 모든 로딩에서 동일한 UI 사용
           ],
         ),
       ),

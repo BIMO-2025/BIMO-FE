@@ -111,6 +111,9 @@ class _ApiInterceptor extends Interceptor {
     final token = await storage.getAccessToken();
     if (token != null) {
       options.headers['Authorization'] = 'Bearer $token';
+      print('🔑 Authorization 헤더 추가됨: Bearer ${token.substring(0, 20)}...');
+    } else {
+      print('⚠️ Access Token 없음');
     }
 
     print('🚀 REQUEST[${options.method}] => PATH: ${options.path}');
@@ -127,6 +130,11 @@ class _ApiInterceptor extends Interceptor {
   void onError(DioException err, ErrorInterceptorHandler handler) async {
     print('❌ ERROR[${err.response?.statusCode}] => PATH: ${err.requestOptions.path}');
     print('❌ ERROR MESSAGE: ${err.message}');
+    
+    // 에러 응답 body 출력 (validation 에러 메시지 확인용)
+    if (err.response?.data != null) {
+      print('❌ ERROR RESPONSE: ${err.response?.data}');
+    }
 
     // 401 에러이고, 토큰 갱신 요청이 아닌 경우
     if (err.response?.statusCode == 401 && !err.requestOptions.path.contains('refresh')) {

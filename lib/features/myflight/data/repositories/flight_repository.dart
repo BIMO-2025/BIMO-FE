@@ -1,28 +1,19 @@
 import 'package:dio/dio.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/utils/airport_keyword_mapper.dart';
+import '../../../../core/network/api_client.dart'; // ApiClient 추가
 import '../../../home/domain/models/airport.dart';
 import '../../../home/data/models/flight_search_response.dart';
 import '../models/create_flight_request.dart';
 import '../models/timeline_request.dart';
+import '../../models/flight_model.dart'; // Flight 모델 추가
 
 /// 비행 관련 데이터 리포지토리
 class FlightRepository {
   final Dio _dio;
 
   FlightRepository({Dio? dio})
-      : _dio = dio ??
-            Dio(
-              BaseOptions(
-                baseUrl: ApiConstants.baseUrl,
-                connectTimeout: const Duration(seconds: 30),
-                receiveTimeout: const Duration(seconds: 30),
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Accept': 'application/json',
-                },
-              ),
-            );
+      : _dio = dio ?? ApiClient().dio; // ApiClient의 dio 사용 (Authorization 헤더 포함)
 
   String _inferCountry(String englishCity, String iataCode) {
     if (['Seoul', 'Incheon', 'Busan', 'Jeju', 'Gimpo'].contains(englishCity) || 
@@ -303,7 +294,7 @@ class FlightRepository {
         data: request.toJson(),
       );
       
-      if (response.statusCode == 201) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         print('✅ 비행 저장 성공');
       } else {
         throw Exception('비행 저장 실패: ${response.statusCode}');
@@ -334,6 +325,155 @@ class FlightRepository {
     } catch (e) {
       print('❌ 타임라인 생성 에러: $e');
       rethrow;
+    }
+  }
+
+  /// 내 비행 목록 조회
+  /// GET /users/{userId}/my-flights
+  Future<List<Flight>> getMyFlights(String userId, {String status = 'scheduled'}) async {
+    try {
+      print('🚀 내 비행 목록 조회 API 호출');
+      
+      final response = await _dio.get(
+        '/users/$userId/my-flights',
+        queryParameters: {'status': status},
+      );
+      
+      if (response.statusCode == 200) {
+        final List<dynamic> data = response.data as List<dynamic>;
+        print('✅ ${data.length}개 비행 조회 완료');
+        
+        // API 응답을 Flight 모델로 변환
+        return data.map((item) => _convertToFlightModel(item)).toList();
+      } else {
+        throw Exception('비행 목록 조회 실패: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('❌ 비행 목록 조회 에러: $e');
+      return []; // 에러 시 빈 리스트 반환
+    }
+  }
+
+  /// API 응답을 Flight 모델로 변환
+  Flight _convertToFlightModel(Map<String, dynamic> json) {
+    final value = json['value'] as Map<String, dynamic>;
+    
+    // 공항 코드
+    final departureCode = value['departureAirport'] as String;
+    final arrivalCode = value['arrivalAirport'] as String;
+    
+    // 도시 이름 (공항 코드를 그대로 사용 - UI에서 매핑 가능하면 매핑)
+    final departureCity = _inferCityName(departureCode);
+    final arrivalCity = _inferCityName(arrivalCode);
+    
+    // 시간 파싱
+    final departureTime = _formatTime(value['departureTime'] as String);
+    final arrivalTime = _formatTime(value['arrivalTime'] as String);
+    
+    // Duration 계산
+    final duration = _calculateDuration(value);
+    
+    // 날짜 포맷
+    final date = _formatDate(value['departureTime'] as String);
+    
+    return Flight(
+      departureCode: departureCode,
+      departureCity: departureCity,
+      arrivalCode: arrivalCode,
+      arrivalCity: arrivalCity,
+      duration: duration,
+      departureTime: departureTime,
+      arrivalTime: arrivalTime,
+      rating: null, // 예정된 비행은 rating 없음
+      date: date,
+    );
+  }
+
+  /// 공항 코드에서 도시 이름 추론
+  String _inferCityName(String iataCode) {
+    const cityMap = {
+      'ICN': '인천',
+      'GMP': '김포',
+      'PUS': '부산',
+      'CJU': '제주',
+      'NRT': '도쿄',
+      'HND': '도쿄',
+      'JFK': '뉴욕',
+      'LAX': '로스앤젤레스',
+      'YYZ': '토론토',
+      'LHR': '런던',
+      'CDG': '파리',
+      'DXB': '두바이',
+    };
+    
+    return cityMap[iataCode] ?? iataCode;
+  }
+
+  /// ISO 8601 시간을 "HH:MM AM/PM" 형식으로 변환
+  String _formatTime(String isoTime) {
+    try {
+      final dt = DateTime.parse(isoTime);
+      final hour = dt.hour;
+      final minute = dt.minute;
+      final period = hour >= 12 ? 'PM' : 'AM';
+      final hour12 = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+      
+      return '${hour12.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $period';
+    } catch (e) {
+      return isoTime;
+    }
+  }
+
+  /// Duration 계산
+  String _calculateDuration(Map<String, dynamic> value) {
+    try {
+      final segments = value['segments'] as List<dynamic>?;
+      if (segments != null && segments.isNotEmpty) {
+        // segments의 duration을 합산
+        int totalMinutes = 0;
+        for (var seg in segments) {
+          final duration = seg['duration'] as String;
+          totalMinutes += _parseDurationToMinutes(duration);
+        }
+        
+        final hours = totalMinutes ~/ 60;
+        final minutes = totalMinutes % 60;
+        return '${hours}h ${minutes}m';
+      }
+      
+      // segments가 없으면 시간 차이로 계산
+      final departure = DateTime.parse(value['departureTime'] as String);
+      final arrival = DateTime.parse(value['arrivalTime'] as String);
+      final diff = arrival.difference(departure);
+      
+      return '${diff.inHours}h ${diff.inMinutes % 60}m';
+    } catch (e) {
+      return '0h 0m';
+    }
+  }
+
+  /// Duration 문자열을 분으로 변환 (예: "13H30M" -> 810)
+  int _parseDurationToMinutes(String duration) {
+    final regex = RegExp(r'(\d+)H(\d+)?M?');
+    final match = regex.firstMatch(duration);
+    if (match != null) {
+      final hours = int.tryParse(match.group(1) ?? '0') ?? 0;
+      final minutes = int.tryParse(match.group(2) ?? '0') ?? 0;
+      return hours * 60 + minutes;
+    }
+    return 0;
+  }
+
+  /// 날짜를 "YYYY.MM.DD. (요일)" 형식으로 변환
+  String _formatDate(String isoTime) {
+    try {
+      final dt = DateTime.parse(isoTime);
+      const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
+      final weekday = weekdays[dt.weekday % 7];
+      
+      return '${dt.year}.${dt.month.toString().padLeft(2, '0')}.${dt.day.toString().padLeft(2, '0')}. ($weekday)';
+    } catch (e) {
+      return '';
     }
   }
 }

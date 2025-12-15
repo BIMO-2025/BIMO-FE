@@ -14,6 +14,7 @@ class ApiConstants {
   static const String login = '${_apiPrefix}auth/login';
   static const String logout = '${_apiPrefix}auth/logout';
   static const String register = '${_apiPrefix}auth/register';
+  static const String refresh = '${_apiPrefix}auth/refresh'; // 토큰 갱신
 
   // 사용자 관련
   static const String userProfile = '${_apiPrefix}user/profile';
