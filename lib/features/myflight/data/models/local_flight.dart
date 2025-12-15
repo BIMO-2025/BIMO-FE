@@ -35,6 +35,9 @@ class LocalFlight extends HiveObject {
   @HiveField(9)
   String? seatClass; // ECONOMY, etc.
 
+  @HiveField(10)
+  bool forceInProgress; // 테스트용: 강제로 진행 중 상태
+
   LocalFlight({
     required this.id,
     required this.origin,
@@ -46,10 +49,16 @@ class LocalFlight extends HiveObject {
     required this.lastModified,
     this.flightGoal,
     this.seatClass,
+    this.forceInProgress = false,
   });
 
-  /// 비행 상태 계산
+  /// 비행 상태 계산 (테스트 모드 지원)
   String calculateStatus() {
+    // 테스트 모드: 강제로 진행 중
+    if (forceInProgress) {
+      return 'inProgress';
+    }
+    
     final now = DateTime.now();
     if (now.isBefore(departureTime)) {
       return 'scheduled';

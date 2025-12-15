@@ -252,41 +252,84 @@ class _MyFlightPageState extends State<MyFlightPage> {
           const SizedBox(height: 100), // 하단 여백 (탭바 공간)
         ],
       ),
-    );
-  }
-
   /// 진행 중인 비행 섹션 (오프라인 모드)
   Widget _buildInFlightSection() {
-    // 더미 데이터 (실제로는 FlightState에서 가져와야 함)
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const FlightPlanPage(),
+    return FutureBuilder<LocalFlight?>(
+      future: _getInProgressFlight(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data == null) {
+          return const SizedBox.shrink(); // 진행 중인 비행 없으면 숨김
+        }
+        
+        final flight = snapshot.data!;
+        
+        return GestureDetector(
+          onTap: () async {
+            // 진행 중 비행 클릭 → 읽기 전용 FlightPlanPage
+            final localFlightRepo = LocalFlightRepository();
+            await localFlightRepo.init();
+            
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const FlightPlanPage(
+                  isReadOnly: true, // 편집 불가 모드
+                ),
+              ),
+            );
+          },
+          child: InFlightProgressWidget(
+            departureCode: flight.origin,
+            departureCity: _getCityName(flight.origin),
+            arrivalCode: flight.destination,
+            arrivalCity: _getCityName(flight.destination),
+            departureTime: _formatTimeToAmPm(flight.departureTime),
+            arrivalTime: _formatTimeToAmPm(flight.arrivalTime),
+            totalDurationMinutes: _parseDurationToMinutes(flight.totalDuration),
+            departureDateTime: flight.departureTime,
+            timeline: [], // TODO: 타임라인 데이터 로드
           ),
         );
       },
-      child: InFlightProgressWidget(
-        departureCode: 'DXB',
-        departureCity: '두바이',
-        arrivalCode: 'INC',
-        arrivalCity: '인천',
-        departureTime: '09:00',
-        arrivalTime: '19:40',
-        totalDurationMinutes: 870, // 14h 30m
-        departureDateTime: DateTime.now(), // 실제로는 비행 출발 시간
-        timeline: [
-          {'title': '비행기 탑승', 'duration': 30},
-          {'title': '이륙 및 안정', 'duration': 60},
-          {'title': '첫 번째 가능한 활동 (비빔밥 or 볼로기)', 'duration': 90},
-          {'title': '휴식 시간', 'duration': 120},
-          {'title': '영화 감상', 'duration': 90},
-          {'title': '두 번째 식사', 'duration': 60},
-          {'title': '착륙 준비', 'duration': 420},
-        ],
-      ),
     );
+  }
+  
+  /// 진행 중인 비행 가져오기
+  Future<LocalFlight?> _getInProgressFlight() async {
+    try {
+      final localFlightRepo = LocalFlightRepository();
+      await localFlightRepo.init();
+      final flights = await localFlightRepo.getAllFlights();
+      
+      // status가 inProgress이거나 forceInProgress인 비행 찾기
+      for (var flight in flights) {
+        final status = flight.calculateStatus();
+        if (status == 'inProgress') {
+          return flight;
+        }
+      }
+      
+      return null;
+    } catch (e) {
+      print('⚠️ 진행 중 비행 로드 실패: $e');
+      return null;
+    }
+  }
+  
+  /// Duration 문자열을 분으로 변환 (예: "13h 0m" → 780)
+  int _parseDurationToMinutes(String duration) {
+    final parts = duration.split(' ');
+    int totalMinutes = 0;
+    
+    for (var part in parts) {
+      if (part.contains('h')) {
+        totalMinutes += int.parse(part.replaceAll('h', '')) * 60;
+      } else if (part.contains('m')) {
+        totalMinutes += int.parse(part.replaceAll('m', ''));
+      }
+    }
+    
+    return totalMinutes;
   }
 
   /// 예정된 비행 섹션
