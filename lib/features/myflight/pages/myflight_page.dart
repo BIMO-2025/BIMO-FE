@@ -31,7 +31,8 @@ class MyFlightPage extends StatefulWidget {
 }
 
 class _MyFlightPageState extends State<MyFlightPage> {
-  int _selectedTabIndex = 1; // MyFlight 탭 (index 1)
+  int _selectedTabIndex = 0; // 0: 마이 플라이트, 1: 지난 비행
+  Map<int, String> _flightIdMap = {}; // 인덱스 → 비행 ID 매핑
   int _currentScheduledPage = 0; // 예정된 비행 현재 페이지
   int _currentPastPage = 0; // 지난 비행 현재 페이지
   final bool _hasUnreadNotifications = false; // 알림 상태 (홈과 동일하게 관리)
@@ -70,18 +71,26 @@ class _MyFlightPageState extends State<MyFlightPage> {
       final localFlights = await localFlightRepo.getScheduledFlights();
       
       if (localFlights.isNotEmpty) {
-        // Hive에서 Flight 모델로 변환
-        final flights = localFlights.map((lf) => Flight(
-          date: '${lf.departureTime.year}.${lf.departureTime.month.toString().padLeft(2, '0')}.${lf.departureTime.day.toString().padLeft(2, '0')}. (${_getWeekday(lf.departureTime)})',
-          departureCode: lf.origin,
-          arrivalCode: lf.destination,
-          departureCity: _getCityName(lf.origin), // 한국어 도시명
-          arrivalCity: _getCityName(lf.destination), // 한국어 도시명
-          departureTime: _formatTimeToAmPm(lf.departureTime), // AM/PM 형식
-          arrivalTime: _formatTimeToAmPm(lf.arrivalTime), // AM/PM 형식
-          duration: lf.totalDuration,
-          rating: null,
-        )).toList();
+        // Hive에서 Flight 모델로 변환 + ID 매핑 저장
+        _flightIdMap.clear();
+        final flights = <Flight>[];
+        
+        for (int i = 0; i < localFlights.length; i++) {
+          final lf = localFlights[i];
+          _flightIdMap[i] = lf.id; // 인덱스 → ID 매핑
+          
+          flights.add(Flight(
+            date: '${lf.departureTime.year}.${lf.departureTime.month.toString().padLeft(2, '0')}.${lf.departureTime.day.toString().padLeft(2, '0')}. (${_getWeekday(lf.departureTime)})',
+            departureCode: lf.origin,
+            arrivalCode: lf.destination,
+            departureCity: _getCityName(lf.origin), // 한국어 도시명
+            arrivalCity: _getCityName(lf.destination), // 한국어 도시명
+            departureTime: _formatTimeToAmPm(lf.departureTime), // AM/PM 형식
+            arrivalTime: _formatTimeToAmPm(lf.arrivalTime), // AM/PM 형식
+            duration: lf.totalDuration,
+            rating: null,
+          ));
+        }
         
         FlightState().scheduledFlights = flights;
         print('✅ Hive에서 ${localFlights.length}개 비행 로드 완료');
@@ -397,7 +406,9 @@ class _MyFlightPageState extends State<MyFlightPage> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const FlightPlanPage(),
+                                builder: (context) => FlightPlanPage(
+                                  flightId: _flightIdMap[index], // 해당 비행 ID 전달
+                                ),
                               ),
                             );
                           },

@@ -18,17 +18,19 @@ import 'myflight_page.dart';
 
 /// 비행 플랜 페이지
 class FlightPlanPage extends StatefulWidget {
-  const FlightPlanPage({super.key});
+  final String? flightId; // 표시할 비행 ID (null이면 최신 비행)
+  
+  const FlightPlanPage({super.key, this.flightId});
 
   @override
   State<FlightPlanPage> createState() => _FlightPlanPageState();
 }
 
 class _FlightPlanPageState extends State<FlightPlanPage> {
-  late List<TimelineEvent> _events;
+  List<TimelineEvent> _events = []; // 빈 리스트로 초기화
   TimelineEvent? _selectedEvent; // 선택된 이벤트 (하나만)
   bool _showMoreOptions = false; // 더보기 옵션 메뉴 표시 여부
-  late List<TimelineEvent> _initialEvents; // 초기 타임라인 (AI 초기화용)
+  List<TimelineEvent> _initialEvents = []; // 초기 타임라인 (AI 초기화용)
 
   @override
   void initState() {
@@ -43,32 +45,34 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
       final localFlightRepo = LocalFlightRepository();
       await localFlightRepo.init();
       
-      // 2. 예정된 비행 목록 가져오기 (최신순)
-      final scheduledFlights = await localFlightRepo.getScheduledFlights();
+      String? targetFlightId = widget.flightId;
       
-      if (scheduledFlights.isEmpty) {
-        // Hive에 데이터 없음 → TimelineState 사용
-        print('⚠️ Hive에 예정된 비행 없음, TimelineState 사용');
-        _events = _getTimelineEvents();
-        _initialEvents = List.from(_events);
-        if (mounted) setState(() {});
-        return;
+      // 2. flightId가 제공되지 않으면 가장 최근 비행 탐색
+      if (targetFlightId == null) {
+        final scheduledFlights = await localFlightRepo.getScheduledFlights();
+        
+        if (scheduledFlights.isEmpty) {
+          print('⚠️ Hive에 예정된 비행 없음, TimelineState 사용');
+          _events = _getTimelineEvents();
+          _initialEvents = List.from(_events);
+          if (mounted) setState(() {});
+          return;
+        }
+        
+        scheduledFlights.sort((a, b) => a.departureTime.compareTo(b.departureTime));
+        targetFlightId = scheduledFlights.first.id;
       }
       
-      // 3. 가장 최근 비행 선택 (departureTime 기준 정렬)
-      scheduledFlights.sort((a, b) => a.departureTime.compareTo(b.departureTime));
-      final latestFlight = scheduledFlights.first;
-      
-      // 4. 해당 비행의 타임라인 로드
+      // 3. 해당 비행의 타임라인 로드
       final localTimelineRepo = LocalTimelineRepository();
       await localTimelineRepo.init();
-      final localEvents = await localTimelineRepo.getTimeline(latestFlight.id);
+      final localEvents = await localTimelineRepo.getTimeline(targetFlightId);
       
       if (localEvents.isEmpty) {
-        print('⚠️ 비행 ${latestFlight.id}에 타임라인 없음, TimelineState 사용');
+        print('⚠️ 비행 $targetFlightId에 타임라인 없음, TimelineState 사용');
         _events = _getTimelineEvents();
       } else {
-        // 5. LocalTimelineEvent → TimelineEvent 변환
+        // 4. LocalTimelineEvent → TimelineEvent 변환
         _events = localEvents.map((le) {
           final data = le.toTimelineEvent() as Map<String, dynamic>;
           return TimelineEvent(
@@ -80,7 +84,7 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
             isActive: data['isActive'] as bool? ?? false,
           );
         }).toList();
-        print('✅ Hive에서 ${localEvents.length}개 타임라인 이벤트 로드');
+        print('✅ Hive에서 비행 $targetFlightId의 ${localEvents.length}H 타임라인 이벤트 로드');
       }
       
       _initialEvents = List.from(_events);
@@ -145,7 +149,10 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
             left: context.w(20),
             top: context.h(21),
             child: GestureDetector(
-              onTap: () => Navigator.pop(context),
+              onTap: () {
+                print('🔙 FlightPlanPage 뒤로가기 버튼 클릭');
+                Navigator.pop(context);
+              },
               child: Container(
                 width: 40,
                 height: 40,
