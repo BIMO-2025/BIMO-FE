@@ -316,7 +316,7 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
 
             return Padding(
               padding: EdgeInsets.only(
-                bottom: index < events.length - 1 ? context.h(4) : 0,
+                bottom: index < events.length - 1 ? context.h(8) : 0,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
