@@ -814,9 +814,12 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
                         isFirst: false,
                         isLast: false,
                         onTap: () {
+                          print('🔍 [DEBUG] 플랜 저장하기 버튼 클릭');
                           setState(() {
                             _showMoreOptions = false;
                           });
+                          
+                          print('🔍 [DEBUG] 네비게이션 전 - context.go(\'/home\') 호출 예정');
                           
                           // FlightState에 비행 추가 (더미 데이터, 실제로는 현재 비행 정보 사용)
                           final newFlight = Flight(
@@ -830,8 +833,10 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
                           );
                           FlightState().addFlight(newFlight);
                           
+                          print('🔍 [DEBUG] context.go(\'/home\') 호출 시작');
                           // 홈으로 이동 (탭바 유지)
                           context.go('/home');
+                          print('🔍 [DEBUG] context.go(\'/home\') 호출 완료');
                           
                           // 저장 성공 메시지
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -2049,8 +2054,8 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
     return result ?? false;
   }
 
-  /// 플랜 업데이트 실행 (겹침 처리 포함)
-  void _executePlanUpdate({
+  /// 플랜 업데이트  /// 겹침 처리 후 이벤트 추가 및 Hive 저장
+  Future<void> _processAndSaveTimeline({
     TimelineEvent? originalEvent,
     required String title,
     required String startTime,
@@ -2059,7 +2064,7 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
     required int newStart,
     required int newEnd,
     required List<TimelineEvent> overlappingEvents,
-  }) {
+  }) async {
     setState(() {
       // 1. 수정 모드일 경우 원본 이벤트의 남는 시간 처리
       if (originalEvent != null) {
