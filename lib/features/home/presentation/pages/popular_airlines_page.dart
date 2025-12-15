@@ -3,7 +3,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/responsive_extensions.dart';
 import '../../data/datasources/airline_api_service.dart';
-import '../../data/models/airline_sorting_response.dart';
+import '../../data/models/popular_airline_response.dart';
 
 /// 인기 항공사 전체 목록 페이지
 class PopularAirlinesPage extends StatefulWidget {
@@ -15,7 +15,7 @@ class PopularAirlinesPage extends StatefulWidget {
 
 class _PopularAirlinesPageState extends State<PopularAirlinesPage> {
   final AirlineApiService _apiService = AirlineApiService();
-  List<AirlineSortingResponse> _airlines = [];
+  List<PopularAirlineResponse> _airlines = [];
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -141,7 +141,7 @@ class _PopularAirlinesPageState extends State<PopularAirlinesPage> {
 
 
   /// 항공사 아이템 위젯
-  Widget _buildAirlineItem(AirlineSortingResponse airline, int rank) {
+  Widget _buildAirlineItem(PopularAirlineResponse airline, int rank) {
     return Container(
       width: context.w(335),
       height: context.h(90), // 메인과 동일한 높이

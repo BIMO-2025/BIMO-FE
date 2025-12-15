@@ -117,7 +117,7 @@ class _HomePageState extends State<HomePage> {
 
     try {
       // 평점 순 정렬 항공사 API 호출
-      final List<dynamic> airlines = await _apiService.getSortedAirlines();
+      final List<PopularAirlineResponse> airlines = await _apiService.getSortedAirlines();
 
       // 상위 3개만 선택
       final top3 = airlines.take(3).toList();
