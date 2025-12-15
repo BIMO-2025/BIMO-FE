@@ -18,6 +18,7 @@ import 'ticket_verification_camera_page.dart';
 import '../../home/presentation/pages/airline_search_result_page.dart';
 import '../../home/presentation/pages/airline_review_page.dart';
 import '../data/repositories/local_flight_repository.dart';
+import '../data/models/local_flight.dart';
 import '../../../../core/utils/responsive_extensions.dart';
 import '../../../../core/storage/auth_token_storage.dart';
 import '../data/repositories/flight_repository.dart';
