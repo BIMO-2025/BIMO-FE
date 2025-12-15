@@ -19,6 +19,7 @@ import '../../home/presentation/pages/airline_search_result_page.dart';
 import '../../home/presentation/pages/airline_review_page.dart';
 import '../data/repositories/local_flight_repository.dart';
 import '../data/models/local_flight.dart';
+import '../data/repositories/local_timeline_repository.dart';
 import '../../../../core/utils/responsive_extensions.dart';
 import '../../../../core/storage/auth_token_storage.dart';
 import '../data/repositories/flight_repository.dart';
@@ -265,35 +266,61 @@ class _MyFlightPageState extends State<MyFlightPage> {
         
         final flight = snapshot.data!;
         
-        return GestureDetector(
-          onTap: () async {
-            // 진행 중 비행 클릭 → 읽기 전용 FlightPlanPage
-            final localFlightRepo = LocalFlightRepository();
-            await localFlightRepo.init();
+        // 타임라인 데이터 로드
+        return FutureBuilder<List<Map<String, dynamic>>>(
+          future: _loadTimelineForFlight(flight.id),
+          builder: (context, timelineSnapshot) {
+            final timeline = timelineSnapshot.data ?? [];
             
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const FlightPlanPage(
-                  isReadOnly: true, // 편집 불가 모드
-                ),
+            return GestureDetector(
+              onTap: () async {
+                // 진행 중 비행 클릭 → 읽기 전용 FlightPlanPage
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => FlightPlanPage(
+                      isReadOnly: true, // 편집 불가 모드
+                      flightId: flight.id,
+                    ),
+                  ),
+                );
+              },
+              child: InFlightProgressWidget(
+                departureCode: flight.origin,
+                departureCity: _getCityName(flight.origin),
+                arrivalCode: flight.destination,
+                arrivalCity: _getCityName(flight.destination),
+                departureTime: _formatTimeToAmPm(flight.departureTime),
+                arrivalTime: _formatTimeToAmPm(flight.arrivalTime),
+                totalDurationMinutes: _parseDurationToMinutes(flight.totalDuration),
+                departureDateTime: flight.departureTime,
+                timeline: timeline,
               ),
             );
           },
-          child: InFlightProgressWidget(
-            departureCode: flight.origin,
-            departureCity: _getCityName(flight.origin),
-            arrivalCode: flight.destination,
-            arrivalCity: _getCityName(flight.destination),
-            departureTime: _formatTimeToAmPm(flight.departureTime),
-            arrivalTime: _formatTimeToAmPm(flight.arrivalTime),
-            totalDurationMinutes: _parseDurationToMinutes(flight.totalDuration),
-            departureDateTime: flight.departureTime,
-            timeline: [], // TODO: 타임라인 데이터 로드
-          ),
         );
       },
     );
+  }
+  
+  /// 비행의 타임라인 데이터 로드
+  Future<List<Map<String, dynamic>>> _loadTimelineForFlight(String flightId) async {
+    try {
+      final localTimelineRepo = LocalTimelineRepository();
+      await localTimelineRepo.init();
+      final events = await localTimelineRepo.getTimeline(flightId);
+      
+      print('📅 타임라인 로드: ${events.length}개 이벤트');
+      
+      // LocalTimelineEvent → Map 변환
+      return events.map((e) => {
+        'title': e.title,
+        'duration': e.duration,
+      }).toList();
+    } catch (e) {
+      print('⚠️ 타임라인 로드 실패: $e');
+      return [];
+    }
   }
   
   /// 진행 중인 비행 가져오기
