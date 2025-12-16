@@ -64,7 +64,11 @@ class AppRouter {
       GoRoute(
         path: '/flight-plan',
         name: 'flight-plan',
-        builder: (context, state) => const FlightPlanPage(),
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final flightId = extra?['flightId'] as String?;
+          return FlightPlanPage(flightId: flightId);
+        },
       ),
       GoRoute(
         path: RouteNames.nicknameSetup,

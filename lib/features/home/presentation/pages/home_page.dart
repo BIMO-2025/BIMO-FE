@@ -47,6 +47,16 @@ class _HomePageState extends State<HomePage> {
     _selectedIndex = widget.initialIndex; // 초기 인덱스 설정
     _loadPopularAirlines();
   }
+
+  @override
+  void didUpdateWidget(HomePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialIndex != oldWidget.initialIndex) {
+      setState(() {
+        _selectedIndex = widget.initialIndex;
+      });
+    }
+  }
   int _searchTabIndex = 0; // Search tab index (0: Airline, 1: Destination)
   final TextEditingController _airlineSearchController =
       TextEditingController();

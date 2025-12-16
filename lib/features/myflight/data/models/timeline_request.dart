@@ -47,11 +47,6 @@ class TimelineRequest {
 
   Map<String, dynamic> toJson() {
     return {
-      'origin': origin,
-      'destination': destination,
-      'departure_time': departureTime,
-      'arrival_time': arrivalTime,
-      'total_duration': totalDuration,
       'seat_class': seatClass,
       'flight_goal': flightGoal,
     };

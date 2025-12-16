@@ -156,9 +156,14 @@ class _ApiInterceptor extends Interceptor {
       }
     }
 
-    // 토큰이 만료되었고, 토큰 갱신 요청이 아닌 경우
-    if (isTokenExpired && !err.requestOptions.path.contains('refresh')) {
+    // 토큰이 만료되었고, 토큰 갱신 요청이 아니며, 이미 재시도한 요청이 아닌 경우
+    if (isTokenExpired && 
+        !err.requestOptions.path.contains('refresh') && 
+        err.requestOptions.extra['_retry'] != true) {
       print('🔄 토큰 만료 감지. 갱신 시도...');
+      
+      // 재시도 플래그 설정
+      err.requestOptions.extra['_retry'] = true;
       
       final storage = AuthTokenStorage();
       final refreshToken = await storage.getRefreshToken();

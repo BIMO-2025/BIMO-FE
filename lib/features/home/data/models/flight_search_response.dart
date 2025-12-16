@@ -36,6 +36,7 @@ class FlightSearchData {
   final FlightAirline airline;
   final FlightEndpoint departure;
   final FlightEndpoint arrival;
+  final int layoverDuration; // 경유 대기 시간 (분 단위)
   final int duration; // 분 단위
   final String flightNumber;
   final List<FlightSegment>? segments;
@@ -46,6 +47,7 @@ class FlightSearchData {
     required this.departure,
     required this.arrival,
     required this.duration,
+    required this.layoverDuration, // 추가
     required this.flightNumber,
     this.segments,
     required this.date,
@@ -77,33 +79,53 @@ class FlightSearchData {
     }
 
     var rawDuration = json['total_duration'] ?? json['duration'];
-    int parsedDuration = 0;
+    int parsedDuration = _parseDuration(rawDuration);
     
-    // 1. 세그먼트가 있으면 세그먼트 duration 합산 (가장 정확)
+    // 세그먼트 비행 시간 합계 및 경유 대기 시간 계산
+    int totalSegmentDuration = 0;
+    int calculatedLayover = 0;
+    
     if (segmentsList != null && segmentsList.isNotEmpty) {
-      for (var seg in segmentsList) {
-        parsedDuration += _parseDuration(seg.duration);
+      for (int i = 0; i < segmentsList.length; i++) {
+        // 1. 비행 시간 합산
+        totalSegmentDuration += _parseDuration(segmentsList[i].duration);
+        
+        // 2. 경유 대기 시간 합산 (같은 공항이므로 로컬 시간 차이 계산 가능)
+        if (i < segmentsList.length - 1) {
+          try {
+            final currentArr = DateTime.parse(segmentsList[i].arrivalTime);
+            final nextDep = DateTime.parse(segmentsList[i+1].departureTime);
+            final diff = nextDep.difference(currentArr).inMinutes;
+            
+            // 대기 시간이 음수이거나 너무 길면 오류일 수 있으나, 일반적으로는 양수
+            if (diff > 0) {
+              calculatedLayover += diff;
+            }
+          } catch (e) {
+            print('⚠️ Layover calculation failed: $e');
+          }
+        }
       }
     }
     
-    // 2. 세그먼트 합산이 실패했거나 0이면 total_duration 사용
-    if (parsedDuration == 0) {
-      parsedDuration = _parseDuration(rawDuration);
+    // 🚀 [수정] Total Duration = 비행 시간 합계 + 대기 시간 합계
+    // 시차가 있는 공항 간의 단순 차이(Arrival - Departure)는 부정확하므로 이 방식이 가장 정확함
+    if (totalSegmentDuration > 0) {
+      parsedDuration = totalSegmentDuration + calculatedLayover;
+      print('✅ Final Duration: Flight($totalSegmentDuration) + Layover($calculatedLayover) = $parsedDuration');
     }
-    
+
     // 디버깅용 (빌드 후 로그 확인)
     if (parsedDuration == 0) {
-        print('⚠️ Duration parsing failed for: $rawDuration. Fallback to diff.');
-    }
-    
-    // 3. 여전히 0이면 시간 차이로 계산 (Fallback)
-    // 주의: 현지 시간(Local Time) 기준일 경우 시차로 인해 계산이 부정확할 수 있음
-    if (parsedDuration == 0 && depEndpoint.time.isNotEmpty && arrEndpoint.time.isNotEmpty) {
-      try {
-        final start = DateTime.parse(depEndpoint.time);
-        final end = DateTime.parse(arrEndpoint.time);
-        parsedDuration = end.difference(start).inMinutes;
-      } catch (_) {}
+        print('⚠️ Duration parsing still failed. Fallback to start/end diff if available.');
+        // 이미 위에서 계산했으므로 여기는 최후의 수단
+        if (depEndpoint.time.isNotEmpty && arrEndpoint.time.isNotEmpty) {
+          try {
+            final start = DateTime.parse(depEndpoint.time);
+            final end = DateTime.parse(arrEndpoint.time);
+            parsedDuration = end.difference(start).inMinutes;
+          } catch (_) {}
+        }
     }
     
     // 항공사 로고 찾기
@@ -128,9 +150,10 @@ class FlightSearchData {
       departure: depEndpoint,
       arrival: arrEndpoint,
       duration: parsedDuration,
-      flightNumber: json['flight_number'] ?? '',
+      layoverDuration: calculatedLayover, // 대기 시간 추가
+      flightNumber: json['flight_number'] ?? _parseFlightNumber(json),
       segments: segmentsList,
-      date: '', // 응답에 날짜 필드가 명시적으로 없으면 빈 문자열 혹은 출발 시간 등 사용
+      date: '', 
     );
   }
 

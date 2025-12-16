@@ -104,7 +104,8 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
   Widget build(BuildContext context) {
     // 로딩 중일 때는 앱 바와 버튼 없이 로딩 화면만 표시
     // 로딩 중일 때는 앱 바와 버튼 없이 로딩 화면만 표시
-    if (_viewModel.isLoading) {
+    // 로딩 중일 때는 앱 바와 버튼 없이 로딩 화면만 표시
+    if (_viewModel.isLoading || _isLoading) {
       return Scaffold(
         backgroundColor: AppTheme.darkTheme.scaffoldBackgroundColor,
         body: _buildLoadingScreen(),
@@ -898,6 +899,7 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
       // 로딩 화면 표시
       setState(() {
         _isLoading = true;
+        _rotationController?.repeat(); // 애니메이션 시작
       });
       _rotationController?.repeat();
       
@@ -920,8 +922,9 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
         // 3. 비행 저장 API 호출
         final flightRepository = FlightRepository();
         final createRequest = CreateFlightRequest.fromFlightSearchData(selectedFlight);
-        await flightRepository.saveFlight(userId, createRequest);
-        print('✅ 비행 저장 완료');
+        // 서버에서 생성된 ID 받기
+        final serverFlightId = await flightRepository.saveFlight(userId, createRequest);
+        print('✅ 비행 저장 완료 (Server ID: $serverFlightId)');
         
         // 4. 로컬에 비행 즉시 저장 (FlightState)
         // 4. 로컬에 비행 즉시 저장 (FlightState)
@@ -956,7 +959,8 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
             seatClass: 'ECONOMY',
             flightGoal: _selectedFlightGoal ?? '시차적응',
           );
-          final timelineData = await flightRepository.generateTimeline(timelineRequest);
+          // 변경된 API 호출: userId, serverFlightId 전달
+          final timelineData = await flightRepository.generateTimeline(userId, serverFlightId, timelineRequest);
           
           if (timelineData != null) {
             print('✅ 타임라인 생성 완료');
@@ -1008,14 +1012,15 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
           setState(() {
             _isLoading = false;
           });
-          _rotationController?.stop();
+          _rotationController?.stop(); // 애니메이션 중지
           
           // 타임라인 성공 시 FlightPlanPage, 실패 시 MyFlight
           if (timelineSuccess) {
-            // Navigator.push가 아닌 홈으로 이동하여 탭 전환
-            context.goNamed('home', extra: {'initialIndex': 1});
+            // 타임라인 페이지로 이동 (Flight ID 전달)
+            context.goNamed('flight-plan', extra: {'flightId': flightId});
           } else {
-            context.go('/myflight');
+            // 실패 시 목록으로 이동
+            context.goNamed('home', extra: {'initialIndex': 1});
           }
         }
       } catch (e) {

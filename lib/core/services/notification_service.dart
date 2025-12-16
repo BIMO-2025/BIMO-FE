@@ -252,6 +252,60 @@ class NotificationService {
 
   }
 
+  // 즉시 알림 표시 (Public 메서드)
+  Future<void> showInstantNotification(String title, String body, {String? payload, String? iconAssetPath}) async {
+    try {
+      print('🚀 즉시 알림 발송: $title');
+      
+      // Asset 아이콘 처리
+      String? largeIconPath;
+      if (iconAssetPath != null) {
+        largeIconPath = await _assetToFile(iconAssetPath);
+      }
+
+      // Android 설정
+      final androidDetails = AndroidNotificationDetails(
+        'timeline_channel',
+        'Timeline Notifications',
+        channelDescription: '비행 타임라인 알림',
+        importance: Importance.high,
+        priority: Priority.high,
+        largeIcon: largeIconPath != null ? FilePathAndroidBitmap(largeIconPath) : null,
+      );
+      
+      // iOS 설정
+      List<DarwinNotificationAttachment>? iosAttachments;
+      if (largeIconPath != null) {
+        iosAttachments = [DarwinNotificationAttachment(largeIconPath)];
+      }
+
+      final iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+        attachments: iosAttachments,
+      );
+      
+      final details = NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
+      
+      // ID는 현재 시간 기반으로 생성
+      final id = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
+      await _flutterLocalNotificationsPlugin.show(
+        id,
+        title,
+        body,
+        details,
+        payload: payload,
+      );
+    } catch (e) {
+      print('❌ 즉시 알림 발송 실패: $e');
+    }
+  }
+
   // 타임라인 알림 스케줄링 (커스텀 아이콘 포함)
   Future<void> scheduleTimelineNotification({
     required int id,

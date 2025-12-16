@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../../../core/services/notification_service.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
@@ -342,10 +343,44 @@ class _InFlightProgressWidgetState extends State<InFlightProgressWidget> {
                   ),
                 ),
                 SizedBox(width: 4),
-                // [DEBUG] +1h
+                // [DEBUG] Next Event
                 GestureDetector(
                   onTap: () {
-                    FlightState().addDebugTimeOffset(const Duration(hours: 1));
+                    final currentIndex = _currentActivityIndex;
+                    if (currentIndex < widget.timeline.length - 1) {
+                      // 다음 이벤트 찾기
+                      final nextEvent = widget.timeline[currentIndex + 1];
+                      
+                      // 다음 이벤트 시작 시간까지의 분 계산
+                      int nextEventStartMinutes = 0;
+                      for (int i = 0; i <= currentIndex; i++) {
+                        nextEventStartMinutes += widget.timeline[i]['duration'] as int;
+                      }
+                      
+                      // 현재 비행 경과 시간과 목표 시간의 차이 계산
+                      // 목표: 다음 이벤트 시작 후 5초 지점
+                      final now = DateTime.now();
+                      final flightStartTime = widget.departureDateTime;
+                      final targetTime = flightStartTime.add(Duration(minutes: nextEventStartMinutes, seconds: 5));
+                      
+                      final newOffset = targetTime.difference(now);
+                      
+                      // 시간 업데이트
+                      FlightState().setDebugTimeOffset(newOffset);
+                      
+                      // 즉시 알림 발송
+                      final title = nextEvent['title'] as String;
+                      final icon = nextEvent['icon'] as String?;
+                      
+                      NotificationService().showInstantNotification(
+                        title,
+                        '지금 시작되었습니다!',
+                        payload: 'flight_timeline_${currentIndex + 1}', // 고유 ID 시뮬레이션
+                        iconAssetPath: icon != null ? 'assets/images/myflight/$icon' : null,
+                      );
+                      
+                      print('✅ [Debug] 다음 이벤트로 점프: $title');
+                    }
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -353,7 +388,7 @@ class _InFlightProgressWidgetState extends State<InFlightProgressWidget> {
                       color: Colors.white.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: Text('+1h', style: AppTextStyles.smallBody.copyWith(fontSize: 10, color: Colors.white)),
+                    child: Text('Next', style: AppTextStyles.smallBody.copyWith(fontSize: 10, color: Colors.white)),
                   ),
                 ),
                 SizedBox(width: 4),
