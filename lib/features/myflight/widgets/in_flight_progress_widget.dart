@@ -4,8 +4,9 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/responsive_extensions.dart';
-import 'flight_card_widget.dart'; // For DashedLinePainter
+import 'flight_card_widget.dart';
 import 'flight_delay_modal.dart';
+import '../data/repositories/local_flight_repository.dart';
 
 /// 진행 중인 비행 위젯 (오프라인 모드)
 class InFlightProgressWidget extends StatefulWidget {
@@ -18,6 +19,8 @@ class InFlightProgressWidget extends StatefulWidget {
   final int totalDurationMinutes; // 총 비행 시간 (분)
   final DateTime departureDateTime; // 출발 시간
   final List<Map<String, dynamic>> timeline; // 타임라인 이벤트
+  final String flightId; // 비행 ID (DB 업데이트용)
+  final VoidCallback? onFlightEnded; // 비행 종료 시 콜백
 
   const InFlightProgressWidget({
     super.key,
@@ -30,6 +33,8 @@ class InFlightProgressWidget extends StatefulWidget {
     required this.totalDurationMinutes,
     required this.departureDateTime,
     required this.timeline,
+    this.flightId = '',
+    this.onFlightEnded,
   });
 
   @override
@@ -228,9 +233,140 @@ class _InFlightProgressWidgetState extends State<InFlightProgressWidget> {
                     ),
                   ),
                   SizedBox(width: context.w(8)),
-                  // Pause/Play 버튼
+                  // 디버그: +1시간 버튼
                   GestureDetector(
-                    onTap: _togglePause,
+                    onTap: () {
+                      setState(() {
+                        _elapsedSeconds += 3600; // 1시간 추가
+                      });
+                    },
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.05),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.1),
+                          width: 1,
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          '+1h',
+                          style: AppTextStyles.smallBody.copyWith(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: context.w(8)),
+                  // 종료 버튼
+                  GestureDetector(
+                    onTap: () async {
+                      // 종료 확인 다이얼로그
+                      final shouldEnd = await showDialog<bool>(
+                        context: context,
+                        barrierColor: Colors.black.withOpacity(0.8),
+                        builder: (BuildContext context) {
+                          return Dialog(
+                            backgroundColor: Colors.transparent,
+                            child: Container(
+                              padding: EdgeInsets.all(24),
+                              decoration: BoxDecoration(
+                                color: Color(0xFF1A1A1A),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.1),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    '비행을 종료하시겠습니까?',
+                                    style: AppTextStyles.body.copyWith(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  SizedBox(height: 24),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: GestureDetector(
+                                          onTap: () => Navigator.pop(context, false),
+                                          child: Container(
+                                            padding: EdgeInsets.symmetric(vertical: 12),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white.withOpacity(0.1),
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            child: Center(
+                                              child: Text(
+                                                '취소',
+                                                style: AppTextStyles.smallBody.copyWith(
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      SizedBox(width: 12),
+                                      Expanded(
+                                        child: GestureDetector(
+                                          onTap: () => Navigator.pop(context, true),
+                                          child: Container(
+                                            padding: EdgeInsets.symmetric(vertical: 12),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.blue1,
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            child: Center(
+                                              child: Text(
+                                                '종료',
+                                                style: AppTextStyles.smallBody.copyWith(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      );
+
+                      if (shouldEnd == true) {
+                        final repo = LocalFlightRepository();
+                        await repo.init();
+                        final flight = await repo.getInProgressFlight();
+                        if (flight != null) {
+                          flight.status = 'past';
+                          flight.forceInProgress = false; // 테스트 플래그 초기화
+                          flight.lastModified = DateTime.now();
+                          await repo.saveFlight(flight);
+                          print('✅ 비행 종료: ${flight.id}');
+                          
+                          if (context.mounted) {
+                            // MyFlightPage로 돌아가서 새로고침
+                            Navigator.of(context).popUntil((r) => r.isFirst);
+                            widget.onFlightEnded?.call();
+                          }
+                        }
+                      }
+                    },
                     child: Container(
                       width: 32,
                       height: 32,
@@ -244,7 +380,7 @@ class _InFlightProgressWidgetState extends State<InFlightProgressWidget> {
                         ),
                       ),
                       child: Icon(
-                        _isPaused ? Icons.play_arrow : Icons.pause,
+                        Icons.power_settings_new,
                         color: Colors.white,
                         size: 18,
                       ),

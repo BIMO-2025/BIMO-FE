@@ -47,6 +47,7 @@ class _MyFlightPageState extends State<MyFlightPage> {
     // FlightState 변경 감지
     FlightState().addListener(_onFlightStateChanged);
     _loadScheduledFlights();
+    _loadPastFlights();
   }
   
   @override
@@ -57,6 +58,14 @@ class _MyFlightPageState extends State<MyFlightPage> {
   
   void _onFlightStateChanged() {
     if (mounted) {
+      setState(() {});
+    }
+  }
+  
+  void _refreshData() {
+    if (mounted) {
+      _loadScheduledFlights();
+      _loadPastFlights();
       setState(() {});
     }
   }
@@ -149,60 +158,55 @@ class _MyFlightPageState extends State<MyFlightPage> {
 
   /// 지난 비행 데이터 가져오기 (실제로는 상태 관리)
   List<Flight> _getPastFlights() {
-    // 더미 데이터 - PastFlightsListPage와 동일한 데이터 사용
-    // 실제로는 FlightState에서 가져와서 최대 5개만 표시
-    final allPastFlights = [
-      const Flight(
-        departureCode: 'DXB',
-        departureCity: '두바이',
-        arrivalCode: 'INC',
-        arrivalCity: '대한민국',
-        duration: '13h 30m',
-        departureTime: '10:30 AM',
-        arrivalTime: '09:30 PM',
-        rating: 4.5,
-        date: '2025.11.26. (토)',
-        // 평점 있음 = 리뷰 완료
-      ),
-      const Flight(
-        departureCode: 'ICN',
-        departureCity: '인천',
-        arrivalCode: 'NRT',
-        arrivalCity: '도쿄',
-        duration: '2h 30m',
-        departureTime: '08:00 AM',
-        arrivalTime: '10:30 AM',
-        rating: null, // 리뷰 미작성
-        date: '2025.10.15. (수)',
-        // 평점 없음 = 리뷰 미작성 ("리뷰 작성하고..." + 노란 점 O)
-      ),
-      const Flight(
-        departureCode: 'LAX',
-        departureCity: '로스앤젤레스',
-        arrivalCode: 'ICN',
-        arrivalCity: '인천',
-        duration: '13h 30m',
-        departureTime: '11:00 PM',
-        arrivalTime: '05:30 AM',
-        rating: 4.0,
-        date: '2025.09.20. (금)',
-        // 평점 있음 = 리뷰 완료
-      ),
-      const Flight(
-        departureCode: 'CDG',
-        departureCity: '파리',
-        arrivalCode: 'ICN',
-        arrivalCity: '인천',
-        duration: '11h 30m',
-        departureTime: '03:00 PM',
-        arrivalTime: '10:00 AM',
-        rating: null, // 리뷰 미작성
-        date: '2025.08.05. (화)',
-        // 평점 없음 = 리뷰 미작성 ("리뷰 작성하고..." + 노란 점 O)
-      ),
-    ];
-    
-    return allPastFlights.take(5).toList(); // 최대 5개까지만 표시
+    return FlightState().pastFlights.take(5).toList();
+  }
+  
+  Future<void> _loadPastFlights() async {
+    try {
+      print('🔄 [Past] 지난 비행 로드 시작');
+      final repo = LocalFlightRepository();
+      await repo.init();
+      final localFlights = await repo.getPastFlights();
+      
+      print('📦 [Past] Repository 반환 개수: ${localFlights.length}');
+      
+      if (localFlights.isEmpty) {
+        print('⚠️ [Past] 로컬 비행 데이터 없음');
+        FlightState().pastFlights = [];
+        if (mounted) setState(() {});
+        return;
+      }
+      
+      final flights = <Flight>[];
+      for (final lf in localFlights) {
+        try {
+          flights.add(Flight(
+            date: '${lf.departureTime.year}.${lf.departureTime.month.toString().padLeft(2, '0')}.${lf.departureTime.day.toString().padLeft(2, '0')}. (${_getWeekday(lf.departureTime)})',
+            departureCode: lf.origin,
+            arrivalCode: lf.destination,
+            departureCity: _getCityName(lf.origin),
+            arrivalCity: _getCityName(lf.destination),
+            departureTime: _formatTimeToAmPm(lf.departureTime),
+            arrivalTime: _formatTimeToAmPm(lf.arrivalTime),
+            duration: lf.totalDuration,
+            rating: null,
+          ));
+        } catch (e) {
+          print('❌ [Past] 비행 변환 오류 (${lf.id}): $e');
+        }
+      }
+      
+      print('✅ [Past] UI용 변환 완료: ${flights.length}개');
+      FlightState().pastFlights = flights;
+      if (mounted) {
+        print('🔄 [Past] setState 호출');
+        setState(() {});
+      } else {
+        print('⚠️ [Past] mounted 아님, setState 건너뜀');
+      }
+    } catch (e) {
+      print('❌ Past flights load error: $e');
+    }
   }
 
   /// 메인 바디 영역
@@ -275,7 +279,7 @@ class _MyFlightPageState extends State<MyFlightPage> {
             return GestureDetector(
               onTap: () async {
                 // 진행 중 비행 클릭 → FlightPlanPage (읽기 전용 모드)
-                Navigator.push(
+                await Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => FlightPlanPage(
@@ -284,6 +288,8 @@ class _MyFlightPageState extends State<MyFlightPage> {
                     ),
                   ),
                 );
+                // 돌아오면 새로고침 (테스트 비행 설정 등이 있을 수 있음)
+                _refreshData();
               },
               child: InFlightProgressWidget(
                 departureCode: flight.origin,
@@ -295,6 +301,8 @@ class _MyFlightPageState extends State<MyFlightPage> {
                 totalDurationMinutes: _parseDurationToMinutes(flight.totalDuration),
                 departureDateTime: flight.departureTime,
                 timeline: timeline,
+                flightId: flight.id, // flightId 전달
+                onFlightEnded: _refreshData, // 비행 종료 시 새로고침
               ),
             );
           },
@@ -330,28 +338,11 @@ class _MyFlightPageState extends State<MyFlightPage> {
   /// 진행 중인 비행 가져오기
   Future<LocalFlight?> _getInProgressFlight() async {
     try {
-      print('🔍 진행 중 비행 검색 시작');
       final localFlightRepo = LocalFlightRepository();
       await localFlightRepo.init();
-      final flights = await localFlightRepo.getAllFlights();
-      
-      print('🔍 전체 비행 수: ${flights.length}');
-      
-      // status가 inProgress이거나 forceInProgress인 비행 찾기
-      for (var flight in flights) {
-        final status = flight.calculateStatus();
-        print('🔍 비행 ${flight.id}: status=$status, forceInProgress=${flight.forceInProgress}');
-        
-        if (status == 'inProgress') {
-          print('✅ 진행 중 비행 발견: ${flight.id}');
-          return flight;
-        }
-      }
-      
-      print('⚠️ 진행 중 비행 없음');
-      return null;
+      return await localFlightRepo.getInProgressFlight();
     } catch (e) {
-      print('⚠️ 진행 중 비행 로드 실패: $e');
+      print('❌ 진행 중 비행 로드 실패: $e');
       return null;
     }
   }
@@ -484,16 +475,20 @@ class _MyFlightPageState extends State<MyFlightPage> {
                           duration: scheduledFlights[index].duration,
                           departureTime: scheduledFlights[index].departureTime,
                           arrivalTime: scheduledFlights[index].arrivalTime,
-                          onTap: () {
+                          onTap: () async {
                             // 타임라인 페이지로 이동
-                            Navigator.push(
+                            await Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (context) => FlightPlanPage(
+                                  // 예정된 비행은 flightId로 타임라인 로드
+                                  isReadOnly: true,
                                   flightId: _flightIdMap[index], // 해당 비행 ID 전달
                                 ),
                               ),
                             );
+                            // 돌아오면 새로고침 (진행 중 테스트 설정 시 반영)
+                            _refreshData();
                           },
                         ),
                       ),
@@ -538,7 +533,12 @@ class _MyFlightPageState extends State<MyFlightPage> {
   Widget _buildPastFlightsSection() {
     // 더미 데이터 (실제로는 상태 관리)
     final pastFlights = _getPastFlights();
-
+    print('🎨 [UI] 지난 비행 섹션 빌드: ${pastFlights.length}개');
+    
+    // 데이터가 없어도 섹션은 보여주되 (0개로 표시), 
+    // 여기서는 디자인상 0개면 안 보여주는지 확인 필요.
+    // 현재 코드: pastFlights.length 사용
+    
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 26),
       decoration: BoxDecoration(

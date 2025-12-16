@@ -61,6 +61,16 @@ class LocalTimelineEvent extends HiveObject {
     Map<String, dynamic> json,
     String flightId,
   ) {
+    print('🔍 [Timeline Event] Parsing: ${json['title']}');
+    print('   start_time: ${json['start_time']}');
+    print('   end_time: ${json['end_time']}');
+    
+    final startTime = DateTime.parse(json['start_time'] as String);
+    final endTime = DateTime.parse(json['end_time'] as String);
+    
+    print('   parsed start: $startTime');
+    print('   parsed end: $endTime');
+    
     return LocalTimelineEvent(
       id: json['order'].toString(), // order를 ID로 사용
       flightId: flightId,
@@ -68,8 +78,8 @@ class LocalTimelineEvent extends HiveObject {
       type: json['type'] as String,
       title: json['title'] as String,
       description: json['description'] as String,
-      startTime: DateTime.parse(json['start_time'] as String),
-      endTime: DateTime.parse(json['end_time'] as String),
+      startTime: startTime,
+      endTime: endTime,
       iconType: json['icon_type'] as String?,
       isEditable: (json['type'] as String) == 'FREE_TIME',
       isCustom: false,

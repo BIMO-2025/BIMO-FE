@@ -59,6 +59,11 @@ class LocalFlight extends HiveObject {
       return 'inProgress';
     }
     
+    // 이미 종료된 상태라면 유지 (사용자가 종료 버튼 누른 경우 등)
+    if (status == 'past') {
+      return 'past';
+    }
+    
     final now = DateTime.now();
     if (now.isBefore(departureTime)) {
       return 'scheduled';

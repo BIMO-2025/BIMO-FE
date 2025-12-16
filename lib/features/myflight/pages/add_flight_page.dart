@@ -971,9 +971,16 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
             final localTimelineRepo = LocalTimelineRepository();
             await localTimelineRepo.init();
             await localTimelineRepo.saveTimeline(localFlight.id, timelineEvents);
-            // 원본도 저장 (AI 초기화용)
-            await localTimelineRepo.saveOriginalTimeline(localFlight.id, timelineEvents);
-            print('✅ Hive에 타임라인 저장 완료(원본 포함)');
+            
+            // 원본도 저장 (AI 초기화용) - 별도 인스턴스 생성
+            final originalEvents = (timelineData['timeline_events'] as List<dynamic>)
+                .map((e) => LocalTimelineEvent.fromApiResponse(
+                      e as Map<String, dynamic>,
+                      localFlight.id,
+                    ))
+                .toList();
+            await localTimelineRepo.saveOriginalTimeline(localFlight.id, originalEvents);
+            print('✅ 타임라인 로컬 저장 완료: ${localFlight.id} (${timelineEvents.length}개)');
           }
         } catch (e) {
           print('⚠️ 타임라인 생성 실패 (비행은 저장됨): $e');
@@ -992,7 +999,9 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (context) => const FlightPlanPage(),
+                builder: (context) => FlightPlanPage(
+                  flightId: localFlight.id, // 생성된 비행 ID 전달
+                ),
               ),
             );
           } else {
@@ -1025,18 +1034,43 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
     // 공항 코드에서 도시 이름 추론
     String getCityName(String airportCode) {
       const cityMap = {
+        // 한국
         'ICN': '인천',
         'GMP': '김포',
         'PUS': '부산',
         'CJU': '제주',
+        // 일본
         'NRT': '도쿄',
         'HND': '도쿄',
+        'KIX': '오사카',
+        'NGO': '나고야',
+        // 미국
         'JFK': '뉴욕',
         'LAX': '로스앤젤레스',
+        'ORD': '시카고',
+        'SFO': '샌프란시스코',
+        'SEA': '시애틀',
+        'IAH': '휴스턴',
+        'MIA': '마이애미',
+        'BOS': '보스턴',
+        'LAS': '라스베이거스',
+        // 캐나다
         'YYZ': '토론토',
+        'YVR': '밴쿠버',
+        // 유럽
         'LHR': '런던',
         'CDG': '파리',
+        'FRA': '프랑크푸르트',
+        'AMS': '암스테르담',
+        'FCO': '로마',
+        'BCN': '바르셀로나',
+        // 중동/아시아
         'DXB': '두바이',
+        'SIN': '싱가포르',
+        'BKK': '방콕',
+        'HKG': '홍콩',
+        'PVG': '상하이',
+        'PEK': '베이징',
       };
       return cityMap[airportCode] ?? airportCode;
     }

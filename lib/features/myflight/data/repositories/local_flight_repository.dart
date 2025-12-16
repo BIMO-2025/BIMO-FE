@@ -31,7 +31,17 @@ class LocalFlightRepository {
   /// 예정된 비행 조회
   Future<List<LocalFlight>> getScheduledFlights() async {
     final now = DateTime.now();
-    return _box.values.where((f) => f.departureTime.isAfter(now)).toList();
+    final allFlights = _box.values.toList();
+    print('📦 [Hive] 전체 비행 수: ${allFlights.length}');
+    
+    for (final f in allFlights) {
+      final isPast = f.departureTime.isBefore(now);
+      print('   ${f.origin}-${f.destination}: departure=${f.departureTime}, isPast=$isPast');
+    }
+    
+    final scheduled = allFlights.where((f) => f.departureTime.isAfter(now)).toList();
+    print('✅ [Hive] 예정된 비행: ${scheduled.length}개');
+    return scheduled;
   }
 
   /// 진행 중인 비행 조회
@@ -39,17 +49,23 @@ class LocalFlightRepository {
     final now = DateTime.now();
     try {
       return _box.values.firstWhere(
-        (f) => now.isAfter(f.departureTime) && now.isBefore(f.arrivalTime),
+        (f) => f.forceInProgress == true || (f.status != 'past' && now.isAfter(f.departureTime) && now.isBefore(f.arrivalTime)),
       );
     } catch (e) {
       return null;
     }
   }
 
-  /// 지난 비행 조회
+  /// 지난 비행 조회 (status가 'past'인 비행만)
   Future<List<LocalFlight>> getPastFlights() async {
-    final now = DateTime.now();
-    return _box.values.where((f) => f.arrivalTime.isBefore(now)).toList();
+    final allFlights = _box.values.toList();
+    print('📦 [Past Flights] 전체 비행: ${allFlights.length}개');
+    for (final f in allFlights) {
+      print('   ${f.origin}-${f.destination}: status=${f.status}');
+    }
+    final pastFlights = allFlights.where((f) => f.status == 'past').toList();
+    print('✅ [Past Flights] 지난 비행 (status=past): ${pastFlights.length}개');
+    return pastFlights;
   }
 
   /// 비행 업데이트

@@ -15,11 +15,10 @@ Future<void> main() async {
   // UI 스타일 설정
   AppTheme.setSystemUIOverlayStyle();
   
-  // 앱 실행 (초기화보다 먼저 실행하여 흰 화면 방지)
-  runApp(const MyApp());
+  // 서비스 초기화 (Hive 등) 후 앱 실행
+  await _initializeServices();
   
-  // 백그라운드에서 서비스 초기화 시도
-  _initializeServices();
+  runApp(const MyApp());
 }
 
 Future<void> _initializeServices() async {

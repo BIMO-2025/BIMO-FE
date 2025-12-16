@@ -24,6 +24,19 @@ class FlightState extends ChangeNotifier {
     notifyListeners();
   }
   
+  // 지난 비행 목록
+  final List<Flight> _pastFlights = [];
+  
+  // 지난 비행 목록 getter
+  List<Flight> get pastFlights => List.unmodifiable(_pastFlights);
+  
+  // 지난 비행 목록 setter
+  set pastFlights(List<Flight> flights) {
+    _pastFlights.clear();
+    _pastFlights.addAll(flights);
+    notifyListeners();
+  }
+  
   // 비행 추가
   void addFlight(Flight flight) {
     _scheduledFlights.add(flight);

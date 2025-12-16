@@ -44,6 +44,7 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
   // 읽기 전용 모드 타이머
   Timer? _autoHighlightTimer;
   int _elapsedSeconds = 0;
+  int _debugTimeOffsetMinutes = 0; // 디버그용 시간 오프셋
 
   @override
   void initState() {
@@ -74,38 +75,11 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
     });
   }
   
-  /// 현재 진행 중인 이벤트 하이라이트 업데이트
+  
+  /// 현재 진행 중인 이벤트 하이라이트 업데이트 (비활성화)
   void _updateCurrentEventHighlight() {
-    int cumulativeMinutes = 0;
-    
-    for (int i = 0; i < _events.length; i++) {
-      final duration = _parseDurationToMinutes(_events[i].time);
-      
-      // 모든 이벤트 비활성화
-      _events[i] = TimelineEvent(
-        icon: _events[i].icon,
-        title: _events[i].title,
-        time: _events[i].time,
-        description: _events[i].description,
-        isEditable: _events[i].isEditable,
-        isActive: false,
-      );
-      
-      // 현재 경과 시간에 해당하는 이벤트 활성화
-      if (_elapsedSeconds < (cumulativeMinutes + duration) * 60) {
-        _events[i] = TimelineEvent(
-          icon: _events[i].icon,
-          title: _events[i].title,
-          time: _events[i].time,
-          description: _events[i].description,
-          isEditable: _events[i].isEditable,
-          isActive: true,
-        );
-        break;
-      }
-      
-      cumulativeMinutes += duration;
-    }
+    // 사용자 요청으로 자동 활성화 기능 비활성화
+    // 모든 이벤트는 기본 상태 유지
   }
   
   /// 시간 문자열을 분 단위로 변환 (예: "6:55 AM - 7:55 AM" → 60)
@@ -302,17 +276,22 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
             child: GestureDetector(
               onTap: () async {
                 print('🔙 FlightPlanPage 뒤로가기 버튼 클릭');
-                // 저장 확인 모달 표시
+                
+                // 읽기 전용 모드에서는 바로 뒤로가기
+                if (widget.isReadOnly) {
+                  Navigator.pop(context);
+                  return;
+                }
+                
+                // 편집 모드에서만 저장 확인 모달
                 final shouldSave = await _showSaveConfirmationModal(context);
                 if (shouldSave != null) {
                   if (shouldSave) {
-                    // 저장하고 뒤로가기
                     await _saveTimelineToHive();
                     if (context.mounted) {
                       Navigator.pop(context);
                     }
                   } else {
-                    // 저장하지 않고 뒤로가기 (변경사항 버림)
                     Navigator.pop(context);
                   }
                 }
@@ -844,7 +823,7 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
     final buttonTop = context.h(21);
     final buttonWidth = 40.0;
     final buttonHeight = 40.0;
-    final menuWidth = context.w(120); // 메뉴 너비 120px
+    final menuWidth = context.w(145); // 메뉴 너비 145px (텍스트 오버플로우 방지)
     final menuTop = buttonTop + buttonHeight + context.h(4); // 버튼 아래 4px
     // 버튼의 중앙 위치: buttonRight + (buttonWidth / 2)
     // 메뉴의 왼쪽 끝이 버튼 중앙에 맞춤: menuRight = buttonRight + (buttonWidth / 2)
@@ -973,28 +952,26 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
                           });
                           
                           if (_currentFlight != null) {
-                            print('🧪 테스트: 진행 중으로 설정 시작');
-                            print('🧪 비행 ID: ${_currentFlight!.id}');
-                            
-                            // forceInProgress를 true로 설정
-                            _currentFlight!.forceInProgress = true;
-                            print('🧪 forceInProgress 설정: ${_currentFlight!.forceInProgress}');
-                            
-                            // Hive에 저장
-                            await _currentFlight!.save();
-                            print('🧪 Hive 저장 완료');
-                            
-                            // 저장 확인
-                            final status = _currentFlight!.calculateStatus();
-                            print('🧪 현재 상태: $status');
-                            
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('진행 중 비행으로 설정: $status')),
-                              );
+                            // 먼저 모든 비행의 forceInProgress를 false로 설정
+                            final repo = LocalFlightRepository();
+                            await repo.init();
+                            final allFlights = await repo.getAllFlights();
+                            for (var flight in allFlights) {
+                              if (flight.forceInProgress == true) {
+                                flight.forceInProgress = false;
+                                await repo.saveFlight(flight);
+                              }
                             }
-                          } else {
-                            print('🧪 에러: _currentFlight가 null입니다');
+                            
+                            // 현재 비행만 forceInProgress를 true로 설정
+                            _currentFlight!.forceInProgress = true;
+                            await repo.saveFlight(_currentFlight!);
+                            print('🧪 forceInProgress 설정: ${_currentFlight!.id}');
+                            
+                            // 새로고침
+                            if (mounted) {
+                              Navigator.of(context).popUntil((route) => route.isFirst);
+                            }
                           }
                         },
                       ),
