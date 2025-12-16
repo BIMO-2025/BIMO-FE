@@ -6,6 +6,7 @@ import '../../../core/utils/responsive_extensions.dart';
 import '../widgets/flight_card_widget.dart';
 import '../../../core/state/flight_state.dart';
 import '../models/flight_model.dart';
+import 'ticket_verification_camera_page.dart';
 
 /// 지난 비행 전체 리스트 페이지
 class PastFlightsListPage extends StatelessWidget {
@@ -150,12 +151,31 @@ class PastFlightsListPage extends StatelessWidget {
             hasEditNotification: !hasReview,
             // 리스트 페이지는 화이트 배경 사용
             isLightMode: true,
-            onEditTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(hasReview ? '리뷰 수정 기능 준비 중입니다.' : '리뷰 작성 기능 준비 중입니다.'),
-                ),
-              );
+            onEditTap: () async {
+              print('🔘 리뷰 작성 버튼 클릭! hasReview: $hasReview');
+              if (hasReview) {
+                // 리뷰가 이미 있으면 수정 기능 (준비 중)
+                print('📝 리뷰 수정 모드');
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('리뷰 수정 기능 준비 중입니다.')),
+                );
+              } else {
+                // 리뷰가 없으면 티켓 검증 카메라로 이동
+                print('📸 티켓 검증 카메라로 이동');
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => TicketVerificationCameraPage(
+                      departureCode: flight.departureCode,
+                      departureCity: flight.departureCity,
+                      arrivalCode: flight.arrivalCode,
+                      arrivalCity: flight.arrivalCity,
+                      flightNumber: 'KE001', // TODO: 실제 비행 번호로 교체
+                      date: flight.date ?? '',
+                    ),
+                  ),
+                );
+              }
             },
           ),
         );

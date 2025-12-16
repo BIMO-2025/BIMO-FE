@@ -758,11 +758,32 @@ class _MyFlightPageState extends State<MyFlightPage> {
                           date: pastFlights[index].date,
                           // 평점 없음 = 리뷰 미작성 (노란 점 표시)
                           hasEditNotification: pastFlights[index].rating == null,
-                          onEditTap: () {
-                            // 리뷰 수정 페이지로 이동
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('리뷰 수정 기능 준비 중입니다.')),
-                            );
+                          onEditTap: () async {
+                            final hasReview = pastFlights[index].hasReview ?? false;
+                            print('🔘 [MyFlight] 리뷰 작성 버튼 클릭! hasReview: $hasReview');
+                            
+                            if (hasReview) {
+                              // 리뷰가 이미 있으면 수정 기능 (준비 중)
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('리뷰 수정 기능 준비 중입니다.')),
+                              );
+                            } else {
+                              // 리뷰가 없으면 티켓 검증 카메라로 이동
+                              print('📸 [MyFlight] 티켓 검증 카메라로 이동');
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => TicketVerificationCameraPage(
+                                    departureCode: pastFlights[index].departureCode,
+                                    departureCity: pastFlights[index].departureCity,
+                                    arrivalCode: pastFlights[index].arrivalCode,
+                                    arrivalCity: pastFlights[index].arrivalCity,
+                                    flightNumber: 'KE001', // TODO: 실제 비행 번호로 교체
+                                    date: pastFlights[index].date ?? '',
+                                  ),
+                                ),
+                              );
+                            }
                           },
                         ),
                       );

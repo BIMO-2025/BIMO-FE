@@ -378,20 +378,40 @@ class FlightRepository {
         final data = response.data;
         final Map<String, bool> hasReviewMap = {};
         
-        // 응답 구조: { "userId": "...", "flights": [ { "id": "...", "segments": [ { "operating_carrier": "...", "flight_number": "...", "hasReview": false } ] } ] }
-        if (data is Map && data['flights'] is List) {
-          final flights = data['flights'] as List<dynamic>;
-          
+        // 디버그: 응답 구조 확인
+        print('📦 hasReview API 응답 데이터: $data');
+        print('📦 응답 타입: ${data.runtimeType}');
+        if (data is Map) {
+          print('📦 응답 키: ${data.keys}');
+        }
+        
+        // 응답 구조: { "userId": "...", "flights": [...] } 또는 { "userId": "...", "myFlights": [...] }
+        List<dynamic>? flights;
+        
+        if (data is Map) {
+          if (data['flights'] is List) {
+            flights = data['flights'] as List<dynamic>;
+            print('✅ flights 키 발견: ${flights.length}개');
+          } else if (data['myFlights'] is List) {
+            flights = data['myFlights'] as List<dynamic>;
+            print('✅ myFlights 키 발견: ${flights.length}개');
+          }
+        }
+        
+        if (flights != null) {
           for (var flight in flights) {
             if (flight is Map) {
               final flightId = flight['id'] as String?;
               final segments = flight['segments'] as List<dynamic>?;
               
+              print('🔍 비행 ID: $flightId, segments: ${segments?.length}개');
+              
               if (flightId != null && segments != null && segments.isNotEmpty) {
-                // 첫 번째 세그먼트의 hasReview 값 사용 (또는 모든 세그먼트 확인)
+                // 첫 번째 세그먼트의 hasReview 값 사용
                 final firstSegment = segments.first as Map<String, dynamic>;
                 final hasReview = firstSegment['hasReview'] as bool? ?? false;
                 
+                print('   → hasReview: $hasReview');
                 hasReviewMap[flightId] = hasReview;
               }
             }

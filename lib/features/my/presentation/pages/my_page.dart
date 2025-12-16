@@ -1,4 +1,6 @@
 import 'dart:io'; // File 클래스 사용을 위해 추가
+import 'dart:convert'; // base64 디코딩을 위해 추가
+import 'package:path_provider/path_provider.dart'; // 로컬 경로를 위해 추가
 import 'package:audioplayers/audioplayers.dart'; // AudioPlayer import
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -31,6 +33,7 @@ class _MyPageState extends State<MyPage> {
   String _name = '사용자';
   String _email = '';
   String _profileImageUrl = ''; // Default (empty string to trigger default image in ProfileCard)
+  bool _isLoading = false; // 로딩 상태
   
   @override
   void initState() {
@@ -90,19 +93,90 @@ class _MyPageState extends State<MyPage> {
   }
   
   Future<void> _loadUserInfo() async {
-    final storage = AuthTokenStorage(); // Singleton
-    final userInfo = await storage.getUserInfo();
+    setState(() {
+      _isLoading = true;
+    });
     
-    if (mounted) {
-      setState(() {
-        _name = userInfo['name'] ?? '사용자';
-        _email = userInfo['email'] ?? '';
-        
-        final savedPhotoUrl = userInfo['photoUrl'];
-        if (savedPhotoUrl != null && savedPhotoUrl.isNotEmpty) {
-           _profileImageUrl = savedPhotoUrl;
+    try {
+      final storage = AuthTokenStorage();
+      final userInfo = await storage.getUserInfo();
+      
+      String name = userInfo['name'] ?? '사용자';
+      String email = userInfo['email'] ?? '';
+      String? photoUrl = userInfo['photoUrl'];
+      
+      // 로컬 파일 경로가 있는지 확인
+      bool hasLocalFile = false;
+      if (photoUrl != null && photoUrl.isNotEmpty) {
+        // 파일 경로인지 확인 (절대 경로 또는 로컬 파일)
+        if (photoUrl.startsWith('/') || photoUrl.startsWith('file://')) {
+          final file = File(photoUrl.replaceFirst('file://', ''));
+          hasLocalFile = await file.exists();
         }
-      });
+      }
+      
+      // 로컬 파일이 없으면 서버에서 조회
+      if (!hasLocalFile) {
+        try {
+          final userRepository = UserRepositoryImpl();
+          final userProfile = await userRepository.getUserProfile();
+          print('✅ 서버에서 프로필 정보 조회: $userProfile');
+          
+          // base64 이미지를 로컬 파일로 저장
+          final photoUrlBase64 = userProfile['photo_url'];
+          if (photoUrlBase64 != null && photoUrlBase64.isNotEmpty) {
+            try {
+              // data URL 프리픽스 제거
+              String base64String = photoUrlBase64;
+              if (base64String.contains(',')) {
+                base64String = base64String.split(',').last;
+              }
+              
+              // base64 디코딩
+              final bytes = base64Decode(base64String);
+              
+              // 로컬 디렉토리 가져오기
+              final directory = await getApplicationDocumentsDirectory();
+              final filePath = '${directory.path}/profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
+              
+              // 파일로 저장
+              final file = File(filePath);
+              await file.writeAsBytes(bytes);
+              
+              photoUrl = filePath;
+              print('✅ 프로필 사진 로컬 저장 완료: $photoUrl');
+              
+              // 스토리지에 저장
+              await storage.saveUserInfo(
+                name: userProfile['display_name'] ?? name,
+                photoUrl: photoUrl,
+                email: userProfile['email'] ?? email,
+                userId: userProfile['uid'],
+              );
+            } catch (e) {
+              print('❌ base64 디코딩 실패: $e');
+            }
+          }
+        } catch (e) {
+          print('⚠️ 서버 프로필 조회 실패: $e');
+        }
+      }
+      
+      if (mounted) {
+        setState(() {
+          _name = name;
+          _email = email;
+          _profileImageUrl = photoUrl ?? '';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('❌ 프로필 정보 로드 실패: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -129,17 +203,49 @@ class _MyPageState extends State<MyPage> {
           final userProfile = await userRepository.getUserProfile();
           print('✅ 최신 프로필 정보 조회 완료: $userProfile');
           
-          // 4. 로컬 스토리지 업데이트
+          // 4. base64 이미지를 로컬 파일로 저장
+          String? localImagePath;
+          final photoUrlBase64 = userProfile['photo_url'];
+          
+          if (photoUrlBase64 != null && photoUrlBase64.isNotEmpty) {
+            try {
+              // data URL 프리픽스 제거 (예: "data:image/jpeg;base64,")
+              String base64String = photoUrlBase64;
+              if (base64String.contains(',')) {
+                base64String = base64String.split(',').last;
+              }
+              
+              // base64 디코딩
+              final bytes = base64Decode(base64String);
+              
+              // 로컬 디렉토리 가져오기
+              final directory = await getApplicationDocumentsDirectory();
+              final filePath = '${directory.path}/profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
+              
+              // 파일로 저장
+              final file = File(filePath);
+              await file.writeAsBytes(bytes);
+              
+              localImagePath = filePath;
+              print('✅ 프로필 사진 로컬 저장 완료: $localImagePath');
+            } catch (e) {
+              print('❌ base64 디코딩 실패: $e');
+            }
+          }
+          
+          // 5. 로컬 스토리지 업데이트 (로컬 파일 경로 저장)
           final storage = AuthTokenStorage();
           await storage.saveUserInfo(
             name: userProfile['display_name'],
-            photoUrl: userProfile['photo_url'],
+            photoUrl: localImagePath ?? _profileImageUrl, // 로컬 파일 경로 저장
             email: userProfile['email'],
             userId: userProfile['uid'],
           );
           
-          // 5. UI 갱신 (저장된 정보 다시 로드) - 제거 (로컬 이미지 유지)
-          // await _loadUserInfo();
+          // 6. UI 갱신
+          setState(() {
+            _profileImageUrl = localImagePath ?? _profileImageUrl;
+          });
           
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -170,6 +276,15 @@ class _MyPageState extends State<MyPage> {
 
   @override
   Widget build(BuildContext context) {
+    // 로딩 중일 때 로딩 인디케이터 표시
+    if (_isLoading) {
+      return Center(
+        child: CircularProgressIndicator(
+          color: AppColors.blue1,
+        ),
+      );
+    }
+    
     return SingleChildScrollView(
       child: Padding(
         padding: EdgeInsets.symmetric(horizontal: context.w(20)),

@@ -23,8 +23,7 @@ class AppRouter {
   static GoRouter get router => _router;
 
   static final GoRouter _router = GoRouter(
-    // initialLocation: '/airline-detail',
-    initialLocation: RouteNames.splash, // Start with Splash Page
+    initialLocation: RouteNames.splash,
     routes: [
       GoRoute(
         path: RouteNames.splash,
@@ -65,11 +64,7 @@ class AppRouter {
       GoRoute(
         path: '/flight-plan',
         name: 'flight-plan',
-        builder: (context, state) {
-          final extra = state.extra as Map<String, dynamic>?;
-          final flightId = extra?['flightId'] as String?;
-          return FlightPlanPage(flightId: flightId);
-        },
+        builder: (context, state) => const FlightPlanPage(),
       ),
       GoRoute(
         path: RouteNames.nicknameSetup,
