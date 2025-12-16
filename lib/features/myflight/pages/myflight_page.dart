@@ -8,6 +8,7 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/custom_app_bar.dart';
 import '../../../../core/widgets/custom_tab_bar.dart';
 import '../../../../core/state/flight_state.dart';
+import '../../../../core/services/notification_service.dart'; // NotificationService import
 import '../widgets/flight_card_widget.dart';
 import '../widgets/in_flight_progress_widget.dart';
 import '../models/flight_model.dart';
@@ -443,6 +444,52 @@ class _MyFlightPageState extends State<MyFlightPage> {
                       ),
                     ),
                   ),
+                ),
+              ),
+
+            const SizedBox(height: 16),
+
+            // 2시간 전 알림 테스트 버튼 (예정된 비행이 있을 때만 표시)
+            if (scheduledFlights.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: ElevatedButton(
+                  onPressed: () async {
+                    // 2시간 전 알림 테스트:
+                    // 지금 버튼을 누른 시점 = 비행 2시간 전
+                    // 즉, 비행 시작은 지금으로부터 2시간 후
+                    final flight = scheduledFlights[0];
+                    final notificationService = NotificationService();
+                    
+                    final now = DateTime.now();
+                    final departureTime = now.add(const Duration(hours: 2)); // 비행 시작: 2시간 후
+                    final notificationTime = now; // 알림 시간: 지금 (= 비행 2시간 전)
+                    
+                    // 로컬 푸시 알림 스케줄링 (즉시 발송됨)
+                    await notificationService.scheduleFlightReminder(
+                      flightNumber: '${flight.departureCode}-${flight.arrivalCode}',
+                      scheduledTime: notificationTime,
+                    );
+                    
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('2시간 전 알림이 발송되었습니다!\n비행 시작: ${departureTime.hour}:${departureTime.minute.toString().padLeft(2, '0')}'),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue.withOpacity(0.2),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: BorderSide(color: Colors.blue.withOpacity(0.5)),
+                    ),
+                  ),
+                  child: const Text('2시간 전 알림 테스트'),
                 ),
               ),
           ],

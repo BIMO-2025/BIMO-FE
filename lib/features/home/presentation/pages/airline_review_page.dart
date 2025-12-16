@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/responsive_extensions.dart';
 import '../../../../core/utils/airline_name_mapper.dart'; // AirlineNameMapper import
+import '../../../../core/utils/image_utils.dart'; // ImageUtils import
 import '../../../../core/storage/auth_token_storage.dart'; // AuthTokenStorage import
 import '../../domain/models/airline.dart';
 import '../../domain/models/review_model.dart'; // Review 모델 import
@@ -549,34 +550,7 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
   }
 
   Widget _buildReviewImage(String imagePath) {
-    if (imagePath.startsWith('http')) {
-      return Image.network(
-        imagePath,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return Image.network(
-            'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=800&q=80', // 비행기 대체 이미지
-            fit: BoxFit.cover,
-          );
-        },
-      );
-    } else if (imagePath.startsWith('assets/')) {
-      return Image.asset(
-        imagePath,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-           return Container(color: const Color(0xFF333333));
-        },
-      );
-    } else {
-      return Image.file(
-        File(imagePath), 
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-           return Container(color: const Color(0xFF333333));
-        },
-      );
-    }
+    return ImageUtils.buildImage(imagePath);
   }
 
 

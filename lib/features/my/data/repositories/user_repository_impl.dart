@@ -39,10 +39,7 @@ class UserRepositoryImpl implements UserRepository {
 
   @override
   Future<Map<String, dynamic>> updateProfilePhoto(String imagePath) async {
-    // 1. 이미지 업로드 (URL 획득)
-    final photoUrl = await _remoteDataSource.uploadImage(imagePath);
-    
-    // 2. 사용자 ID 획득
+    // 사용자 ID 획득
     final storage = AuthTokenStorage();
     final userInfo = await storage.getUserInfo();
     final userId = userInfo['userId'];
@@ -51,7 +48,7 @@ class UserRepositoryImpl implements UserRepository {
       throw Exception('User ID not found in local storage');
     }
 
-    // 3. 프로필 업데이트 (URL 전송)
-    return await _remoteDataSource.updateProfilePhoto(userId, photoUrl);
+    // 프로필 사진 업데이트 (이미지 파일 직접 업로드)
+    return await _remoteDataSource.updateProfilePhoto(userId, imagePath);
   }
 }
