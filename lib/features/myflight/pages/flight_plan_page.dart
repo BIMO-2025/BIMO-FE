@@ -40,11 +40,12 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
   bool _showMoreOptions = false; // 더보기 옵션 메뉴 표시 여부
   List<TimelineEvent> _initialEvents = []; // 초기 타임라인 (AI 초기화용)
   LocalFlight? _currentFlight; // 현재 표시 중인 비행 정보
+  List<LocalTimelineEvent> _localTimelineEvents = []; // Hive 원본 데이터 (시간 비교용)
   
   // 읽기 전용 모드 타이머
   Timer? _autoHighlightTimer;
   int _elapsedSeconds = 0;
-  int _debugTimeOffsetMinutes = 0; // 디버그용 시간 오프셋
+  // int _debugTimeOffsetMinutes = 0; // 전역 상태 사용
 
   @override
   void initState() {
@@ -76,10 +77,27 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
   }
   
   
-  /// 현재 진행 중인 이벤트 하이라이트 업데이트 (비활성화)
+  /// 현재 진행 중인 이벤트 하이라이트 업데이트
   void _updateCurrentEventHighlight() {
-    // 사용자 요청으로 자동 활성화 기능 비활성화
-    // 모든 이벤트는 기본 상태 유지
+    if (!widget.isReadOnly) return;
+    
+    final now = DateTime.now().add(FlightState().debugTimeOffset);
+    
+    // 로컬 이벤트 리스트와 UI 이벤트 리스트 동기화 가정
+    for (int i = 0; i < _localTimelineEvents.length; i++) {
+        if (i >= _events.length) break;
+        
+        final localEvent = _localTimelineEvents[i];
+        final uiEvent = _events[i];
+        
+        // 현재 시간이 범위 내에 있는지 확인 (시작 시간 <= 현재 < 종료 시간)
+        // startInclusive, endExclusive
+        bool isActive = !now.isBefore(localEvent.startTime) && now.isBefore(localEvent.endTime);
+        
+        if (uiEvent.isActive != isActive) {
+            uiEvent.isActive = isActive;
+        }
+    }
   }
   
   /// 시간 문자열을 분 단위로 변환 (예: "6:55 AM - 7:55 AM" → 60)
@@ -149,7 +167,36 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
       final localTimelineRepo = LocalTimelineRepository();
       await localTimelineRepo.init();
       final localEvents = await localTimelineRepo.getTimeline(targetFlightId);
+      _localTimelineEvents = localEvents;
       
+      // [Self-Healing] 데이터 오염 감지 (모든 시간이 동일한 경우)
+      if (localEvents.length > 1 && localEvents.every((e) => e.startTime.isAtSameMomentAs(localEvents[0].startTime))) {
+          print('🚨 타임라인 데이터 오염 감지! 자동 복구를 시작합니다.');
+          
+          if (_currentFlight != null) {
+            final flight = _currentFlight!;
+            final durationMinutes = _parseDurationToMinutes(flight.totalDuration);
+            final departureTime = flight.departureTime;
+            final arrivalTime = departureTime.add(Duration(minutes: durationMinutes));
+            
+            final segmentDuration = durationMinutes ~/ localEvents.length;
+            
+            for (int i = 0; i < localEvents.length; i++) {
+                 final start = departureTime.add(Duration(minutes: i * segmentDuration));
+                 final end = (i == localEvents.length - 1) 
+                     ? arrivalTime 
+                     : start.add(Duration(minutes: segmentDuration));
+                 
+                 localEvents[i].startTime = start;
+                 localEvents[i].endTime = end;
+            }
+            
+            // 복구된 데이터 저장
+            await localTimelineRepo.saveTimeline(targetFlightId, localEvents);
+            print('✅ 타임라인 자동 복구 및 저장 완료');
+          }
+      }
+
       if (localEvents.isEmpty) {
         print('⚠️ 비행 $targetFlightId에 타임라인 없음, TimelineState 사용');
         _events = _getTimelineEvents();
@@ -157,10 +204,16 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
         // 5. LocalTimelineEvent → TimelineEvent 변환
         _events = localEvents.map((le) {
           final data = le.toTimelineEvent() as Map<String, dynamic>;
+          
+          // 시간 문자열 재구성 (복구된 시간 반영)
+          final startStr = _minutesToTimeString(le.startTime.hour * 60 + le.startTime.minute);
+          final endStr = _minutesToTimeString(le.endTime.hour * 60 + le.endTime.minute);
+          final formattedTime = '$startStr - $endStr';
+          
           return TimelineEvent(
             icon: data['icon'] as String?,
             title: data['title'] as String,
-            time: data['time'] as String,
+            time: formattedTime, // 재구성된 시간 사용
             description: data['description'] as String,
             isEditable: data['isEditable'] as bool? ?? false,
             isActive: data['isActive'] as bool? ?? false,
@@ -196,8 +249,28 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
         final index = entry.key;
         final event = entry.value;
         
-        // 간단한 시간 설정 (실제로는 event.time 파싱 필요)
-        final now = DateTime.now();
+        // 시간 파싱
+        DateTime startTime;
+        DateTime endTime;
+        try {
+            final parts = event.time.split(' - ');
+            final startDt = _parseTime(parts[0]);
+            final endDt = _parseTime(parts[1]);
+            
+            final baseDate = _currentFlight!.departureTime;
+            startTime = DateTime(baseDate.year, baseDate.month, baseDate.day, startDt.hour, startDt.minute);
+            endTime = DateTime(baseDate.year, baseDate.month, baseDate.day, endDt.hour, endDt.minute);
+            
+            // 종료 시간이 시작 시간보다 빠르면 다음날로 처리
+            if (endTime.isBefore(startTime)) {
+                endTime = endTime.add(const Duration(days: 1));
+            }
+        } catch (e) {
+             print('⚠️ 시간 파싱 실패: ${event.time}, 현재 시간으로 대체');
+             final now = DateTime.now();
+             startTime = now;
+             endTime = now.add(const Duration(hours: 1));
+        }
         
         return LocalTimelineEvent(
           id: '${_currentFlight!.id}_$index',
@@ -206,8 +279,8 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
           type: event.isEditable ? 'FREE_TIME' : 'CUSTOM',
           title: event.title,
           description: event.description,
-          startTime: now,
-          endTime: now.add(const Duration(hours: 1)),
+          startTime: startTime,
+          endTime: endTime,
           iconType: event.icon,
           isEditable: event.isEditable,
           isCustom: true,
@@ -374,6 +447,8 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
               ),
             ),
           ),
+          
+
         ],
       ),
     );
@@ -680,25 +755,25 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
           vertical: context.h(14), // 상하 패딩 14px
         ),
         decoration: BoxDecoration(
-          color:
-              event.isActive
-                  ? AppColors
-                      .blue1 // 새로 추가/수정된 이벤트: 파란색 배경 (b1)
-                  : Colors.white.withOpacity(0.1), // rgba(255,255,255,0.1)
+          color: widget.isReadOnly && event.isActive
+              ? AppColors.blue1.withOpacity(0.2) // 진행 중: 파란색 20% 배경
+              : (widget.isReadOnly
+                  ? Colors.white.withOpacity(0.1) // 기본: 흰색 10% 배경
+                  : (event.isActive ? AppColors.blue1 : Colors.white.withOpacity(0.1))),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color:
-                event.isActive
-                    ? AppColors
-                        .blue1 // 새로 추가/수정된 이벤트: 파란색 테두리 (b1)
-                    : (isSelected
-                        ? Colors
-                            .white // 선택된 상태: 흰색 테두리
-                        : (event.isEditable
-                            ? Colors.white.withOpacity(0.5) // 자유 시간: 흰색 50% 테두리
-                            : Colors.transparent)), // 일반: 테두리 없음
-            width: 1,
-          ),
+          border: widget.isReadOnly
+              ? (event.isActive
+                  ? Border.all(color: AppColors.blue1, width: 1) // 진행 중: 파란색 테두리
+                  : null) // 기본: 테두리 없음
+              : Border.all(
+                  // 편집 모드 테두리 로직
+                  color: isSelected
+                      ? Colors.white
+                      : (event.isEditable
+                          ? Colors.white.withOpacity(0.5)
+                          : Colors.transparent),
+                  width: 1,
+                ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

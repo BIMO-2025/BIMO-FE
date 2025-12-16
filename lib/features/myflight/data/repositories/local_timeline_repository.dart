@@ -105,6 +105,27 @@ class LocalTimelineRepository {
     }
   }
 
+  /// 타임라인 시간 일괄 조정 (지연 시 사용)
+  Future<void> shiftTimelineEvents(String flightId, Duration offset) async {
+    final events = await getTimeline(flightId);
+    print('🔄 [Shift] 시작: $flightId, offset: $offset, 이벤트 수: ${events.length}');
+    
+    for (final event in events) {
+      final oldStart = event.startTime;
+      final oldEnd = event.endTime;
+      
+      event.startTime = event.startTime.add(offset);
+      event.endTime = event.endTime.add(offset);
+      
+      print('   [${event.title}] $oldStart -> ${event.startTime} | $oldEnd -> ${event.endTime}');
+      
+      final key = '${flightId}_${event.id}';
+      await _box.put(key, event);
+    }
+    
+    print('✅ 타임라인 ${events.length}개 이벤트 시간 조정 완료: +$offset');
+  }
+
   /// 모든 타임라인 삭제 (테스트용)
   Future<void> clearAll() async {
     await _box.clear();

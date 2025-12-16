@@ -18,6 +18,7 @@ import 'ticket_verification_camera_page.dart';
 import '../../home/presentation/pages/airline_search_result_page.dart';
 import '../../home/presentation/pages/airline_review_page.dart';
 import '../data/repositories/local_flight_repository.dart';
+import '../data/models/local_timeline_event.dart';
 import '../data/models/local_flight.dart';
 import '../data/repositories/local_timeline_repository.dart';
 import '../../../../core/utils/responsive_extensions.dart';
@@ -317,6 +318,22 @@ class _MyFlightPageState extends State<MyFlightPage> {
       final localTimelineRepo = LocalTimelineRepository();
       await localTimelineRepo.init();
       final events = await localTimelineRepo.getTimeline(flightId);
+
+      // 데이터 손상 확인 및 자동 복구 (모든 이벤트 시간이 같을 경우)
+      if (events.length > 1) {
+        bool allSame = true;
+        final firstStart = events[0].startTime;
+        for (int i = 1; i < events.length; i++) {
+          if (events[i].startTime != firstStart) {
+            allSame = false;
+            break;
+          }
+        }
+        
+        if (allSame) {
+          await _repairTimeline(flightId, events);
+        }
+      }
       
       print('📅 타임라인 로드: ${events.length}개 이벤트');
       
@@ -324,6 +341,7 @@ class _MyFlightPageState extends State<MyFlightPage> {
       return events.map((e) {
         // startTime과 endTime으로 duration 계산 (분 단위)
         final duration = e.endTime.difference(e.startTime).inMinutes;
+        print('   [Timeline] ${e.title}: ${e.startTime.hour}:${e.startTime.minute} ~ ${e.endTime.hour}:${e.endTime.minute}');
         return {
           'title': e.title,
           'duration': duration,
@@ -332,6 +350,53 @@ class _MyFlightPageState extends State<MyFlightPage> {
     } catch (e) {
       print('⚠️ 타임라인 로드 실패: $e');
       return [];
+    }
+  }
+
+  /// 타임라인 자동 복구 (시간 재분배)
+  Future<void> _repairTimeline(String flightId, List<LocalTimelineEvent> events) async {
+    print('⚠️ 타임라인 데이터 오류 감지: 자동 복구 시작 ($flightId)');
+    
+    try {
+      final flightRepo = LocalFlightRepository();
+      await flightRepo.init();
+      final flight = await flightRepo.getFlight(flightId);
+      
+      if (flight == null) {
+        print('❌ 비행 정보를 찾을 수 없어 복구 실패');
+        return;
+      }
+      
+      final totalDuration = flight.arrivalTime.difference(flight.departureTime);
+      final eventCount = events.length;
+      if (eventCount == 0) return;
+      
+      // 이벤트를 균등하게 분배 (단순화된 복구 로직)
+      final durationPerEvent = totalDuration.inMinutes ~/ eventCount;
+      
+      final timelineRepo = LocalTimelineRepository();
+      await timelineRepo.init();
+      
+      DateTime currentStart = flight.departureTime;
+      
+      for (int i = 0; i < eventCount; i++) {
+        events[i].startTime = currentStart;
+        events[i].endTime = currentStart.add(Duration(minutes: durationPerEvent));
+        
+        // 마지막 이벤트는 도착 시간으로 맞춤
+        if (i == eventCount - 1) {
+          events[i].endTime = flight.arrivalTime;
+        }
+        
+        currentStart = events[i].endTime;
+        
+        // 업데이트 저장
+        await timelineRepo.updateEvent(flightId, events[i].id, events[i]);
+      }
+      print('✅ 타임라인 자동 복구 완료 (균등 분배)');
+      
+    } catch (e) {
+      print('❌ 타임라인 복구 중 에러: $e');
     }
   }
   
@@ -482,7 +547,7 @@ class _MyFlightPageState extends State<MyFlightPage> {
                               MaterialPageRoute(
                                 builder: (context) => FlightPlanPage(
                                   // 예정된 비행은 flightId로 타임라인 로드
-                                  isReadOnly: true,
+                                  isReadOnly: false,
                                   flightId: _flightIdMap[index], // 해당 비행 ID 전달
                                 ),
                               ),

@@ -29,13 +29,28 @@ class FlightState extends ChangeNotifier {
   
   // 지난 비행 목록 getter
   List<Flight> get pastFlights => List.unmodifiable(_pastFlights);
-  
+
   // 지난 비행 목록 setter
   set pastFlights(List<Flight> flights) {
     _pastFlights.clear();
     _pastFlights.addAll(flights);
     notifyListeners();
   }
+
+  // [DEBUG] 전역 시간 오프셋
+  Duration _debugTimeOffset = Duration.zero;
+  Duration get debugTimeOffset => _debugTimeOffset;
+  
+  void setDebugTimeOffset(Duration offset) {
+    _debugTimeOffset = offset;
+    notifyListeners();
+  }
+  
+  void addDebugTimeOffset(Duration offset) {
+    _debugTimeOffset += offset;
+    notifyListeners();
+  }
+
   
   // 비행 추가
   void addFlight(Flight flight) {

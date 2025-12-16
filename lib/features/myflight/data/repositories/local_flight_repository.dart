@@ -74,6 +74,18 @@ class LocalFlightRepository {
     print('✅ 비행 업데이트: ${updatedFlight.id}');
   }
 
+  /// 비행 시간 지연
+  Future<void> delayFlight(String id, Duration delay) async {
+    final flight = await getFlight(id);
+    if (flight != null) {
+      flight.departureTime = flight.departureTime.add(delay);
+      flight.arrivalTime = flight.arrivalTime.add(delay);
+      flight.lastModified = DateTime.now();
+      await saveFlight(flight);
+      print('✅ 비행 시간 지연 적용: ${flight.id} (+${delay.inMinutes}분)');
+    }
+  }
+
   /// 비행 삭제
   Future<void> deleteFlight(String id) async {
     await _box.delete(id);

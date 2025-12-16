@@ -7,6 +7,12 @@ import '../../../core/utils/responsive_extensions.dart';
 import 'flight_card_widget.dart';
 import 'flight_delay_modal.dart';
 import '../data/repositories/local_flight_repository.dart';
+import '../data/repositories/local_timeline_repository.dart';
+import '../../../core/state/flight_state.dart';
+import '../pages/flight_plan_end_page.dart';
+import '../data/models/local_flight.dart';
+import 'package:intl/intl.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 /// 진행 중인 비행 위젯 (오프라인 모드)
 class InFlightProgressWidget extends StatefulWidget {
@@ -50,6 +56,7 @@ class _InFlightProgressWidgetState extends State<InFlightProgressWidget> {
   @override
   void initState() {
     super.initState();
+    initializeDateFormatting('ko_KR', null);
     _adjustedDepartureTime = widget.departureDateTime;
     _startTimer();
   }
@@ -64,10 +71,71 @@ class _InFlightProgressWidgetState extends State<InFlightProgressWidget> {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!_isPaused) {
         setState(() {
-          _elapsedSeconds++;
+          // 전역 디버그 시간을 반영하여 경과 시간 계산
+          final now = DateTime.now().add(FlightState().debugTimeOffset);
+          final departure = _adjustedDepartureTime ?? widget.departureDateTime;
+          
+          final diff = now.difference(departure).inSeconds;
+          _elapsedSeconds = diff > 0 ? diff : 0;
+          
+          // [AUTO END] 비행 시간 종료 시 자동 종료 화면 이동
+          final totalSeconds = widget.totalDurationMinutes * 60;
+          if (_elapsedSeconds >= totalSeconds) {
+             _endFlight();
+          }
         });
       }
     });
+  }
+
+  /// 비행 종료 처리 및 페이지 이동
+  Future<void> _endFlight() async {
+    _timer?.cancel();
+    _timer = null;
+
+    final repo = LocalFlightRepository();
+    await repo.init();
+    
+    // widget.flightId가 있으면 그것을, 없으면 진행 중 비행 조회
+    LocalFlight? flight;
+    if (widget.flightId.isNotEmpty) {
+      flight = await repo.getFlight(widget.flightId);
+    } else {
+      flight = await repo.getInProgressFlight();
+    }
+    
+    if (flight != null) {
+      flight.status = 'past';
+      flight.forceInProgress = false; // 테스트 플래그 초기화
+      flight.lastModified = DateTime.now();
+      await repo.saveFlight(flight);
+      print('✅ 비행 종료 처리 완료: ${flight.id}');
+      
+      if (mounted) {
+        // 비행 종료 페이지로 이동
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => FlightPlanEndPage(
+              arrivalCity: widget.arrivalCity,
+              airline: 'Korean Air', // 임시 하드코딩 (나중에 DB 연동)
+              route: '${widget.departureCode}→${widget.arrivalCode}',
+              departureCode: widget.departureCode,
+              departureCity: widget.departureCity,
+              arrivalCode: widget.arrivalCode,
+              arrivalCityName: widget.arrivalCity,
+              duration: '${widget.totalDurationMinutes ~/ 60}h ${widget.totalDurationMinutes % 60}m',
+              departureTime: widget.departureTime,
+              arrivalTime: widget.arrivalTime,
+              date: DateFormat('yyyy.MM.dd. (E)', 'ko_KR').format(widget.departureDateTime),
+            ),
+          ),
+        );
+        
+        // 종료 페이지에서 돌아오면 홈 데이터 갱신
+        widget.onFlightEnded?.call();
+      }
+    }
   }
 
   void _togglePause() {
@@ -82,11 +150,35 @@ class _InFlightProgressWidgetState extends State<InFlightProgressWidget> {
       barrierColor: Colors.black.withOpacity(0.5),
       builder: (context) => FlightDelayModal(
         currentDepartureTime: _adjustedDepartureTime ?? widget.departureDateTime,
-        onConfirm: (newTime) {
-          setState(() {
-            _adjustedDepartureTime = newTime;
-            _elapsedSeconds = 0; // 타이머 리셋
-          });
+        onConfirm: (newTime) async {
+          // 지연 시간 계산
+          final originalTime = _adjustedDepartureTime ?? widget.departureDateTime;
+          final delay = newTime.difference(originalTime);
+          
+          if (delay.inMinutes != 0) {
+            // 1. 비행 시간 지연 적용
+            final flightRepo = LocalFlightRepository();
+            await flightRepo.init();
+            await flightRepo.delayFlight(widget.flightId, delay);
+            
+            // 2. 타임라인 시간 일괄 조정
+            final timelineRepo = LocalTimelineRepository();
+            await timelineRepo.init();
+            await timelineRepo.shiftTimelineEvents(widget.flightId, delay);
+            
+            // 3. UI 업데이트 및 상위 페이지 새로고침
+            if (mounted) {
+              setState(() {
+                _adjustedDepartureTime = newTime;
+                // 경과 시간은 유지하거나, 필요 시 조정 (여기선 유지)
+              });
+              
+              // MyFlightPage 데이터 리로드 트리거 (선택사항)
+               widget.onFlightEnded?.call(); 
+               // 주의: onFlightEnded는 이름이 좀 그렇지만 _refreshData()를 가리킴.
+               // 정확히는 onDataChanged 같은 콜백이 필요하지만, 현재는 이것을 재사용.
+            }
+          }
         },
       ),
     );
@@ -234,36 +326,52 @@ class _InFlightProgressWidgetState extends State<InFlightProgressWidget> {
                   ),
                   SizedBox(width: context.w(8)),
                   // 디버그: +1시간 버튼
-                  GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _elapsedSeconds += 3600; // 1시간 추가
-                      });
-                    },
-                    child: Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.05),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.1),
-                          width: 1,
-                        ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          '+1h',
-                          style: AppTextStyles.smallBody.copyWith(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
+                  // [DEBUG] Start
+                GestureDetector(
+                  onTap: () {
+                    final diff = widget.departureDateTime.difference(DateTime.now());
+                    FlightState().setDebugTimeOffset(diff + const Duration(minutes: 5));
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(4),
                     ),
+                    child: Text('Start', style: AppTextStyles.smallBody.copyWith(fontSize: 10, color: Colors.white)),
                   ),
-                  SizedBox(width: context.w(8)),
+                ),
+                SizedBox(width: 4),
+                // [DEBUG] +1h
+                GestureDetector(
+                  onTap: () {
+                    FlightState().addDebugTimeOffset(const Duration(hours: 1));
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text('+1h', style: AppTextStyles.smallBody.copyWith(fontSize: 10, color: Colors.white)),
+                  ),
+                ),
+                SizedBox(width: 4),
+                // [DEBUG] Reset
+                GestureDetector(
+                  onTap: () {
+                    FlightState().setDebugTimeOffset(Duration.zero);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text('Reset', style: AppTextStyles.smallBody.copyWith(fontSize: 10, color: Colors.white)),
+                  ),
+                ),
+                SizedBox(width: 8),
                   // 종료 버튼
                   GestureDetector(
                     onTap: () async {
@@ -349,22 +457,7 @@ class _InFlightProgressWidgetState extends State<InFlightProgressWidget> {
                       );
 
                       if (shouldEnd == true) {
-                        final repo = LocalFlightRepository();
-                        await repo.init();
-                        final flight = await repo.getInProgressFlight();
-                        if (flight != null) {
-                          flight.status = 'past';
-                          flight.forceInProgress = false; // 테스트 플래그 초기화
-                          flight.lastModified = DateTime.now();
-                          await repo.saveFlight(flight);
-                          print('✅ 비행 종료: ${flight.id}');
-                          
-                          if (context.mounted) {
-                            // MyFlightPage로 돌아가서 새로고침
-                            Navigator.of(context).popUntil((r) => r.isFirst);
-                            widget.onFlightEnded?.call();
-                          }
-                        }
+                        await _endFlight();
                       }
                     },
                     child: Container(
