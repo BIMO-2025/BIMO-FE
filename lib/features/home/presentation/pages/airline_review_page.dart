@@ -113,7 +113,7 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
 
     return Review(
       nickname: isMyReview ? _currentUserNickname : apiReview.userNickname, // 내 리뷰면 최신 닉네임 사용
-      profileImage: isMyReview ? _currentUserProfileImage : 'assets/images/my/default_profile.png', // 내 리뷰면 최신 사진, 남의 리뷰면 기본 사진
+      profileImage: isMyReview ? _currentUserProfileImage : (apiReview.userProfileImage ?? 'assets/images/my/default_profile.png'), // 내 리뷰면 최신 사진, 남의 리뷰면 API 사진 또는 기본값
       rating: apiReview.overallRating,
       date: formattedDate,
       likes: apiReview.likes,
@@ -491,38 +491,7 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
             separatorBuilder: (context, index) => SizedBox(width: context.w(8)),
             itemBuilder: (context, index) {
               final review = photoReviews[index];
-              return GestureDetector(
-                onTap: () {
-                  // 사진 클릭 시 해당 리뷰 상세 팝업
-                  showDialog(
-                    context: context,
-                    builder: (context) => Dialog(
-                      backgroundColor: Colors.transparent,
-                      insetPadding: EdgeInsets.all(context.w(20)),
-                      child: Stack(
-                        children: [
-                          ReviewCard(review: review),
-                          Positioned(
-                            right: 0,
-                            top: 0,
-                            child: GestureDetector(
-                              onTap: () => Navigator.pop(context),
-                              child: Container(
-                                padding: EdgeInsets.all(context.w(8)),
-                                decoration: const BoxDecoration(
-                                  color: Colors.black54,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(Icons.close, color: Colors.white, size: 20),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-                child: SizedBox(
+              return SizedBox(
                   width: context.w(100),
                   height: context.w(100),
                   child: ClipRRect(
@@ -552,8 +521,7 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
                       ],
                     ),
                   ),
-                ),
-              );
+                );
             },
           ),
         ),

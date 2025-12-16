@@ -67,6 +67,8 @@ class ReviewItem {
   final String? seatClass; // 추가
   final String? reviewId; // 추가 (좋아요 API용)
 
+  final String? userProfileImage; // 추가: 사용자 프로필 이미지
+
   ReviewItem({
     required this.airlineCode,
     required this.airlineName,
@@ -82,7 +84,8 @@ class ReviewItem {
     required this.createdAt,
     this.flightNumber,
     this.seatClass,
-    this.reviewId, // 추가
+    this.reviewId,
+    this.userProfileImage, // 추가
   });
 
   factory ReviewItem.fromJson(Map<String, dynamic> json) {
@@ -94,8 +97,8 @@ class ReviewItem {
       ratings: ReviewRatings.fromJson(json['ratings'] as Map<String, dynamic>? ?? {}),
       route: json['route'] as String? ?? '',
       text: json['text'] as String? ?? '',
-      userId: json['userId'] as String? ?? '',
-      userNickname: json['userNickname'] as String? ?? '',
+      userId: json['userId'] as String? ?? json['user_id'] as String? ?? '',
+      userNickname: json['userNickname'] as String? ?? json['user_nickname'] as String? ?? '',
       imageUrls: (json['imageUrls'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
@@ -104,7 +107,12 @@ class ReviewItem {
       createdAt: json['createdAt'] as String? ?? '',
       flightNumber: json['flightNumber'] as String?,
       seatClass: json['seatClass'] as String?,
-      reviewId: json['id'] as String?, // API 응답에서 reviewId 파싱
+      reviewId: json['id'] as String?,
+      // 프로필 이미지 파싱 (다양한 키 시도)
+      userProfileImage: json['userProfileImage'] as String? ?? 
+                       json['user_profile_image'] as String? ??
+                       json['profileImage'] as String? ??
+                       json['profile_image'] as String?,
     );
   }
 }

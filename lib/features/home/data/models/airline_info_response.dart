@@ -55,9 +55,11 @@ class AirlineInfoResponse {
               .toList() ??
           [],
       description: json['description'] as String? ?? '',
-      bimoSummary: json['bimo_summary'] != null // API는 'bimo_summary' 키 사용
+      bimoSummary: json['bimo_summary'] != null 
           ? AirlineSummaryResponse.fromJson(json['bimo_summary'] as Map<String, dynamic>)
-          : null,
+          : (json['good_points'] != null || json['bad_points'] != null)
+              ? AirlineSummaryResponse.fromJson(json)
+              : null,
       averageRatings: json['average_ratings'] != null // API는 'average_ratings' 키 사용 (스네이크 케이스!)
           ? AverageRatings.fromJson(json['average_ratings'] as Map<String, dynamic>)
           : null,
