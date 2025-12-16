@@ -289,6 +289,12 @@ class _AirlineSearchResultPageState extends State<AirlineSearchResultPage> {
           'isDirect': isDirect,
           'viaText': viaText,
         };
+      } else {
+        // 이미 있는 경우, 평점 정보가 있으면 업데이트
+        if (flight.ratingScore > 0.0 && uniqueRoutes[key]!['rating'] == 0.0) {
+          uniqueRoutes[key]!['rating'] = flight.ratingScore;
+          uniqueRoutes[key]!['reviewCount'] = flight.reviewCountNum;
+        }
       }
     }
     
