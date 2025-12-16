@@ -8,6 +8,7 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/custom_app_bar.dart';
 import '../../../../core/widgets/custom_tab_bar.dart';
 import '../../../../core/state/flight_state.dart';
+import '../../../../core/services/notification_service.dart'; // NotificationService import
 import '../widgets/flight_card_widget.dart';
 import '../widgets/in_flight_progress_widget.dart';
 import '../models/flight_model.dart';
@@ -24,6 +25,7 @@ import '../data/repositories/local_timeline_repository.dart';
 import '../../../../core/utils/responsive_extensions.dart';
 import '../../../../core/storage/auth_token_storage.dart';
 import '../data/repositories/flight_repository.dart';
+import '../data/repositories/local_timeline_repository.dart'; // LocalTimelineRepository import
 
 /// MyFlight 메인 페이지
 class MyFlightPage extends StatefulWidget {
@@ -612,6 +614,122 @@ class _MyFlightPageState extends State<MyFlightPage> {
                       ),
                     ),
                   ),
+                ),
+              ),
+
+            const SizedBox(height: 16),
+
+            // 2시간 전 알림 테스트 버튼 (예정된 비행이 있을 때만 표시)
+            if (scheduledFlights.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: ElevatedButton(
+                  onPressed: () async {
+                    // 2시간 전 알림 테스트:
+                    // 지금 버튼을 누른 시점 = 비행 2시간 전
+                    // 즉, 비행 시작은 지금으로부터 2시간 후
+                    final flight = scheduledFlights[0];
+                    final notificationService = NotificationService();
+                    
+                    final now = DateTime.now();
+                    final departureTime = now.add(const Duration(hours: 2)); // 비행 시작: 2시간 후
+                    final notificationTime = now; // 알림 시간: 지금 (= 비행 2시간 전)
+                    
+                    // 로컬 푸시 알림 스케줄링 (즉시 발송됨)
+                    await notificationService.scheduleFlightReminder(
+                      flightNumber: '${flight.departureCode}-${flight.arrivalCode}',
+                      scheduledTime: notificationTime,
+                    );
+                    
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('2시간 전 알림이 발송되었습니다!\n비행 시작: ${departureTime.hour}:${departureTime.minute.toString().padLeft(2, '0')}'),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue.withOpacity(0.2),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: BorderSide(color: Colors.blue.withOpacity(0.5)),
+                    ),
+                  ),
+                  child: const Text('2시간 전 알림 테스트'),
+                ),
+              ),
+
+            // 타임라인 알림 테스트 버튼
+            if (scheduledFlights.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(left: 20, right: 20, top: 12),
+                child: ElevatedButton(
+                  onPressed: () async {
+                    // 타임라인 알림 테스트
+                    // 가장 가까운 비행의 타임라인을 가져와서 5초 간격으로 알림 예약
+                    
+                    if (_flightIdMap.isEmpty) return;
+                    
+                    final flightId = _flightIdMap.values.first; // 첫 번째(가장 가까운) 비행 ID
+                    final repo = LocalTimelineRepository();
+                    await repo.init();
+                    final events = await repo.getTimeline(flightId);
+                    
+                    if (events.isEmpty) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('타임라인 데이터가 없습니다.')),
+                        );
+                      }
+                      return;
+                    }
+                    
+                    final service = NotificationService();
+                    int delaySeconds = 5;
+                    final now = DateTime.now();
+                    
+                    for (int i = 0; i < events.length; i++) {
+                      final event = events[i];
+                      
+                      // UI 모델로 변환하여 아이콘 경로 획득
+                      final uiEvent = event.toTimelineEvent() as Map<String, dynamic>;
+                      final String? iconPath = uiEvent['icon'] as String?;
+                      
+                      // 알림 예약 (5초 간격)
+                      await service.scheduleTimelineNotification(
+                        id: 2000 + i, // 고유 ID (2000번대 사용)
+                        title: event.title,
+                        body: '${event.title} 시간이 되었습니다!',
+                        scheduledTime: now.add(Duration(seconds: delaySeconds)),
+                        iconAssetPath: iconPath,
+                      );
+                      
+                      delaySeconds += 5;
+                    }
+                    
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('${events.length}개의 타임라인 알림을 예약했습니다. (5초 간격)'),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.purple.withOpacity(0.2), // 보라색 배경
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: BorderSide(color: Colors.purple.withOpacity(0.5)),
+                    ),
+                  ),
+                  child: const Text('타임라인 알림 테스트'),
                 ),
               ),
           ],

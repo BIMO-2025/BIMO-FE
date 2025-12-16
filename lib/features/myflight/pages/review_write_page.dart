@@ -25,6 +25,9 @@ class ReviewWritePage extends StatefulWidget {
   final String flightNumber;
   final String date;
   final String stopover;
+  final String? duration; // 비행 시간 (예: "14h 30m")
+  final String? departureTime; // 출발 시간 (예: "09:00")
+  final String? arrivalTime; // 도착 시간 (예: "19:40")
   final bool isEditMode; // 수정 모드 플래그
   final Review? existingReview; // 기존 리뷰 데이터
 
@@ -37,6 +40,9 @@ class ReviewWritePage extends StatefulWidget {
     required this.flightNumber,
     this.date = '',
     this.stopover = '',
+    this.duration,
+    this.departureTime,
+    this.arrivalTime,
     this.isEditMode = false,
     this.existingReview,
   });
@@ -122,7 +128,7 @@ class _ReviewWritePageState extends State<ReviewWritePage> {
           ? widget.flightNumber.substring(0, 2).toUpperCase()
           : 'KE';
 
-      // 항공사 이름 매핑 (간단한 예시, 나중에 확장 가능)
+      // 항공사 이름 매핑
       final airlineName = _getAirlineName(airlineCode);
 
       // 평균 별점 계산
@@ -132,56 +138,61 @@ class _ReviewWritePageState extends State<ReviewWritePage> {
       // 경로
       final route = '${widget.departureCode}-${widget.arrivalCode}';
 
-      // FormData 생성 (multipart/form-data)
-      final formData = FormData();
+      // ratings 객체를 JSON 문자열로 변환
+      final ratingsJson = jsonEncode({
+        'checkIn': _punctualityRating,
+        'cleanliness': _cleanlinessRating,
+        'inflightMeal': _foodRating,
+        'seatComfort': _seatRating,
+        'service': _serviceRating,
+      });
 
-      // 일반 필드 추가
-      formData.fields.addAll([
-        MapEntry('userId', userId),
-        MapEntry('userNickname', userNickname),
-        MapEntry('airlineCode', airlineCode),
-        MapEntry('airlineName', airlineName),
-        MapEntry('route', route),
-        MapEntry('text', _reviewController.text.trim()),
-        MapEntry('overallRating', overallRating.toString()), 
-        MapEntry('flightNumber', widget.flightNumber),
-        // ratings는 JSON String으로 변환하여 전송
-        MapEntry('ratings', jsonEncode({
-          'checkIn': _punctualityRating,
-          'cleanliness': _cleanlinessRating,
-          'inflightMeal': _foodRating,
-          'seatComfort': _seatRating,
-          'service': _serviceRating,
-        })),
-        // isVerified 추가
-        const MapEntry('isVerified', 'false'),
-      ]);
+      // FormData 생성 (multipart/form-data)
+      final formData = FormData.fromMap({
+        'userId': userId,
+        'userNickname': userNickname,
+        'airlineCode': airlineCode,
+        'airlineName': airlineName,
+        'route': route,
+        'text': _reviewController.text.trim(),
+        'ratings': ratingsJson, // JSON 문자열로 전송
+        'overallRating': overallRating,
+        'flightNumber': widget.flightNumber,
+        'isVerified': false,
+      });
 
       // 이미지 파일 추가
       if (_selectedImages.isNotEmpty) {
-        for (var i = 0; i < _selectedImages.length; i++) {
-          final image = _selectedImages[i];
-          formData.files.add(MapEntry(
-            'images', // 서버가 기대하는 필드명 (images)
-            await MultipartFile.fromFile(
-              image.path,
-              filename: image.name,
+        for (var image in _selectedImages) {
+          formData.files.add(
+            MapEntry(
+              'images',
+              await MultipartFile.fromFile(
+                image.path,
+                filename: image.name,
+              ),
             ),
-          ));
+          );
         }
-        print('📸 이미지 ${_selectedImages.length}장 포함됨');
       }
 
-      print('🚀 리뷰 제출 (FormData): 유저=$userId, 항공사=$airlineCode');
+      print('🚀 리뷰 제출 (FormData):');
+      print('   userId: $userId');
+      print('   userNickname: $userNickname');
+      print('   airlineCode: $airlineCode');
+      print('   airlineName: $airlineName');
+      print('   route: $route');
+      print('   ratings: $ratingsJson');
+      print('   overallRating: $overallRating');
+      print('   images: ${_selectedImages.length}개');
 
       Response response;
       // 수정 모드일 때는 PUT, 생성 모드일 때는 POST
       if (widget.isEditMode && widget.existingReview?.reviewId != null) {
         print('📝 리뷰 수정 모드: ${widget.existingReview!.reviewId}');
-        // 수정 API도 FormData를 지원하는지 명세 확인 필요하지만, 일단 동일하게 처리
         response = await _apiClient.put(
           '/reviews/${widget.existingReview!.reviewId}',
-          data: formData, 
+          data: formData,
           options: Options(
             headers: {
               'ngrok-skip-browser-warning': 'true',
@@ -192,7 +203,7 @@ class _ReviewWritePageState extends State<ReviewWritePage> {
         print('✍️ 리뷰 생성 모드');
         response = await _apiClient.post(
           '/reviews',
-          data: formData, // FormData 전달
+          data: formData,
           options: Options(
             headers: {
               'ngrok-skip-browser-warning': 'true',
@@ -205,17 +216,11 @@ class _ReviewWritePageState extends State<ReviewWritePage> {
 
       if (!mounted) return;
 
-      // 스낵바는 상위 페이지에서 처리 (화면 전환 이슈 방지)
-      // ScaffoldMessenger.of(context).showSnackBar(
-      //   SnackBar(content: Text('리뷰가 ${widget.isEditMode ? "수정" : "등록"}되었습니다!')),
-      // );
-
       if (widget.isEditMode) {
         // 수정 모드: 이전 화면으로 돌아가기 (수정된 데이터 반환)
         Navigator.pop(context, response.data); 
       } else {
-        // 등록 모드: 홈 화면으로 이동 (여기선 띄워도 됨, 하지만 일관성을 위해 제거하거나 유지)
-        // 등록은 바로 홈으로 가므로 띄워주는게 좋음.
+        // 등록 모드: 홈 화면으로 이동
         ScaffoldMessenger.of(context).showSnackBar(
            const SnackBar(content: Text('리뷰가 등록되었습니다!')),
         );
@@ -425,7 +430,7 @@ class _ReviewWritePageState extends State<ReviewWritePage> {
     }
   }
 
-  /// 항공편 정보 카드 (AddFlightPage 스타일)
+  /// 항공편 정보 카드 (원본 UI)
   Widget _buildFlightInfoCard() {
     return Container(
       decoration: BoxDecoration(
@@ -469,10 +474,20 @@ class _ReviewWritePageState extends State<ReviewWritePage> {
                         color: Colors.white,
                       ),
                     ),
+                    // 리뷰 작성하기 모드에서만 출발 시간 표시
+                    if (!widget.isEditMode) ...[
+                      const SizedBox(height: 0),
+                      Text(
+                        widget.departureTime ?? '09:00',
+                        style: AppTextStyles.smallBody.copyWith(
+                          color: Colors.white.withOpacity(0.5),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
                 const SizedBox(width: 16),
-                // 중앙: 점선 + 비행기
+                // 중앙: 점선 + 비행기 + 시간
                 Expanded(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -522,6 +537,16 @@ class _ReviewWritePageState extends State<ReviewWritePage> {
                           ),
                         ],
                       ),
+                      // 리뷰 작성하기 모드에서만 비행 시간 표시
+                      if (!widget.isEditMode) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          widget.duration ?? '14h 30m',
+                          style: AppTextStyles.smallBody.copyWith(
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -536,12 +561,23 @@ class _ReviewWritePageState extends State<ReviewWritePage> {
                         color: Colors.white,
                       ),
                     ),
+                    // 리뷰 작성하기 모드에서만 도착 시간 표시
+                    if (!widget.isEditMode) ...[
+                      const SizedBox(height: 0),
+                      Text(
+                        widget.arrivalTime ?? '19:40',
+                        style: AppTextStyles.smallBody.copyWith(
+                          color: Colors.white.withOpacity(0.5),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ],
             ),
           ),
           
+          // 리뷰 작성하기 모드에서만 하단 상세 정보 표시
           if (!widget.isEditMode) ...[
             // 구분선 (전체 너비)
             Container(
@@ -557,27 +593,28 @@ class _ReviewWritePageState extends State<ReviewWritePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // 날짜
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '날짜',
-                          style: AppTextStyles.smallBody.copyWith(
-                            color: Colors.white.withOpacity(0.5),
+                  if (widget.date.isNotEmpty)
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '날짜',
+                            style: AppTextStyles.smallBody.copyWith(
+                              color: Colors.white.withOpacity(0.5),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          widget.date,
-                          style: AppTextStyles.smallBody.copyWith(color: Colors.white),
-                        ),
-                      ],
+                          const SizedBox(height: 8),
+                          Text(
+                            widget.date,
+                            style: AppTextStyles.smallBody.copyWith(color: Colors.white),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
+                  if (widget.date.isNotEmpty) const SizedBox(width: 8),
                   // 편명
                   Expanded(
                     child: Column(
@@ -601,26 +638,27 @@ class _ReviewWritePageState extends State<ReviewWritePage> {
                   ),
                   const SizedBox(width: 8),
                   // 경유 여부
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '경유 여부 (1편)',
-                          style: AppTextStyles.smallBody.copyWith(
-                            color: Colors.white.withOpacity(0.5),
+                  if (widget.stopover.isNotEmpty)
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '경유 여부 (1편)',
+                            style: AppTextStyles.smallBody.copyWith(
+                              color: Colors.white.withOpacity(0.5),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          widget.stopover,
-                          style: AppTextStyles.smallBody.copyWith(color: Colors.white),
-                        ),
-                      ],
+                          const SizedBox(height: 8),
+                          Text(
+                            widget.stopover,
+                            style: AppTextStyles.smallBody.copyWith(color: Colors.white),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),

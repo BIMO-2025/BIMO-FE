@@ -1,4 +1,5 @@
 import 'dart:io'; // File 클래스 사용을 위해 추가
+import 'package:audioplayers/audioplayers.dart'; // AudioPlayer import
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -35,6 +36,57 @@ class _MyPageState extends State<MyPage> {
   void initState() {
     super.initState();
     _loadUserInfo();
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+  
+  // 오디오 플레이어 관련 상태
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  int? _currentlyPlayingIndex; // 현재 재생 중인 카드 인덱스
+  bool _isPlaying = false; // 재생 상태
+
+  Future<void> _toggleAudio(int index, String fileName) async {
+    try {
+      if (_currentlyPlayingIndex == index && _isPlaying) {
+        // 이미 재생 중인 것을 다시 누르면 정지
+        await _audioPlayer.stop();
+        setState(() {
+          _isPlaying = false;
+        });
+      } else {
+        // 다른 것을 누르거나 멈춘 상태에서 누르면 재생
+        await _audioPlayer.stop(); // 이전 것 정지
+        // 파일명은 'audio/' 경로 아래에 있는 것으로 가정
+        // AssetSource는 'assets/'를 자동으로 붙여주므로 'audio/xxx.mp3'만 넘기면 됨
+        // 만약 assets/audio/ 아래에 있다면 'audio/$fileName'
+        await _audioPlayer.play(AssetSource('audio/$fileName'));
+        
+        setState(() {
+          _currentlyPlayingIndex = index;
+          _isPlaying = true;
+        });
+
+        // 재생 완료 시 처리
+        _audioPlayer.onPlayerComplete.listen((event) {
+          if (mounted) {
+            setState(() {
+              _isPlaying = false;
+            });
+          }
+        });
+      }
+    } catch (e) {
+      print('❌ 오디오 재생 실패: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('오디오 재생 실패: $e')),
+        );
+      }
+    }
   }
   
   Future<void> _loadUserInfo() async {
@@ -73,17 +125,21 @@ class _MyPageState extends State<MyPage> {
           
           print('✅ 프로필 사진 업로드 성공: $response');
           
-          // 3. 응답에서 새로운 photo_url 받아서 저장
-          // 명세에 따르면 response['user']['photo_url'] 형태일 가능성 높음
-          final newPhotoUrl = response['user']?['photo_url'] ?? response['photo_url'];
-          if (newPhotoUrl != null) {
-            final storage = AuthTokenStorage();
-            await storage.saveUserInfo(photoUrl: newPhotoUrl);
-            
-            setState(() {
-              _profileImageUrl = newPhotoUrl;
-            });
-          }
+          // 3. 서버에서 최신 프로필 정보 조회 (사진 URL 등)
+          final userProfile = await userRepository.getUserProfile();
+          print('✅ 최신 프로필 정보 조회 완료: $userProfile');
+          
+          // 4. 로컬 스토리지 업데이트
+          final storage = AuthTokenStorage();
+          await storage.saveUserInfo(
+            name: userProfile['display_name'],
+            photoUrl: userProfile['photo_url'],
+            email: userProfile['email'],
+            userId: userProfile['uid'],
+          );
+          
+          // 5. UI 갱신 (저장된 정보 다시 로드) - 제거 (로컬 이미지 유지)
+          // await _loadUserInfo();
           
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -207,25 +263,22 @@ class _MyPageState extends State<MyPage> {
                         return ContentCard(
                           title: '수면 및 휴식',
                           subtitle: '편안한 휴식과\n숙면을 위한 사운드',
-                          onTap: () {
-                            // TODO: 수면 사운드 재생
-                          },
+                          isPlaying: _currentlyPlayingIndex == 0 && _isPlaying,
+                          onTap: () => _toggleAudio(0, 'sleep.mp3'),
                         );
                       } else if (index == 1) {
                         return ContentCard(
                           title: '집중력 향상',
                           subtitle: '업무와 학습에\n몰입할 수 있는 사운드',
-                          onTap: () {
-                            // TODO: 집중력 사운드 재생/일시정지
-                          },
+                          isPlaying: _currentlyPlayingIndex == 1 && _isPlaying,
+                          onTap: () => _toggleAudio(1, 'focus.mp3'),
                         );
                       } else {
                         return ContentCard(
                           title: '자연의 소리',
                           subtitle: '기내의 소음을\n잊게 해주는 사운드',
-                          onTap: () {
-                            // TODO: 자연의 소리 재생
-                          },
+                          isPlaying: _currentlyPlayingIndex == 2 && _isPlaying,
+                          onTap: () => _toggleAudio(2, 'nature.mp3'),
                         );
                       }
                     },

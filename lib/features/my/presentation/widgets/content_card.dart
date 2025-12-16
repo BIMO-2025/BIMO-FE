@@ -4,36 +4,24 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/responsive_extensions.dart';
 
 /// 수면/집중력 콘텐츠 카드 위젯
-class ContentCard extends StatefulWidget {
+class ContentCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final VoidCallback? onTap;
+  final bool isPlaying;
 
   const ContentCard({
     super.key,
     required this.title,
     required this.subtitle,
     this.onTap,
+    this.isPlaying = false,
   });
-
-  @override
-  State<ContentCard> createState() => _ContentCardState();
-}
-
-class _ContentCardState extends State<ContentCard> {
-  bool _isPlaying = false;
-
-  void _togglePlayState() {
-    setState(() {
-      _isPlaying = !_isPlaying;
-    });
-    widget.onTap?.call();
-  }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: _togglePlayState,
+      onTap: onTap,
       child: Container(
         width: context.w(160), // 160 x 100
         height: context.h(100), // 96 → 100 (4픽셀 증가)
@@ -50,7 +38,7 @@ class _ContentCardState extends State<ContentCard> {
               children: [
                 // 제목 (BigBody, 화이트)
                 Text(
-                  widget.title,
+                  title,
                   style: AppTextStyles.bigBody.copyWith(
                     fontSize: context.fs(15),
                     color: AppColors.white,
@@ -61,7 +49,7 @@ class _ContentCardState extends State<ContentCard> {
                 
                 // 부제목 (SmallBody, 화이트)
                 Text(
-                  widget.subtitle,
+                  subtitle,
                   style: AppTextStyles.smallBody.copyWith(
                     fontSize: context.fs(13),
                     color: AppColors.white,
@@ -76,9 +64,9 @@ class _ContentCardState extends State<ContentCard> {
               top: 0,
               right: 0,
               child: Image.asset(
-                _isPlaying
-                    ? 'assets/images/my/playing.png'
-                    : 'assets/images/my/pause.png',
+                isPlaying
+                    ? 'assets/images/my/playing.png' // 재생 중일 때 (멈춤 아이콘?)
+                    : 'assets/images/my/pause.png', // 멈춘 상태일 때 (재생 아이콘?)
                 width: context.w(20),
                 height: context.h(20),
                 fit: BoxFit.contain,

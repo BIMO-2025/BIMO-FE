@@ -1,5 +1,7 @@
-import 'dart:io';
+import 'dart:io'; // File 클래스 사용을 위해 추가
+import 'dart:convert'; // Base64 디코딩을 위해 추가
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/responsive_extensions.dart';
@@ -43,43 +45,9 @@ class ProfileCard extends StatelessWidget {
             Stack(
               children: [
                 ClipOval(
-                  child: profileImageUrl.isNotEmpty
-                      ? (profileImageUrl.startsWith('http')
-                          ? Image.network(
-                              profileImageUrl,
-                              width: context.w(50),
-                              height: context.w(50),
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Image.asset(
-                                  'assets/images/my/default_profile.png',
-                                  width: context.w(50),
-                                  height: context.w(50),
-                                  fit: BoxFit.cover,
-                                );
-                              },
-                            )
-                          : Image.file(
-                              File(profileImageUrl),
-                              width: context.w(50),
-                              height: context.w(50),
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Image.asset(
-                                  'assets/images/my/default_profile.png',
-                                  width: context.w(50),
-                                  height: context.w(50),
-                                  fit: BoxFit.cover,
-                                );
-                              },
-                            ))
-                      : Image.asset(
-                          'assets/images/my/default_profile.png',
-                          width: context.w(50),
-                          height: context.w(50),
-                          fit: BoxFit.cover,
-                        ),
+                  child: _buildProfileImage(context),
                 ),
+
                 // 카메라 아이콘 오버레이
                 Positioned(
                   right: 0,
@@ -139,6 +107,60 @@ class ProfileCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+  Widget _buildProfileImage(BuildContext context) {
+    if (profileImageUrl.isEmpty) {
+      return _buildDefaultImage(context);
+    }
+
+    if (profileImageUrl.startsWith('http')) {
+      return Image.network(
+        profileImageUrl,
+        width: context.w(50),
+        height: context.w(50),
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _buildDefaultImage(context),
+      );
+    } else if (profileImageUrl.startsWith('/') || profileImageUrl.startsWith('file://')) {
+      return Image.file(
+        File(profileImageUrl),
+        width: context.w(50),
+        height: context.w(50),
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _buildDefaultImage(context),
+      );
+    } else {
+      // Base64 문자열 처리
+      try {
+        String base64String = profileImageUrl;
+        // 데이터 URI 스키마 제거 (data:image/jpeg;base64,...)
+        if (base64String.contains(',')) {
+          base64String = base64String.split(',').last;
+        }
+        // 공백 및 줄바꿈 제거
+        base64String = base64String.replaceAll(RegExp(r'\s+'), '');
+        
+        return Image.memory(
+          base64Decode(base64String),
+          width: context.w(50),
+          height: context.w(50),
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => _buildDefaultImage(context),
+        );
+      } catch (e) {
+        print('❌ Base64 이미지 디코딩 실패: $e');
+        return _buildDefaultImage(context);
+      }
+    }
+  }
+
+  Widget _buildDefaultImage(BuildContext context) {
+    return Image.asset(
+      'assets/images/my/default_profile.png',
+      width: context.w(50),
+      height: context.w(50),
+      fit: BoxFit.cover,
     );
   }
 }

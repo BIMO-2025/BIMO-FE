@@ -4,6 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/responsive_extensions.dart';
+import '../../../core/services/notification_service.dart'; // NotificationService import
 
 /// 비행 카드 위젯
 ///

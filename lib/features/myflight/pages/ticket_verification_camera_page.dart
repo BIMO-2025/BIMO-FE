@@ -6,11 +6,29 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/responsive_extensions.dart';
+import '../data/repositories/review_verification_repository.dart';
 import 'review_write_page.dart';
 
 /// 티켓 인증 카메라 페이지
 class TicketVerificationCameraPage extends StatefulWidget {
-  const TicketVerificationCameraPage({super.key});
+  final String departureCode;
+  final String departureCity;
+  final String arrivalCode;
+  final String arrivalCity;
+  final String flightNumber;
+  final String date;
+  final String? stopover;
+
+  const TicketVerificationCameraPage({
+    super.key,
+    required this.departureCode,
+    required this.departureCity,
+    required this.arrivalCode,
+    required this.arrivalCity,
+    required this.flightNumber,
+    required this.date,
+    this.stopover,
+  });
 
   @override
   State<TicketVerificationCameraPage> createState() => _TicketVerificationCameraPageState();
@@ -23,6 +41,8 @@ class _TicketVerificationCameraPageState extends State<TicketVerificationCameraP
   bool _showIntroPopup = false;
   int _currentCameraIndex = 0; // 0: 후면, 1: 전면
   final ImagePicker _imagePicker = ImagePicker();
+  final ReviewVerificationRepository _repository = ReviewVerificationRepository();
+  bool _isVerifying = false;
 
   @override
   void initState() {
@@ -95,6 +115,83 @@ class _TicketVerificationCameraPageState extends State<TicketVerificationCameraP
     }
   }
 
+  Future<void> _processImage(String imagePath) async {
+    if (_isVerifying) return;
+
+    setState(() {
+      _isVerifying = true;
+    });
+
+    try {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('티켓을 인증하고 있습니다...'),
+            duration: Duration(seconds: 10), // 충분히 길게 설정
+          ),
+        );
+      }
+
+      print('📸 티켓 이미지 인증 시작: $imagePath');
+      final isVerified = await _repository.verifyTicket([imagePath]);
+
+      if (!mounted) return;
+
+      // 스낵바 닫기
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      if (isVerified) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ 인증 성공! 리뷰를 작성해주세요.')),
+        );
+        
+        // 잠시 후 이동 (사용자가 성공 메시지를 볼 수 있도록)
+        await Future.delayed(const Duration(milliseconds: 500));
+        
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ReviewWritePage(
+                departureCode: widget.departureCode,
+                departureCity: widget.departureCity,
+                arrivalCode: widget.arrivalCode,
+                arrivalCity: widget.arrivalCity,
+                flightNumber: widget.flightNumber,
+                date: widget.date,
+                stopover: widget.stopover ?? '직항',
+              ),
+            ),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('❌ 인증 실패. 탑승권이 잘 보이도록 다시 촬영해주세요.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      print('티켓 인증 처리 오류: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('오류가 발생했습니다: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isVerifying = false;
+        });
+      }
+    }
+  }
+
   Future<void> _pickImageFromGallery() async {
     try {
       final XFile? image = await _imagePicker.pickImage(
@@ -102,20 +199,7 @@ class _TicketVerificationCameraPageState extends State<TicketVerificationCameraP
       );
       
       if (image != null) {
-        // TODO: 백엔드로 이미지 전송 및 인식 처리
-        print('갤러리에서 이미지 선택: ${image.path}');
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('티켓 인증 중입니다...')),
-          );
-          // 2초 후 페이지 닫기
-          Future.delayed(const Duration(seconds: 2), () {
-            if (mounted) {
-              Navigator.pop(context);
-            }
-          });
-        }
+        await _processImage(image.path);
       }
     } catch (e) {
       print('갤러리 이미지 선택 오류: $e');
@@ -245,41 +329,40 @@ class _TicketVerificationCameraPageState extends State<TicketVerificationCameraP
             ),
           ),
 
-          // 임시 다음 버튼 (테스트용)
+          // 닫기 버튼 (우측 상단)
           Positioned(
-            top: MediaQuery.of(context).padding.top + context.h(70),
+            top: MediaQuery.of(context).padding.top + context.h(10),
             right: context.w(20),
             child: GestureDetector(
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ReviewWritePage(
-                      departureCode: 'DXB',
-                      departureCity: '두바이',
-                      arrivalCode: 'INC',
-                      arrivalCity: '인천',
-                      flightNumber: 'DF445/ER555',
-                      date: '2025.11.12. (토)',
-                      stopover: '02시간 00분 SFO',
-                    ),
-                  ),
-                );
+                Navigator.pop(context);
               },
               child: Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: context.w(16),
-                  vertical: context.h(8),
-                ),
+                width: 40,
+                height: 40,
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppColors.yellow1,
-                  borderRadius: BorderRadius.circular(20),
+                  color: Colors.white.withOpacity(0.05),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.1),
+                    width: 1,
+                  ),
                 ),
-                child: Text(
-                  '다음',
-                  style: AppTextStyles.body.copyWith(
-                    color: AppColors.black,
-                    fontWeight: FontWeight.w600,
+                child: ClipOval(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+                    child: Center(
+                      child: SvgPicture.asset(
+                        'assets/images/myflight/x.svg',
+                        width: 24,
+                        height: 24,
+                        colorFilter: const ColorFilter.mode(
+                          Colors.white,
+                          BlendMode.srcIn,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -376,6 +459,26 @@ class _TicketVerificationCameraPageState extends State<TicketVerificationCameraP
                 ],
               ),
             ),
+          // 로딩 오버레이
+          if (_isVerifying)
+             Positioned.fill(
+              child: Container(
+                color: Colors.black.withOpacity(0.5),
+                child: const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(color: Colors.white),
+                      SizedBox(height: 16),
+                      Text(
+                        '티켓을 확인하고 있습니다...',
+                        style: TextStyle(color: Colors.white, fontSize: 16),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -386,23 +489,11 @@ class _TicketVerificationCameraPageState extends State<TicketVerificationCameraP
       return;
     }
 
+    if (_isVerifying) return;
+
     try {
       final XFile image = await _cameraController!.takePicture();
-      // TODO: 백엔드로 이미지 전송 및 인식 처리
-      print('사진 촬영 완료: ${image.path}');
-      
-      // 임시로 스낵바 표시
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('티켓 인증 중입니다...')),
-        );
-        // 2초 후 페이지 닫기 (실제로는 백엔드 응답 후 처리)
-        Future.delayed(const Duration(seconds: 2), () {
-          if (mounted) {
-            Navigator.pop(context);
-          }
-        });
-      }
+      await _processImage(image.path);
     } catch (e) {
       print('사진 촬영 오류: $e');
     }

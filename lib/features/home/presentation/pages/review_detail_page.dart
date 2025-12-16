@@ -1,9 +1,12 @@
 import 'dart:io';
 import 'dart:ui';
+import 'dart:convert'; // Base64 디코딩을 위해 추가
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/responsive_extensions.dart';
+import '../../../../core/utils/image_utils.dart'; // ImageUtils import
+import '../../../../core/widgets/user_profile_image.dart'; // UserProfileImage import
 import '../../domain/models/review_model.dart'; // Review 모델 import
 import '../../data/datasources/airline_api_service.dart'; // API Service import
 import '../../../myflight/pages/review_write_page.dart'; // ReviewWritePage import
@@ -159,9 +162,6 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
                     if (updatedData != null && mounted) {
                       print('🔄 리뷰 수정 완료 -> 마이페이지로 이동 (강제 2단계 POP)');
                       
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('리뷰가 수정되었습니다.')),
-                      );
                       
                       // 강제로 2단계 뒤로 이동 (ReviewDetail -> MyReviews -> MyPage)
                       int count = 0;
@@ -323,10 +323,9 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
                 children: [
                   Row(
                     children: [
-                      CircleAvatar(
-                        radius: context.w(20),
-                        backgroundColor: const Color(0xFF333333),
-                        backgroundImage: AssetImage(_currentReview.profileImage),
+                      UserProfileImage(
+                        imageUrl: _currentReview.profileImage,
+                        size: context.w(40),
                       ),
                       SizedBox(width: context.w(12)),
                       Column(
@@ -720,9 +719,6 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
         
         if (mounted) {
           print('✅ 리뷰 삭제 성공함. 마이페이지로 이동 (강제 2단계 POP)');
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('리뷰가 삭제되었습니다.')),
-          );
           
           // 강제로 2단계 뒤로 이동 (ReviewDetail -> MyReviews -> MyPage)
           int count = 0;
@@ -808,31 +804,71 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
   }
 
   Widget _buildReviewImage(String imagePath) {
-    if (imagePath.startsWith('http')) {
+    print('🖼️ 이미지 로딩 시도: ${imagePath.substring(0, imagePath.length > 100 ? 100 : imagePath.length)}...');
+    
+    // Base64 데이터 URL 처리
+    if (imagePath.startsWith('data:image')) {
+      try {
+        // data:image/jpeg;base64,... 형식에서 base64 부분만 추출
+        final base64String = imagePath.split(',')[1];
+        final bytes = base64Decode(base64String);
+        print('✅ Base64 이미지 디코딩 완료: ${bytes.length} bytes');
+        return Image.memory(
+          bytes,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            print('❌ Base64 이미지 표시 실패: $error');
+            return Container(color: const Color(0xFF333333));
+          },
+        );
+      } catch (e) {
+        print('❌ Base64 디코딩 실패: $e');
+        return Container(color: const Color(0xFF333333));
+      }
+    }
+    // HTTP URL 처리
+    else if (imagePath.startsWith('http')) {
       return Image.network(
         imagePath,
         fit: BoxFit.cover,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) {
+            print('✅ 이미지 로딩 완료: $imagePath');
+            return child;
+          }
+          return const Center(
+            child: CircularProgressIndicator(color: Colors.white),
+          );
+        },
         errorBuilder: (context, error, stackTrace) {
+          print('❌ 이미지 로딩 실패: $imagePath');
+          print('❌ 에러: $error');
           return Image.network(
-            'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=800&q=80', // 비행기 대체 이미지
+            'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=800&q=80',
             fit: BoxFit.cover,
           );
         },
       );
-    } else if (imagePath.startsWith('assets/')) {
+    }
+    // Asset 경로 처리
+    else if (imagePath.startsWith('assets/')) {
       return Image.asset(
         imagePath,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
-           return Container(color: const Color(0xFF333333));
+          print('❌ Asset 이미지 로딩 실패: $imagePath');
+          return Container(color: const Color(0xFF333333));
         },
       );
-    } else {
+    }
+    // 로컬 파일 경로 처리
+    else {
       return Image.file(
         File(imagePath), 
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
-           return Container(color: const Color(0xFF333333));
+          print('❌ File 이미지 로딩 실패: $imagePath');
+          return Container(color: const Color(0xFF333333));
         },
       );
     }
@@ -977,23 +1013,11 @@ class _FullScreenImageViewerState extends State<_FullScreenImageViewer> {
     );
   }
 
+
   Widget _buildFullImage(String imagePath) {
-    if (imagePath.startsWith('http')) {
-      return Image.network(
-        imagePath,
-        fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) {
-          return Image.network(
-            'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=800&q=80', // 비행기 대체 이미지
-            fit: BoxFit.contain,
-          );
-        },
-      );
-    } else if (imagePath.startsWith('assets/')) {
-      return Image.asset(imagePath, fit: BoxFit.contain);
-    } else {
-      return Image.file(File(imagePath), fit: BoxFit.contain);
-    }
+    return ImageUtils.buildImage(
+      imagePath,
+      fit: BoxFit.contain, // 풀스크린에서는 contain 사용
+    );
   }
 }
-

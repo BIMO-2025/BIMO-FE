@@ -49,10 +49,20 @@ class _AirlineDetailPageState extends State<AirlineDetailPage> {
           airlineCode: widget.airline.code,
         );
         
-        // BIMO 요약 정보 할당
+        // BIMO 요약 정보 할당 (기본 정보에 없으면 별도 API 호출)
         if (_airlineInfo?.bimoSummary != null) {
           _airlineSummary = _airlineInfo!.bimoSummary;
           print('✅ BIMO 요약 정보 로드 완료 (from AirlineInfo)');
+        } else {
+          print('ℹ️ 기본 정보에 요약 없음 -> 요약 API 별도 호출 시도');
+          try {
+            _airlineSummary = await _apiService.getAirlineSummary(
+              airlineCode: widget.airline.code,
+            );
+            print('✅ BIMO 요약 정보 로드 완료 (from Summary API)');
+          } catch (e) {
+            print('⚠️ BIMO 요약 API 호출 실패: $e');
+          }
         }
       } catch (e) {
         print('⚠️ 기본 정보 API 실패: $e');

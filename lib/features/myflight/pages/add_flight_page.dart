@@ -1,4 +1,5 @@
 import 'dart:ui';
+import '../../../core/services/notification_service.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -983,6 +984,20 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
                 .toList();
             await localTimelineRepo.saveOriginalTimeline(localFlight.id, originalEvents);
             print('✅ 타임라인 로컬 저장 완료: ${localFlight.id} (${timelineEvents.length}개)');
+
+            // [Notification] 비행 3시간 전 알림 스케줄링
+            try {
+              final scheduledTime = localFlight.departureTime.subtract(const Duration(hours: 3));
+              final flightName = '${localFlight.origin} ✈️ ${localFlight.destination}';
+              
+              await NotificationService().scheduleFlightReminder(
+                flightNumber: flightName,
+                scheduledTime: scheduledTime,
+              );
+              print('✅ 알림 스케줄링 등록: $flightName (3시간 전: $scheduledTime)');
+            } catch (e) {
+              print('⚠️ 알림 스케줄링 실패: $e');
+            }
           }
         } catch (e) {
           print('⚠️ 타임라인 생성 실패 (비행은 저장됨): $e');

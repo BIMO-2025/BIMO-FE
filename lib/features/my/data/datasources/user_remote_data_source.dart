@@ -147,62 +147,26 @@ class UserRemoteDataSource {
     }
   }
 
-  /// 이미지 파일 업로드 (URL 획득)
-  Future<String> uploadImage(String imagePath) async {
+  /// 프로필 사진 업데이트 (이미지 파일 직접 업로드)
+  Future<Map<String, dynamic>> updateProfilePhoto(String userId, String imagePath) async {
     try {
-      // TODO: 실제 업로드 엔드포인트 확인 필요. 임시로 '/upload' 사용.
-      const uploadEndpoint = '/upload'; 
-      final url = '${ApiConstants.baseUrl}$uploadEndpoint';
-      print('🚀 이미지 업로드 API 호출: $url');
+      const endpoint = '/user/profile/photo';
+      final url = '${ApiConstants.baseUrl}$endpoint';
+      print('🚀 프로필 사진 업데이트 API 호출: $url');
+      print('📦 파라미터: userId=$userId, imagePath=$imagePath');
 
+      // FormData 생성 (multipart/form-data)
       final formData = FormData.fromMap({
-        'file': await MultipartFile.fromFile(
+        'userId': userId,
+        'image': await MultipartFile.fromFile(
           imagePath,
           filename: imagePath.split('/').last,
         ),
       });
 
-      final response = await _apiClient.post(
-        uploadEndpoint,
-        data: formData,
-      );
-
-      print('✅ 업로드 성공: ${response.statusCode}');
-      
-      // 응답에서 URL 추출 (서버 응답 구조에 따라 수정 필요)
-      // 예: { "url": "https://..." }
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        if (response.data is Map<String, dynamic> && response.data['url'] != null) {
-          return response.data['url'];
-        }
-        // 임시: 응답이 문자열 URL인 경우
-        if (response.data is String) {
-          return response.data;
-        }
-      }
-      
-      throw Exception('Invalid upload response');
-    } catch (e) {
-      print('❌ 이미지 업로드 실패: $e');
-      // 테스트용: 실패 시에도 더미 URL 리턴 (개발 편의성)
-      // return 'https://dummyimage.com/600x400/000/fff';
-      rethrow;
-    }
-  }
-
-  /// 프로필 사진 업데이트 (URL 전송)
-  Future<Map<String, dynamic>> updateProfilePhoto(String userId, String photoUrl) async {
-    try {
-      final url = '${ApiConstants.baseUrl}${ApiConstants.updateProfilePhoto}';
-      print('🚀 프로필 사진 업데이트 API 호출: $url');
-      print('📦 파라미터: userId=$userId, photoUrl=$photoUrl');
-
       final response = await _apiClient.put(
-        ApiConstants.updateProfilePhoto,
-        data: {
-          'userId': userId,
-          'photo_url': photoUrl,
-        },
+        endpoint,
+        data: formData,
       );
 
       print('✅ 응답 성공: ${response.statusCode}');
