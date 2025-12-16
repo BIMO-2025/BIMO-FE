@@ -554,8 +554,8 @@ class _HomePageState extends State<HomePage> {
           alliance: '', // API에 제휴 정보 없음
           type: 'FSC', // 기본값
           logoUrl: logoUrl,
-          rating: 0.0, // API에 평점 정보 없음
-          reviewCount: 0, // API에 리뷰 수 없음
+          rating: flight.ratingScore, // [FIX] 모델의 평점 사용
+          reviewCount: flight.reviewCountNum, // [FIX] 모델의 리뷰 수 사용
           rank: 0, // 순위 없음
         );
       }

@@ -55,7 +55,10 @@ class FlightSearchData {
     required this.date,
     this.ratingScore = 0.0,
     this.reviewCountNum = 0,
-  });
+  }) {
+    // [DEBUG] 생성자 값 확인
+    if (ratingScore > 0) print('✨ FlightSearchData Created: val=$ratingScore');
+  }
 
   // existing fromJson kept for compatibility/tests if needed, but delegating
   factory FlightSearchData.fromJson(Map<String, dynamic> json) {
@@ -63,7 +66,14 @@ class FlightSearchData {
   }
 
   factory FlightSearchData.fromMap(Map<String, dynamic> json, {Map<String, String>? airlineLogos}) {
-    // 디버그 로그 제거됨
+    // 디버그 로그 제거됨 -> 복구하여 확인
+    // print('🔍 Parsing Flight: ${json['operating_carrier']}');
+    // print('🔍 Keys: ${json.keys.toList()}');
+    if (json.containsKey('overall_rating')) {
+       print('🔍 overall_rating found: ${json['overall_rating']} (Type: ${json['overall_rating'].runtimeType})');
+    } else {
+       print('⚠️ overall_rating MISSING in this item');
+    }
     
     // segments가 있으면 첫 번째 세그먼트의 출발, 마지막 세그먼트의 도착 정보를 사용
     final segmentsList = (json['segments'] as List<dynamic>?)
