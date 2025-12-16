@@ -13,6 +13,7 @@ import '../../../features/myflight/pages/myflight_page.dart';
 import '../../../features/myflight/pages/flight_plan_page.dart';
 import '../../../features/myflight/pages/review_write_page.dart';
 import '../../../features/home/domain/models/airline.dart';
+import '../../../features/my/presentation/pages/sleep_pattern_page.dart'; // SleepPatternPage import
 
 /// 앱의 라우팅 설정을 관리하는 클래스
 class AppRouter {
@@ -23,7 +24,7 @@ class AppRouter {
 
   static final GoRouter _router = GoRouter(
     // initialLocation: '/airline-detail',
-    initialLocation: '/home', // Start with ReviewWritePage
+    initialLocation: RouteNames.splash,
     routes: [
       GoRoute(
         path: RouteNames.splash,
@@ -75,6 +76,11 @@ class AppRouter {
              prefillNickname: extra?['nickname'],
            );
         },
+      ),
+      GoRoute(
+        path: RouteNames.sleepPattern,
+        name: 'sleepPattern',
+        builder: (context, state) => const SleepPatternPage(),
       ),
       // 테스트: 대한항공 상세 페이지
       GoRoute(
