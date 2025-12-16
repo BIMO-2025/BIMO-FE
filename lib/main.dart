@@ -15,8 +15,8 @@ Future<void> main() async {
   // UI 스타일 설정
   AppTheme.setSystemUIOverlayStyle();
   
-  // 서비스 초기화 (Hive 등) 후 앱 실행
-  await _initializeServices();
+// 서비스 초기화 (Hive 등) 후 앱 실행
+  // await _initializeServices(); // [CHANGE] 블로킹 방지를 위해 제거
   
   runApp(const MyApp());
 }
@@ -79,11 +79,21 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
-      title: 'BIMO',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
-      routerConfig: AppRouter.router,
+    return FutureBuilder(
+      future: _initializeServices(),
+      builder: (context, snapshot) {
+        // 초기화 완료 전이라도 앱을 실행하여 스플래시 화면이 뜨도록 함
+        // (SplashPage에서 어차피 로딩 및 토큰 체크를 하므로 바로 진입해도 됨)
+        // 단, Hive 박스가 열리기 전에 데이터 접근하면 에러가 날 수 있으므로
+        // SplashPage가 최소 2초 대기하는 동안 초기화가 완료될 것으로 기대
+        
+        return MaterialApp.router(
+          title: 'BIMO',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.darkTheme,
+          routerConfig: AppRouter.router,
+        );
+      },
     );
   }
 }

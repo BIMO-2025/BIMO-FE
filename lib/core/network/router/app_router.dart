@@ -23,7 +23,8 @@ class AppRouter {
 
   static final GoRouter _router = GoRouter(
     // initialLocation: '/airline-detail',
-    initialLocation: '/home', // Start with ReviewWritePage
+    // initialLocation: '/airline-detail',
+    initialLocation: RouteNames.splash, // Start with Splash Page
     routes: [
       GoRoute(
         path: RouteNames.splash,

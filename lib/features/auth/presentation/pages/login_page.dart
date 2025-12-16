@@ -303,7 +303,7 @@ class _LoginPageState extends State<LoginPage> {
           // 배경 이미지
           Positioned.fill(
             child: Image.asset(
-              'assets/images/onboarding & login/bg.png',
+              'assets/images/onboarding_login/bg.png',
               fit: BoxFit.cover,
             ),
           ),
@@ -349,7 +349,7 @@ class _LoginPageState extends State<LoginPage> {
         children: [
           // 로고 이미지 (박스 없이)
           Image.asset(
-            'assets/images/onboarding & login/bimo_logo_on.png',
+            'assets/images/onboarding_login/bimo_logo_on.png',
             width: 120,
             height: 120,
             fit: BoxFit.contain,
@@ -395,7 +395,7 @@ class _LoginPageState extends State<LoginPage> {
 
               // BIMO 타이포로고
               SvgPicture.asset(
-                'assets/images/onboarding & login/TypoLogo.svg',
+                'assets/images/onboarding_login/TypoLogo.svg',
                 width: 110,
                 height: 35,
                 fit: BoxFit.contain,
@@ -480,7 +480,7 @@ class _LoginPageState extends State<LoginPage> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Image.asset(
-                        'assets/images/onboarding & login/apple_logo.png',
+                        'assets/images/onboarding_login/apple_logo.png',
                         width: 20,
                         height: 20,
                       ),
@@ -514,7 +514,7 @@ class _LoginPageState extends State<LoginPage> {
 
               // Google 로그인
               _buildLoginButton(
-                icon: 'assets/images/onboarding & login/google_logo.png',
+                icon: 'assets/images/onboarding_login/google_logo.png',
                 text: '구글로 계속하기',
                 backgroundColor: Colors.white,
                 textColor: const Color(0xFF1A1A1A),
@@ -526,7 +526,7 @@ class _LoginPageState extends State<LoginPage> {
 
               // Kakao 로그인
               _buildLoginButton(
-                icon: 'assets/images/onboarding & login/kakao_logo.png',
+                icon: 'assets/images/onboarding_login/kakao_logo.png',
                 text: '카카오로 계속하기',
                 backgroundColor: const Color(0xFFFEE500),
                 textColor: const Color(0xFF1A1A1A),
