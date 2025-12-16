@@ -255,8 +255,8 @@ class _AirlineSearchResultPageState extends State<AirlineSearchResultPage> {
       final airlineCode = flight.airline.name; // getter 접근
       final logoUrl = flight.airline.logo;
       
-      // 로고 디버깅
-      print('🔵 항공편: $airlineCode, 로고: ${logoUrl.isNotEmpty ? "있음" : "없음"}');
+      // 로고 디버깅 // [DEBUG] 평점 디버깅 추가
+      print('🔵 항공편: $airlineCode, 로고: ${logoUrl.isNotEmpty ? "있음" : "없음"}, RawRating: ${flight.ratingScore}');
       
       // 경유 여부: segments가 2개 이상이면 경유
       final isDirect = flight.segments == null || flight.segments!.length <= 1;

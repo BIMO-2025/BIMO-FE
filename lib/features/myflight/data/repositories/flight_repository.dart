@@ -284,7 +284,7 @@ class FlightRepository {
 
   /// 비행 저장
   /// POST /users/{userId}/my-flights
-  Future<void> saveFlight(String userId, CreateFlightRequest request) async {
+  Future<String> saveFlight(String userId, CreateFlightRequest request) async {
     try {
       print('🚀 비행 저장 API 호출: /users/$userId/my-flights');
       print('📦 Request Body: ${request.toJson()}');
@@ -296,6 +296,8 @@ class FlightRepository {
       
       if (response.statusCode == 200 || response.statusCode == 201) {
         print('✅ 비행 저장 성공');
+        final data = response.data as Map<String, dynamic>;
+        return data['id'].toString(); // ID를 String으로 변환하여 반환
       } else {
         throw Exception('비행 저장 실패: ${response.statusCode}');
       }
@@ -307,14 +309,19 @@ class FlightRepository {
 
   /// 타임라인 생성
   /// POST /wellness/flight-timeline
-  Future<Map<String, dynamic>?> generateTimeline(TimelineRequest request) async {
+  /// 타임라인 생성
+  /// POST /wellness/users/{userId}/my-flights/{flightId}/timeline
+  Future<Map<String, dynamic>?> generateTimeline(String userId, String flightId, TimelineRequest request) async {
     try {
-      print('🚀 타임라인 생성 API 호출: /wellness/flight-timeline');
+      print('🚀 타임라인 생성 API 호출: /wellness/users/$userId/my-flights/$flightId/timeline');
       print('📦 Request Body: ${request.toJson()}');
       
       final response = await _dio.post(
-        '/wellness/flight-timeline',
+        '/wellness/users/$userId/my-flights/$flightId/timeline',
         data: request.toJson(),
+        options: Options(
+          receiveTimeout: const Duration(minutes: 2), // AI 생성 시간 고려해 2분으로 설정
+        ),
       );
       
       if (response.statusCode == 200) {

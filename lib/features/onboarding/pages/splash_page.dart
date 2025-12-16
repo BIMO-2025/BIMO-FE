@@ -41,6 +41,8 @@ class _SplashPageState extends State<SplashPage> {
     // 자동 로그인 체크
     try {
       final storage = AuthTokenStorage();
+      // await storage.deleteAllTokens(); // [DEBUG] 제거 (Release Crash 원인 의심)
+      
       final accessToken = await storage.getAccessToken();
       final userInfo = await storage.getUserInfo();
       final userId = userInfo['userId'];
@@ -72,12 +74,13 @@ class _SplashPageState extends State<SplashPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.black, // 흰 화면 방지를 위해 배경색 명시
       body: Stack(
         children: [
           // 배경 이미지
           Positioned.fill(
             child: Image.asset(
-              'assets/images/onboarding & login/bg.png',
+              'assets/images/onboarding_login/bg.png',
               fit: BoxFit.cover,
             ),
           ),
@@ -208,7 +211,7 @@ class _SplashPageState extends State<SplashPage> {
               width: 41.34,
               alignment: Alignment.center,
               child: Image.asset(
-                'assets/images/onboarding & login/airplane.png',
+                'assets/images/onboarding_login/airplane.png',
                 width: 28.69,
                 height: 26.84,
                 fit: BoxFit.contain,
@@ -255,7 +258,7 @@ class _SplashPageState extends State<SplashPage> {
 
         // BIMO 타이포로고
         SvgPicture.asset(
-          'assets/images/onboarding & login/TypoLogo.svg',
+          'assets/images/onboarding_login/TypoLogo.svg',
           width: 110,
           height: 35,
           fit: BoxFit.contain,

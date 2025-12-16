@@ -47,6 +47,16 @@ class _HomePageState extends State<HomePage> {
     _selectedIndex = widget.initialIndex; // 초기 인덱스 설정
     _loadPopularAirlines();
   }
+
+  @override
+  void didUpdateWidget(HomePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialIndex != oldWidget.initialIndex) {
+      setState(() {
+        _selectedIndex = widget.initialIndex;
+      });
+    }
+  }
   int _searchTabIndex = 0; // Search tab index (0: Airline, 1: Destination)
   final TextEditingController _airlineSearchController =
       TextEditingController();
@@ -544,8 +554,8 @@ class _HomePageState extends State<HomePage> {
           alliance: '', // API에 제휴 정보 없음
           type: 'FSC', // 기본값
           logoUrl: logoUrl,
-          rating: 0.0, // API에 평점 정보 없음
-          reviewCount: 0, // API에 리뷰 수 없음
+          rating: flight.ratingScore, // [FIX] 모델의 평점 사용
+          reviewCount: flight.reviewCountNum, // [FIX] 모델의 리뷰 수 사용
           rank: 0, // 순위 없음
         );
       }

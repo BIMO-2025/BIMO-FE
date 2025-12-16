@@ -462,7 +462,11 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
                 
                 // 읽기 전용 모드에서는 바로 뒤로가기
                 if (widget.isReadOnly) {
-                  Navigator.pop(context);
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.goNamed('home', extra: {'initialIndex': 1});
+                  }
                   return;
                 }
                 
@@ -472,10 +476,19 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
                   if (shouldSave) {
                     await _saveTimelineToHive();
                     if (context.mounted) {
-                      Navigator.pop(context);
+                      if (context.canPop()) {
+                        context.pop();
+                      } else {
+                        // 스택이 없는 경우 (직접 이동한 경우) 홈 > 마이플라이트로 이동
+                        context.goNamed('home', extra: {'initialIndex': 1});
+                      }
                     }
                   } else {
-                    Navigator.pop(context);
+                    if (context.canPop()) {
+                      context.pop();
+                    } else {
+                      context.goNamed('home', extra: {'initialIndex': 1});
+                    }
                   }
                 }
               },
@@ -514,9 +527,7 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
             top: context.h(31),
             child: Center(
               child: Text(
-                (_currentFlight != null)
-                    ? '${_currentFlight!.origin} ✈ ${_currentFlight!.destination}'
-                    : '나의 비행 플랜',
+                '나의 비행 플랜',
                 style: AppTextStyles.large.copyWith(color: Colors.white),
               ),
             ),

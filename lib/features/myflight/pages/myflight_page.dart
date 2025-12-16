@@ -44,6 +44,8 @@ class _MyFlightPageState extends State<MyFlightPage> {
   bool _isOfflineMode = true; // 오프라인 모드 (테스트용)
   bool _isLoading = false; // 로딩 상태
 
+  String _totalFlightTime = "0h 0m"; // [NEW] 총 비행 시간
+
   @override
   void initState() {
     super.initState();
@@ -76,10 +78,9 @@ class _MyFlightPageState extends State<MyFlightPage> {
   /// 예정된 비행 목록 불러오기 (Hive 우선, API 보조)
   Future<void> _loadScheduledFlights() async {
     try {
-      // Hive 초기화 대기 (main.dart에서 초기화 중일 수 있음)
+      // Hive 초기화 대기
       await Future.delayed(const Duration(milliseconds: 500));
       
-      // 1. Hive에서 로드 (오프라인 가능)
       final localFlightRepo = LocalFlightRepository();
       await localFlightRepo.init();
       final localFlights = await localFlightRepo.getScheduledFlights();
@@ -99,17 +100,17 @@ class _MyFlightPageState extends State<MyFlightPage> {
             arrivalCode: lf.destination,
             departureCity: _getCityName(lf.origin), // 한국어 도시명
             arrivalCity: _getCityName(lf.destination), // 한국어 도시명
-            departureTime: _formatTimeToAmPm(lf.departureTime), // AM/PM 형식
-            arrivalTime: _formatTimeToAmPm(lf.arrivalTime), // AM/PM 형식
+            departureTime: _formatTimeToAmPm(lf.departureTime),
+            arrivalTime: _formatTimeToAmPm(lf.arrivalTime),
             duration: lf.totalDuration,
             rating: null,
-            id: lf.id, // ID 추가
+            id: lf.id,
           ));
         }
         
         FlightState().scheduledFlights = flights;
         print('✅ Hive에서 ${localFlights.length}개 비행 로드 완료');
-        return; // 성공하면 API 조회 스킵
+        return;
       }
     } catch (e) {
       print('⚠️ Hive 로드 실패, API 조회로 전환: $e');
@@ -174,9 +175,20 @@ class _MyFlightPageState extends State<MyFlightPage> {
       
       print('📦 [Past] Repository 반환 개수: ${localFlights.length}');
       
+      // [NEW] 총 비행 시간 계산
+      int totalMinutes = 0;
+      for (final f in localFlights) {
+        totalMinutes += _parseDurationToMinutes(f.totalDuration);
+      }
+      final hours = totalMinutes ~/ 60;
+      final minutes = totalMinutes % 60;
+      final formattedTotalTime = '${hours}h ${minutes}m';
+
       if (localFlights.isEmpty) {
         print('⚠️ [Past] 로컬 비행 데이터 없음');
         FlightState().pastFlights = [];
+        // [NEW] 초기화
+        _totalFlightTime = "0h 0m"; 
         if (mounted) setState(() {});
         return;
       }
@@ -223,8 +235,12 @@ class _MyFlightPageState extends State<MyFlightPage> {
       
       print('✅ [Past] UI용 변환 완료: ${flights.length}개');
       FlightState().pastFlights = flights;
+      
+      // [NEW] UI 상태 업데이트
+      _totalFlightTime = formattedTotalTime;
+
       if (mounted) {
-        print('🔄 [Past] setState 호출');
+        print('🔄 [Past] setState 호출 (Total Time: $_totalFlightTime)');
         setState(() {});
       } else {
         print('⚠️ [Past] mounted 아님, setState 건너뜀');
@@ -254,7 +270,7 @@ class _MyFlightPageState extends State<MyFlightPage> {
           const SizedBox(height: 4), // 간격 4px
           // 총 비행 시간 (display 스타일)
           Text(
-            '65h 30m',
+            _totalFlightTime, // [FIX] 계산된 시간 사용
             style: AppTextStyles.display.copyWith(color: Colors.white),
           ),
 
@@ -581,14 +597,9 @@ class _MyFlightPageState extends State<MyFlightPage> {
                           departureTime: scheduledFlights[index].departureTime,
                           arrivalTime: scheduledFlights[index].arrivalTime,
                           onTap: () async {
-                            // 1. 해당 비행을 'In-Progress'로 설정하여 시뮬레이션 연동
-                            // _flightIdMap 대신 Flight 객체의 id 사용
+                            // 1. 타임라인 페이지로 이동
+                            // 단순 조회/수정이므로 setInProgressFlight는 호출하지 않음 (사용자 요청)
                             final flightId = scheduledFlights[index].id;
-                            if (flightId != null) {
-                                final flightRepo = LocalFlightRepository();
-                                await flightRepo.init();
-                                await flightRepo.setInProgressFlight(flightId);
-                            }
 
                             // 2. 타임라인 페이지로 이동
                             await Navigator.push(
@@ -638,6 +649,8 @@ class _MyFlightPageState extends State<MyFlightPage> {
               ),
 
             const SizedBox(height: 16),
+
+
           ],
         ],
       ),

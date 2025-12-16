@@ -36,6 +36,7 @@ class FlightSearchData {
   final FlightAirline airline;
   final FlightEndpoint departure;
   final FlightEndpoint arrival;
+  final int layoverDuration; // 경유 대기 시간 (분 단위)
   final int duration; // 분 단위
   final String flightNumber;
   final List<FlightSegment>? segments; // 복구
@@ -48,12 +49,16 @@ class FlightSearchData {
     required this.departure,
     required this.arrival,
     required this.duration,
+    required this.layoverDuration, // 추가
     required this.flightNumber,
     this.segments,
     required this.date,
     this.ratingScore = 0.0,
     this.reviewCountNum = 0,
-  });
+  }) {
+    // [DEBUG] 생성자 값 확인
+    if (ratingScore > 0) print('✨ FlightSearchData Created: val=$ratingScore');
+  }
 
   // existing fromJson kept for compatibility/tests if needed, but delegating
   factory FlightSearchData.fromJson(Map<String, dynamic> json) {
@@ -61,7 +66,14 @@ class FlightSearchData {
   }
 
   factory FlightSearchData.fromMap(Map<String, dynamic> json, {Map<String, String>? airlineLogos}) {
-    // 디버그 로그 제거됨
+    // 디버그 로그 제거됨 -> 복구하여 확인
+    // print('🔍 Parsing Flight: ${json['operating_carrier']}');
+    // print('🔍 Keys: ${json.keys.toList()}');
+    if (json.containsKey('overall_rating')) {
+       print('🔍 overall_rating found: ${json['overall_rating']} (Type: ${json['overall_rating'].runtimeType})');
+    } else {
+       print('⚠️ overall_rating MISSING in this item');
+    }
     
     // segments가 있으면 첫 번째 세그먼트의 출발, 마지막 세그먼트의 도착 정보를 사용
     final segmentsList = (json['segments'] as List<dynamic>?)
@@ -82,24 +94,53 @@ class FlightSearchData {
     }
 
     var rawDuration = json['total_duration'] ?? json['duration'];
-    int parsedDuration = 0;
+    int parsedDuration = _parseDuration(rawDuration);
+    
+    // 세그먼트 비행 시간 합계 및 경유 대기 시간 계산
+    int totalSegmentDuration = 0;
+    int calculatedLayover = 0;
     
     if (segmentsList != null && segmentsList.isNotEmpty) {
-      for (var seg in segmentsList) {
-        parsedDuration += _parseDuration(seg.duration);
+      for (int i = 0; i < segmentsList.length; i++) {
+        // 1. 비행 시간 합산
+        totalSegmentDuration += _parseDuration(segmentsList[i].duration);
+        
+        // 2. 경유 대기 시간 합산 (같은 공항이므로 로컬 시간 차이 계산 가능)
+        if (i < segmentsList.length - 1) {
+          try {
+            final currentArr = DateTime.parse(segmentsList[i].arrivalTime);
+            final nextDep = DateTime.parse(segmentsList[i+1].departureTime);
+            final diff = nextDep.difference(currentArr).inMinutes;
+            
+            // 대기 시간이 음수이거나 너무 길면 오류일 수 있으나, 일반적으로는 양수
+            if (diff > 0) {
+              calculatedLayover += diff;
+            }
+          } catch (e) {
+            print('⚠️ Layover calculation failed: $e');
+          }
+        }
       }
     }
     
-    if (parsedDuration == 0) {
-      parsedDuration = _parseDuration(rawDuration);
+    // 🚀 [수정] Total Duration = 비행 시간 합계 + 대기 시간 합계
+    // 시차가 있는 공항 간의 단순 차이(Arrival - Departure)는 부정확하므로 이 방식이 가장 정확함
+    if (totalSegmentDuration > 0) {
+      parsedDuration = totalSegmentDuration + calculatedLayover;
+      print('✅ Final Duration: Flight($totalSegmentDuration) + Layover($calculatedLayover) = $parsedDuration');
     }
-    
-    if (parsedDuration == 0 && depEndpoint.time.isNotEmpty && arrEndpoint.time.isNotEmpty) {
-      try {
-        final start = DateTime.parse(depEndpoint.time);
-        final end = DateTime.parse(arrEndpoint.time);
-        parsedDuration = end.difference(start).inMinutes;
-      } catch (_) {}
+
+    // 디버깅용 (빌드 후 로그 확인)
+    if (parsedDuration == 0) {
+        print('⚠️ Duration parsing still failed. Fallback to start/end diff if available.');
+        // 이미 위에서 계산했으므로 여기는 최후의 수단
+        if (depEndpoint.time.isNotEmpty && arrEndpoint.time.isNotEmpty) {
+          try {
+            final start = DateTime.parse(depEndpoint.time);
+            final end = DateTime.parse(arrEndpoint.time);
+            parsedDuration = end.difference(start).inMinutes;
+          } catch (_) {}
+        }
     }
     
     String? logoUrl = json['logo_symbol_url'] as String?;
@@ -119,7 +160,8 @@ class FlightSearchData {
       departure: depEndpoint,
       arrival: arrEndpoint,
       duration: parsedDuration,
-      flightNumber: json['flight_number'] ?? '',
+      layoverDuration: calculatedLayover, // 대기 시간 추가
+      flightNumber: json['flight_number'] ?? _parseFlightNumber(json),
       segments: segmentsList,
       date: '', 
       // 필드명 변경 적용, 정상 파싱 로직 사용
