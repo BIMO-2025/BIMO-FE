@@ -193,9 +193,28 @@ class _MyFlightPageState extends State<MyFlightPage> {
         return;
       }
       
+      // API로부터 hasReview 정보 가져오기
+      Map<String, bool> hasReviewMap = {};
+      try {
+        final storage = AuthTokenStorage();
+        final userInfo = await storage.getUserInfo();
+        final userId = userInfo['userId'];
+        
+        if (userId != null && userId.isNotEmpty) {
+          final repository = FlightRepository();
+          hasReviewMap = await repository.getFlightSegmentsHasReview(userId, status: 'completed');
+          print('✅ [Past] hasReview 정보 로드 완료: ${hasReviewMap.length}개');
+        }
+      } catch (e) {
+        print('⚠️ [Past] hasReview 정보 로드 실패: $e');
+      }
+      
       final flights = <Flight>[];
       for (final lf in localFlights) {
         try {
+          // 비행 ID로 hasReview 확인
+          final hasReview = hasReviewMap[lf.id] ?? false;
+          
           flights.add(Flight(
             date: '${lf.departureTime.year}.${lf.departureTime.month.toString().padLeft(2, '0')}.${lf.departureTime.day.toString().padLeft(2, '0')}. (${_getWeekday(lf.departureTime)})',
             departureCode: lf.origin,
@@ -207,6 +226,7 @@ class _MyFlightPageState extends State<MyFlightPage> {
             duration: lf.totalDuration,
             rating: null,
             id: lf.id,
+            hasReview: hasReview, // API에서 가져온 hasReview 정보
           ));
         } catch (e) {
           print('❌ [Past] 비행 변환 오류 (${lf.id}): $e');

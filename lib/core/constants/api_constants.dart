@@ -47,4 +47,7 @@ class ApiConstants {
 
   // 수면 패턴 관련
   static const String sleepPattern = '${_apiPrefix}user/sleep-pattern';
+
+  // 비행 관련
+  static String myFlightsHasReview(String userId) => '${_apiPrefix}users/$userId/my-flights/segments/has-review';
 }
