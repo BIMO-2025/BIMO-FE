@@ -147,12 +147,23 @@ class _ApiInterceptor extends Interceptor {
     } else if (err.response?.statusCode == 400) {
       // 400 에러일 때 응답 데이터 확인
       final responseData = err.response?.data;
+      print('🔄 400 에러 감지. 데이터 타입: ${responseData.runtimeType}');
+      print('🔄 400 에러 데이터: $responseData');
+      
+      // Map인 경우
       if (responseData is Map && responseData['detail'] != null) {
         final detail = responseData['detail'].toString();
         if (detail.contains('토큰이 만료') || detail.contains('token') && detail.contains('expired')) {
           isTokenExpired = true;
-          print('🔄 400 에러지만 토큰 만료 메시지 감지');
+          print('🔄 400 에러지만 "토큰 만료" 메시지 감지 (Map)');
         }
+      } 
+      // String인 경우 (JSON 파싱 후 확인하거나 문자열 자체 검사)
+      else if (responseData is String) {
+          if (responseData.contains('토큰이 만료') || responseData.contains('token_expired')) {
+              isTokenExpired = true;
+              print('🔄 400 에러지만 "토큰 만료" 메시지 감지 (String)');
+          }
       }
     }
 

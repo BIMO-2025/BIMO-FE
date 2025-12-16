@@ -8,6 +8,7 @@ import '../../domain/models/airport.dart';
 import '../../data/mock_airlines.dart';
 import '../../data/datasources/airline_api_service.dart';
 import '../../data/models/popular_airline_response.dart';
+import '../../data/models/flight_search_response.dart'; // Import 추가
 import '../../data/airline_mapper.dart';
 import '../widgets/search_tab_selector.dart';
 import '../widgets/airline_search_input.dart';
@@ -244,44 +245,47 @@ class _AirlineSearchResultPageState extends State<AirlineSearchResultPage> {
   }
 
   /// 항공편 결과 그룹화 (항공사 + 경유지 기준 중복 제거)
-  List<Map<String, dynamic>> _groupFlights(List<dynamic> flights) {
+  List<Map<String, dynamic>> _groupFlights(List<FlightSearchData> flights) {
     print('🔵 _groupFlights 호출: ${flights.length}개 항공편 데이터');
     
     // Key: airlineCode_isDirect_viaCities
     final Map<String, Map<String, dynamic>> uniqueRoutes = {};
     
     for (final flight in flights) {
-      // FlightSearchData 타입 (이미 파싱됨)
-      // airline.name = 항공사 코드 (예: "KE")
-      // airline.logo = 로고 URL
-      final airlineCode = flight.airline?.name ?? '';
-      final logoUrl = flight.airline?.logo ?? '';
+      final airlineCode = flight.airline.name; // getter 접근
+      final logoUrl = flight.airline.logo;
       
-      print('🔵 항공편: $airlineCode, 로고: ${logoUrl.isNotEmpty ? "있음" : "없음"}, 세그먼트: ${flight.segments?.length ?? 0}개');
+      // 로고 디버깅
+      print('🔵 항공편: $airlineCode, 로고: ${logoUrl.isNotEmpty ? "있음" : "없음"}');
       
       // 경유 여부: segments가 2개 이상이면 경유
       final isDirect = flight.segments == null || flight.segments!.length <= 1;
       
-      // 경유지 정보 생성
+      // Key 생성
+      String key = airlineCode;
+      
       String viaText = '';
-      if (!isDirect && flight.segments != null && flight.segments!.length > 1) {
-        // 첫 번째 세그먼트의 도착지 = 경유지
-        final List<String> viaCities = [];
-        for (int i = 0; i < flight.segments!.length - 1; i++) {
-           final seg = flight.segments![i];
-           viaCities.add(seg.arrivalAirport);
-        }
-        viaText = viaCities.join(', ');
+      if (!isDirect) {
+          // 경유지 추출 
+          // segments가 2개 -> 첫 번째 세그먼트의 도착지 = 경유지
+          // segments가 3개 -> 첫 번째 도착, 두 번째 도착...
+          // 여기서는 첫 번째 경유지만 추출
+          if (flight.segments != null && flight.segments!.isNotEmpty) {
+               viaText = flight.segments!.first.arrivalAirport;
+               if(viaText.isNotEmpty) {
+                   key += "_via_$viaText";
+               }
+          }
+      } else {
+          key += "_direct";
       }
-      
-      final key = '${airlineCode}_${isDirect}_$viaText';
-      
+
       if (!uniqueRoutes.containsKey(key)) {
         uniqueRoutes[key] = {
-          'airlineName': airlineCode, // 항공사 코드를 이름으로 사용
+          'airlineName': airlineCode, // 항공사 코드를 이름으로 사용 (나중에 매핑)
           'airlineLogo': logoUrl,
-          'rating': 0.0, // API에 평점 정보 없음 → 0.0으로 설정
-          'reviewCount': 0, // API에 리뷰 수 없음 → 0으로 설정
+          'rating': flight.ratingScore, // 모델의 평점 데이터 사용
+          'reviewCount': flight.reviewCountNum, // 모델의 리뷰 수 데이터 사용
           'isDirect': isDirect,
           'viaText': viaText,
         };
@@ -332,7 +336,7 @@ class _AirlineSearchResultPageState extends State<AirlineSearchResultPage> {
         final airlineKoreanName = AirlineMapper.codeToKorean[airlineCode] ?? airlineCode;
         
         // 로고 디버깅
-        print('🔵 항공사: $airlineCode ($airlineKoreanName), 로고: ${airlineLogo.isNotEmpty ? "있음 ($airlineLogo)" : "없음"}');
+        print('🔵 항공사: $airlineCode ($airlineKoreanName), 로고: ${airlineLogo.isNotEmpty ? "있음 ($airlineLogo)" : "없음"}, 평점: ${group['rating']}, 리뷰: ${group['reviewCount']}');
         
         // mock 데이터에서 매칭 (로고/이미지용)
         final mockAirline = mockAirlines.firstWhere(

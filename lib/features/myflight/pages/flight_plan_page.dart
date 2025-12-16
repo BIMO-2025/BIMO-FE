@@ -18,6 +18,8 @@ import '../data/models/local_flight.dart';
 import '../models/flight_model.dart';
 import 'flight_plan_end_page.dart';
 import 'myflight_page.dart';
+import '../../../core/services/notification_service.dart'; // NotificationService import
+import '../../../core/services/notification_service.dart'; // NotificationService import
 
 /// 비행 플랜 페이지
 class FlightPlanPage extends StatefulWidget {
@@ -288,6 +290,9 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
           _updateCurrentEventHighlight();
       }
       
+      // 알림 스케줄링
+      _scheduleNotifications(_localTimelineEvents);
+
       if (mounted) setState(() {});
       
     } catch (e) {
@@ -295,6 +300,37 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
       _events = _getTimelineEvents();
       _initialEvents = List.from(_events);
       if (mounted) setState(() {});
+    }
+  }
+
+  /// 타임라인 알림 스케줄링
+  Future<void> _scheduleNotifications(List<LocalTimelineEvent> events) async {
+    final notificationService = NotificationService();
+    // 비행 ID가 있다면 해시코드로 사용, 없으면 0
+    final flightIdHash = _currentFlight?.id.hashCode ?? 0;
+    
+    print('🔔 ${events.length}개 타임라인 알림 스케줄링 시작');
+    
+    for (int i = 0; i < events.length; i++) {
+        final event = events[i];
+        
+        // 아이콘 추출 (LocalTimelineEvent -> UI Model 변환 활용)
+        final uiEvent = event.toTimelineEvent() as Map<String, dynamic>;
+        final iconPath = uiEvent['icon'] as String?;
+        
+        // 고유 ID 생성 (flightId hash ^ index)
+        final notiId = (flightIdHash ^ i) & 0x7FFFFFFF;
+        
+        // 과거 이벤트는 예약 스킵 (선택 사항, NotificationService가 알아서 handle하겠지만)
+        if (event.startTime.isBefore(DateTime.now())) continue;
+
+        await notificationService.scheduleTimelineNotification(
+            id: notiId,
+            title: event.title,
+            body: event.description,
+            scheduledTime: event.startTime,
+            iconAssetPath: iconPath,
+        );
     }
   }
 

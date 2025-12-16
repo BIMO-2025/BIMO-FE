@@ -39,8 +39,10 @@ class FlightSearchData {
   final int layoverDuration; // 경유 대기 시간 (분 단위)
   final int duration; // 분 단위
   final String flightNumber;
-  final List<FlightSegment>? segments;
-  final String date; // 표시용 날짜
+  final List<FlightSegment>? segments; // 복구
+  final String date; // 복구 (표시용 날짜)
+  final double ratingScore; // 변경된 필드 유지
+  final int reviewCountNum; // 변경된 필드 유지
 
   FlightSearchData({
     required this.airline,
@@ -51,6 +53,8 @@ class FlightSearchData {
     required this.flightNumber,
     this.segments,
     required this.date,
+    this.ratingScore = 0.0,
+    this.reviewCountNum = 0,
   });
 
   // existing fromJson kept for compatibility/tests if needed, but delegating
@@ -59,6 +63,8 @@ class FlightSearchData {
   }
 
   factory FlightSearchData.fromMap(Map<String, dynamic> json, {Map<String, String>? airlineLogos}) {
+    // 디버그 로그 제거됨
+    
     // segments가 있으면 첫 번째 세그먼트의 출발, 마지막 세그먼트의 도착 정보를 사용
     final segmentsList = (json['segments'] as List<dynamic>?)
         ?.map((e) => FlightSegment.fromJson(e as Map<String, dynamic>))
@@ -73,7 +79,6 @@ class FlightSearchData {
         depEndpoint = FlightEndpoint(airport: first.departureAirport, time: first.departureTime);
         arrEndpoint = FlightEndpoint(airport: last.arrivalAirport, time: last.arrivalTime);
     } else {
-        // Fallback or throw
         depEndpoint = FlightEndpoint(airport: '', time: '');
         arrEndpoint = FlightEndpoint(airport: '', time: '');
     }
@@ -128,11 +133,7 @@ class FlightSearchData {
         }
     }
     
-    // 항공사 로고 찾기
-    // 1. logo_symbol_url 확인 (최우선)
     String? logoUrl = json['logo_symbol_url'] as String?;
-    
-    // 2. 없으면 기존 로직 (매핑 또는 fallback)
     String carrierCode = json['operating_carrier'] as String? ?? '';
     if (logoUrl == null || logoUrl.isEmpty) {
         if (carrierCode.isEmpty && segmentsList != null && segmentsList.isNotEmpty) {
@@ -142,7 +143,6 @@ class FlightSearchData {
     }
 
     return FlightSearchData(
-      // Airline 정보가 없으면 operating_carrier 코드만이라도 사용
       airline: FlightAirline(
           name: carrierCode, 
           logo: logoUrl
@@ -154,6 +154,9 @@ class FlightSearchData {
       flightNumber: json['flight_number'] ?? _parseFlightNumber(json),
       segments: segmentsList,
       date: '', 
+      // 필드명 변경 적용, 정상 파싱 로직 사용
+      ratingScore: double.tryParse(json['overall_rating']?.toString() ?? '') ?? 0.0,
+      reviewCountNum: int.tryParse(json['total_reviews']?.toString() ?? '') ?? 0,
     );
   }
 
