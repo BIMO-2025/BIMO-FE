@@ -41,7 +41,6 @@ class _SplashPageState extends State<SplashPage> {
     // 자동 로그인 체크
     try {
       final storage = AuthTokenStorage();
-      await storage.deleteAllTokens(); // [DEBUG] 강제 로그아웃 (Onboarding확인용)
       
       final accessToken = await storage.getAccessToken();
       final userInfo = await storage.getUserInfo();

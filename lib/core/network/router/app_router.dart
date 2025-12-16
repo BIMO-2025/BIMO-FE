@@ -23,7 +23,7 @@ class AppRouter {
   static GoRouter get router => _router;
 
   static final GoRouter _router = GoRouter(
-    initialLocation: RouteNames.reviewWrite,
+    initialLocation: RouteNames.splash,
     routes: [
       GoRoute(
         path: RouteNames.splash,

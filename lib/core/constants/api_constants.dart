@@ -1,7 +1,7 @@
 /// API 관련 상수
 class ApiConstants {
   /// Base URL
-  static const String baseUrl = 'https://myron-effaceable-patiently.ngrok-free.dev/';
+  static const String baseUrl = 'https://nonsubtile-shea-wretched.ngrok-free.dev/';
 
   /// API 타임아웃 (밀리초)
   static const int connectTimeout = 30000; // 30초
