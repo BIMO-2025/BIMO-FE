@@ -8,8 +8,8 @@ class Flight {
   final String arrivalTime;
   final double? rating;
   final String? date;
-
   final String? id;
+  final bool? hasReview; // 리뷰 작성 여부
 
   const Flight({
     this.id,
@@ -22,5 +22,6 @@ class Flight {
     required this.arrivalTime,
     this.rating,
     this.date,
+    this.hasReview,
   });
 }

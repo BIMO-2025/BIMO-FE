@@ -117,25 +117,23 @@ class PastFlightsListPage extends StatelessWidget {
     );
   }
 
-  /// 비행 리스트
+  /// 비행 목록 빌더
   Widget _buildFlightsList(BuildContext context, List<Flight> flights) {
-    return ListView.separated(
+    return ListView.builder(
       padding: EdgeInsets.only(
-        left: context.w(40),
-        right: context.w(40),
-        top: context.h(82) + context.h(20),
-        bottom: context.h(100),
+        top: context.h(82) + context.h(20), // 헤더 높이 + 간격
+        left: context.w(20),
+        right: context.w(20),
+        bottom: context.h(100), // 하단 여백
       ),
       itemCount: flights.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 16),
       itemBuilder: (context, index) {
         final flight = flights[index];
-        final hasRating = flight.rating != null;
+        // hasReview 값으로 리뷰 작성 여부 판단 (없으면 false로 간주)
+        final hasReview = flight.hasReview ?? false;
         
-        // 리스트 페이지는 모든 카드가 화이트 배경
-        
-        return SizedBox(
-          height: 247,
+        return Padding(
+          padding: EdgeInsets.only(bottom: context.h(16)),
           child: FlightCardWidget(
             departureCode: flight.departureCode,
             departureCity: flight.departureCity,
@@ -146,16 +144,16 @@ class PastFlightsListPage extends StatelessWidget {
             arrivalTime: flight.arrivalTime,
             date: flight.date ?? '',
             rating: flight.rating,
-            // 리스트 페이지는 항상 reviewText 설정
-            reviewText: hasRating ? ' ' : '리뷰 작성하고 내 비행 기록하기',
-            // 평점 없을 때만 노란 점
-            hasEditNotification: !hasRating,
+            // hasReview 값으로 텍스트 결정
+            reviewText: hasReview ? ' ' : '리뷰 작성하고 내 비행 기록하기',
+            // 리뷰 없을 때만 노란 점
+            hasEditNotification: !hasReview,
             // 리스트 페이지는 화이트 배경 사용
             isLightMode: true,
             onEditTap: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(hasRating ? '리뷰 수정 기능 준비 중입니다.' : '리뷰 작성 기능 준비 중입니다.'),
+                  content: Text(hasReview ? '리뷰 수정 기능 준비 중입니다.' : '리뷰 작성 기능 준비 중입니다.'),
                 ),
               );
             },
