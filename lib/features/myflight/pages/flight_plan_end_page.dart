@@ -7,6 +7,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/responsive_extensions.dart';
 import '../../../core/utils/responsive.dart';
 import '../widgets/flight_card_widget.dart';
+import 'ticket_verification_camera_page.dart';
 import 'review_write_page.dart';
 
 /// 비행 종료 화면
@@ -22,6 +23,7 @@ class FlightPlanEndPage extends StatelessWidget {
   final String departureTime; // 출발 시간 (예: "10:30 AM")
   final String arrivalTime; // 도착 시간 (예: "09:30 PM")
   final String date; // 날짜 (예: "2025.11.26. (토)")
+  final String? flightNumber; // 항공편명 (예: "AF264")
   final double? rating; // 평점 (선택적)
 
   const FlightPlanEndPage({
@@ -37,6 +39,7 @@ class FlightPlanEndPage extends StatelessWidget {
     required this.departureTime,
     required this.arrivalTime,
     required this.date,
+    this.flightNumber,
     this.rating,
   });
 
@@ -80,18 +83,18 @@ class FlightPlanEndPage extends StatelessWidget {
                           date: date, // 날짜 전달
                           reviewText: '리뷰 작성하고 내 비행 기록하기', // 리뷰 작성 텍스트 (평점 대신)
                           onReviewTap: () {
-                            // 리뷰 작성 페이지로 이동
+                            // 티켓 인증 페이지로 이동 (인증 후 자동으로 리뷰 작성 페이지로 이동)
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => ReviewWritePage(
+                                builder: (context) => TicketVerificationCameraPage(
                                   departureCode: departureCode,
                                   departureCity: departureCity,
                                   arrivalCode: arrivalCode,
                                   arrivalCity: arrivalCityName,
-                                  flightNumber: 'AF264', // 더미 데이터 (또는 전달받은 값)
+                                  flightNumber: flightNumber ?? 'Unknown',
                                   date: date,
-                                  stopover: '직항', // 더미 데이터
+                                  stopover: '직항', // TODO: 실제 경유 정보로 대체
                                 ),
                               ),
                             );

@@ -100,11 +100,18 @@ class NotificationPage extends StatelessWidget {
                 color: const Color(0xFF333333),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                item.icon,
-                size: context.w(20),
-                color: item.isRead ? const Color(0xFF8E8E93) : AppColors.yellow1,
-              ),
+              child: item.assetIcon != null
+                  ? Image.asset(
+                      item.assetIcon!,
+                      width: context.w(20),
+                      height: context.w(20),
+                      color: item.isRead ? const Color(0xFF8E8E93) : AppColors.yellow1,
+                    )
+                  : Icon(
+                      item.icon,
+                      size: context.w(20),
+                      color: item.isRead ? const Color(0xFF8E8E93) : AppColors.yellow1,
+                    ),
             ),
             SizedBox(width: context.w(12)),
             // 내용

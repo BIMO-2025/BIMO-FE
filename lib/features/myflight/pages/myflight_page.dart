@@ -22,6 +22,7 @@ import '../data/repositories/local_flight_repository.dart';
 import '../../../../core/utils/responsive_extensions.dart';
 import '../../../../core/storage/auth_token_storage.dart';
 import '../data/repositories/flight_repository.dart';
+import '../data/repositories/local_timeline_repository.dart'; // LocalTimelineRepository import
 
 /// MyFlight 메인 페이지
 class MyFlightPage extends StatefulWidget {
@@ -490,6 +491,76 @@ class _MyFlightPageState extends State<MyFlightPage> {
                     ),
                   ),
                   child: const Text('2시간 전 알림 테스트'),
+                ),
+              ),
+
+            // 타임라인 알림 테스트 버튼
+            if (scheduledFlights.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(left: 20, right: 20, top: 12),
+                child: ElevatedButton(
+                  onPressed: () async {
+                    // 타임라인 알림 테스트
+                    // 가장 가까운 비행의 타임라인을 가져와서 5초 간격으로 알림 예약
+                    
+                    if (_flightIdMap.isEmpty) return;
+                    
+                    final flightId = _flightIdMap.values.first; // 첫 번째(가장 가까운) 비행 ID
+                    final repo = LocalTimelineRepository();
+                    await repo.init();
+                    final events = await repo.getTimeline(flightId);
+                    
+                    if (events.isEmpty) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('타임라인 데이터가 없습니다.')),
+                        );
+                      }
+                      return;
+                    }
+                    
+                    final service = NotificationService();
+                    int delaySeconds = 5;
+                    final now = DateTime.now();
+                    
+                    for (int i = 0; i < events.length; i++) {
+                      final event = events[i];
+                      
+                      // UI 모델로 변환하여 아이콘 경로 획득
+                      final uiEvent = event.toTimelineEvent() as Map<String, dynamic>;
+                      final String? iconPath = uiEvent['icon'] as String?;
+                      
+                      // 알림 예약 (5초 간격)
+                      await service.scheduleTimelineNotification(
+                        id: 2000 + i, // 고유 ID (2000번대 사용)
+                        title: event.title,
+                        body: '${event.title} 시간이 되었습니다!',
+                        scheduledTime: now.add(Duration(seconds: delaySeconds)),
+                        iconAssetPath: iconPath,
+                      );
+                      
+                      delaySeconds += 5;
+                    }
+                    
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('${events.length}개의 타임라인 알림을 예약했습니다. (5초 간격)'),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.purple.withOpacity(0.2), // 보라색 배경
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: BorderSide(color: Colors.purple.withOpacity(0.5)),
+                    ),
+                  ),
+                  child: const Text('타임라인 알림 테스트'),
                 ),
               ),
           ],

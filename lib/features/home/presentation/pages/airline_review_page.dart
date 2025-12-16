@@ -39,6 +39,8 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
   List<ReviewItem> _apiReviews = [];
   AirlineReviewsResponse? _reviewsResponse;
   String? _currentUserId; // 현재 로그인한 사용자 ID
+  String _currentUserNickname = '사용자';
+  String _currentUserProfileImage = 'assets/images/my/default_profile.png';
 
   // Mock Data for Reviews (fallback)
   final List<Review> _reviews = [
@@ -84,9 +86,44 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
   Future<void> _loadCurrentUserId() async {
     final storage = AuthTokenStorage();
     final userInfo = await storage.getUserInfo();
-    setState(() {
-      _currentUserId = userInfo['userId'];
-    });
+    if (mounted) {
+      setState(() {
+        _currentUserId = userInfo['userId'];
+        _currentUserNickname = userInfo['name'] ?? '사용자';
+        final savedPhotoUrl = userInfo['photoUrl'];
+        if (savedPhotoUrl != null && savedPhotoUrl.isNotEmpty) {
+           _currentUserProfileImage = savedPhotoUrl;
+        }
+      });
+    }
+  }
+
+  Review _mapToReview(ReviewItem apiReview) {
+    String formattedDate = apiReview.createdAt;
+    if (formattedDate.length >= 10) {
+      formattedDate = formattedDate.substring(0, 10).replaceAll('-', '.');
+    }
+    
+    final tags = <String>[];
+    if (apiReview.route.isNotEmpty) tags.add(apiReview.route);
+    if (apiReview.flightNumber != null && apiReview.flightNumber!.isNotEmpty) tags.add(apiReview.flightNumber!);
+    
+    // 내 리뷰인지 확인
+    final isMyReview = _currentUserId != null && _currentUserId == apiReview.userId;
+
+    return Review(
+      nickname: isMyReview ? _currentUserNickname : apiReview.userNickname, // 내 리뷰면 최신 닉네임 사용
+      profileImage: isMyReview ? _currentUserProfileImage : 'assets/images/my/default_profile.png', // 내 리뷰면 최신 사진, 남의 리뷰면 기본 사진
+      rating: apiReview.overallRating,
+      date: formattedDate,
+      likes: apiReview.likes,
+      tags: tags,
+      content: apiReview.text,
+      images: apiReview.imageUrls,
+      userId: apiReview.userId,
+      detailRatings: apiReview.ratings.toJson(),
+      reviewId: apiReview.reviewId,
+    );
   }
 
   Future<void> _loadReviews() async {
@@ -379,31 +416,7 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
     // 1. 현재 표시할 리뷰 데이터 가져오기 (API 또는 Mock)
     List<Review> currentReviews = [];
     if (_apiReviews.isNotEmpty) {
-      currentReviews = _apiReviews.map((apiReview) {
-        String formattedDate = apiReview.createdAt;
-        if (formattedDate.length >= 10) {
-          formattedDate = formattedDate.substring(0, 10).replaceAll('-', '.');
-        }
-        final tags = <String>[];
-        if (apiReview.route.isNotEmpty) tags.add(apiReview.route);
-        if (apiReview.flightNumber != null && apiReview.flightNumber!.isNotEmpty) tags.add(apiReview.flightNumber!);
-        // 좌석 등급 삭제
-        // if (apiReview.seatClass != null && apiReview.seatClass!.isNotEmpty) tags.add(apiReview.seatClass!);
-
-        return Review(
-          nickname: apiReview.userNickname,
-          profileImage: 'assets/images/my/default_profile.png',
-          rating: apiReview.overallRating,
-          date: formattedDate,
-          likes: apiReview.likes,
-          tags: tags,
-          content: apiReview.text,
-          images: apiReview.imageUrls,
-          userId: apiReview.userId, // userId 추가
-          detailRatings: apiReview.ratings.toJson(), // 세부 평점 (Map으로 변환)
-          reviewId: apiReview.reviewId, // reviewId 추가 (좋아요 API용)
-        );
-      }).toList();
+      currentReviews = _apiReviews.map((apiReview) => _mapToReview(apiReview)).toList();
     } else {
       currentReviews = _reviews;
     }
@@ -772,7 +785,7 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
     }
     
     // API 데이터를 Review 객체로 변환
-    List<Review> displayReviews = [];
+    List<Review> displayReviews = _apiReviews.map((apiReview) => _mapToReview(apiReview)).toList();
     
     if (_apiReviews.isNotEmpty) {
       // 1. 클라이언트 사이드 필터링
@@ -850,38 +863,8 @@ class _AirlineReviewPageState extends State<AirlineReviewPage> {
       }
 
       // 3. 변환
-      displayReviews = filteredItems.map((apiReview) {
-        // 날짜 포맷팅 (YYYY-MM-DD)
-        String formattedDate = apiReview.createdAt;
-        if (formattedDate.length >= 10) {
-          formattedDate = formattedDate.substring(0, 10).replaceAll('-', '.');
-        }
-
-        // 태그 생성
-        final tags = <String>[];
-        if (apiReview.route.isNotEmpty) tags.add(apiReview.route);
-        if (apiReview.flightNumber != null && apiReview.flightNumber!.isNotEmpty) {
-          tags.add(apiReview.flightNumber!);
-        }
-        // 좌석 등급 제거 (요구사항에 따라)
-        // if (apiReview.seatClass != null && apiReview.seatClass!.isNotEmpty) {
-        //   tags.add(apiReview.seatClass!);
-        // }
-
-        return Review(
-          nickname: apiReview.userNickname,
-          profileImage: 'assets/images/my/default_profile.png', // 기본 프로필 이미지로 변경
-          rating: apiReview.overallRating,
-          date: formattedDate,
-          likes: apiReview.likes,
-          tags: tags,
-          content: apiReview.text,
-          images: apiReview.imageUrls, // 이미지 URL 리스트 연결
-          userId: apiReview.userId, // userId 추가
-          detailRatings: apiReview.ratings.toJson(), // 세부 평점 (Map으로 변환)
-          reviewId: apiReview.reviewId, // reviewId 추가 (좋아요 API용)
-        );
-      }).toList();
+      // 3. 변환
+      displayReviews = filteredItems.map((apiReview) => _mapToReview(apiReview)).toList();
     } else {
       // API 데이터 없으면 Mock 데이터 사용
       displayReviews = _reviews;

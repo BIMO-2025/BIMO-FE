@@ -100,8 +100,8 @@ class _MyReviewsPageState extends State<MyReviewsPage> {
             }
 
             return Review(
-              nickname: reviewData['userNickname'] ?? _nickname,
-              profileImage: reviewData['userProfileImage'] ?? _profileImage,
+              nickname: _nickname, // 서버 데이터 대신 최신 내 정보 사용
+              profileImage: _profileImage, // 서버 데이터 대신 최신 내 정보 사용
               rating: (reviewData['overallRating'] ?? 0).toDouble(),
               date: formattedDate,
               likes: reviewData['likes'] ?? 0,

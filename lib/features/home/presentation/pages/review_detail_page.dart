@@ -6,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/responsive_extensions.dart';
 import '../../../../core/utils/image_utils.dart'; // ImageUtils import
+import '../../../../core/widgets/user_profile_image.dart'; // UserProfileImage import
 import '../../domain/models/review_model.dart'; // Review 모델 import
 import '../../data/datasources/airline_api_service.dart'; // API Service import
 import '../../../myflight/pages/review_write_page.dart'; // ReviewWritePage import
@@ -161,9 +162,6 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
                     if (updatedData != null && mounted) {
                       print('🔄 리뷰 수정 완료 -> 마이페이지로 이동 (강제 2단계 POP)');
                       
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('리뷰가 수정되었습니다.')),
-                      );
                       
                       // 강제로 2단계 뒤로 이동 (ReviewDetail -> MyReviews -> MyPage)
                       int count = 0;
@@ -325,10 +323,9 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
                 children: [
                   Row(
                     children: [
-                      CircleAvatar(
-                        radius: context.w(20),
-                        backgroundColor: const Color(0xFF333333),
-                        backgroundImage: AssetImage(_currentReview.profileImage),
+                      UserProfileImage(
+                        imageUrl: _currentReview.profileImage,
+                        size: context.w(40),
                       ),
                       SizedBox(width: context.w(12)),
                       Column(
@@ -722,9 +719,6 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
         
         if (mounted) {
           print('✅ 리뷰 삭제 성공함. 마이페이지로 이동 (강제 2단계 POP)');
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('리뷰가 삭제되었습니다.')),
-          );
           
           // 강제로 2단계 뒤로 이동 (ReviewDetail -> MyReviews -> MyPage)
           int count = 0;

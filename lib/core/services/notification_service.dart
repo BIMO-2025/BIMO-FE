@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/data/latest_all.dart' as tz_data; // Timezone 데이터
 import 'package:timezone/timezone.dart' as tz;
+import 'package:path_provider/path_provider.dart';
 
 enum NotificationType { flight, review, promotion }
 
@@ -12,12 +15,16 @@ class NotificationItem {
   bool isRead;
   final NotificationType type;
 
+
+  final String? assetIcon; // 커스텀 에셋 아이콘 경로
+
   NotificationItem({
     required this.title,
     required this.message,
     required this.time,
     this.isRead = false,
     required this.type,
+    this.assetIcon,
   });
 
   IconData get icon {
@@ -49,6 +56,17 @@ class NotificationService {
 
   // 알림 초기화
   Future<void> _initializeNotifications() async {
+    // 1. Timezone 데이터 초기화 (필수)
+    tz_data.initializeTimeZones();
+    
+    // 2. 로컬 타임존 설정 (한국 시간대 'Asia/Seoul'로 고정하거나 시스템 타임존 사용)
+    try {
+      tz.setLocalLocation(tz.getLocation('Asia/Seoul'));
+    } catch (e) {
+      print('⚠️ 타임존 설정 오류(기본값 사용): $e');
+      // 에러 발생 시 UTC 등을 기본값으로 사용할 수 있음
+    }
+
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
     const iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
@@ -109,6 +127,7 @@ class NotificationService {
           time: '방금 전',
           isRead: false,
           type: NotificationType.flight, // 타임라인도 flight 타입 사용
+          assetIcon: payload.split('|').length > 1 ? payload.split('|')[1] : null,
         ),
       );
       print('✅ 타임라인 알림 추가 완료: $title');
@@ -229,6 +248,100 @@ class NotificationService {
       }
     } catch (e) {
       print('❌ 알림 스케줄링 실패: $e');
+    }
+
+  }
+
+  // 타임라인 알림 스케줄링 (커스텀 아이콘 포함)
+  Future<void> scheduleTimelineNotification({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime scheduledTime,
+    String? iconAssetPath,
+  }) async {
+    try {
+      print('✅ 타임라인 알림 스케줄링: $title ($scheduledTime)');
+      
+      // Asset 아이콘을 파일로 변환 (Large Icon용)
+      String? largeIconPath;
+      if (iconAssetPath != null) {
+        largeIconPath = await _assetToFile(iconAssetPath);
+      }
+
+      // Android 설정
+      final androidDetails = AndroidNotificationDetails(
+        'timeline_channel',
+        'Timeline Notifications',
+        channelDescription: '비행 타임라인 알림',
+        importance: Importance.high,
+        priority: Priority.high,
+        largeIcon: largeIconPath != null ? FilePathAndroidBitmap(largeIconPath) : null,
+      );
+      
+      // iOS 설정
+      // iOS는 attachments를 사용하여 이미지를 표시해야 함
+      List<DarwinNotificationAttachment>? iosAttachments;
+      if (largeIconPath != null) {
+        iosAttachments = [DarwinNotificationAttachment(largeIconPath)];
+      }
+
+      final iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+        attachments: iosAttachments,
+      );
+      
+      final details = NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
+      
+      // Payload에 아이콘 경로 포함 (구분자 | 사용)
+      // 예: flight_timeline_123|assets/images/timeline/checkin.png
+      final payload = 'flight_timeline_$id${iconAssetPath != null ? "|$iconAssetPath" : ""}';
+
+      if (scheduledTime.isBefore(DateTime.now())) {
+        // 즉시 발송
+        await _flutterLocalNotificationsPlugin.show(
+          id,
+          title,
+          body,
+          details,
+          payload: payload,
+        );
+      } else {
+        // 스케줄링
+        await _flutterLocalNotificationsPlugin.zonedSchedule(
+          id,
+          title,
+          body,
+          tz.TZDateTime.from(scheduledTime, tz.local),
+          details,
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+          payload: payload,
+        );
+      }
+      print('✅ 알림 예약 성공: $title');
+    } catch (e) {
+      print('❌ 타임라인 알림 스케줄링 실패: $e');
+    }
+  }
+
+  // Asset 이미지를 임시 파일로 저장하여 경로 반환
+  Future<String?> _assetToFile(String assetPath) async {
+    try {
+      final byteData = await rootBundle.load(assetPath);
+      final tempDir = await getTemporaryDirectory();
+      final tempFile = File('${tempDir.path}/${assetPath.split("/").last}');
+      await tempFile.writeAsBytes(byteData.buffer.asUint8List(), flush: true);
+      return tempFile.path;
+    } catch (e) {
+      print('❌ Asset 파일 변환 실패: $e');
+      return null;
     }
   }
 

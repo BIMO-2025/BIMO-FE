@@ -73,8 +73,21 @@ class _MyPageState extends State<MyPage> {
           
           print('✅ 프로필 사진 업로드 성공: $response');
           
-          // 3. 프로필 재조회하여 최신 정보 반영
-          await _loadUserInfo();
+          // 3. 서버에서 최신 프로필 정보 조회 (사진 URL 등)
+          final userProfile = await userRepository.getUserProfile();
+          print('✅ 최신 프로필 정보 조회 완료: $userProfile');
+          
+          // 4. 로컬 스토리지 업데이트
+          final storage = AuthTokenStorage();
+          await storage.saveUserInfo(
+            name: userProfile['display_name'],
+            photoUrl: userProfile['photo_url'],
+            email: userProfile['email'],
+            userId: userProfile['uid'],
+          );
+          
+          // 5. UI 갱신 (저장된 정보 다시 로드) - 제거 (로컬 이미지 유지)
+          // await _loadUserInfo();
           
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(

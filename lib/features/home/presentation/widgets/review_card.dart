@@ -4,6 +4,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/responsive_extensions.dart';
 import '../../../../core/utils/image_utils.dart'; // ImageUtils import
 import '../../domain/models/review_model.dart';
+import '../../../../core/widgets/user_profile_image.dart'; // UserProfileImage import
 import '../../data/datasources/airline_api_service.dart'; // API Service import
 import '../pages/review_detail_page.dart';
 
@@ -102,17 +103,9 @@ class _ReviewCardState extends State<ReviewCard> {
               children: [
                 Row(
                   children: [
-                    CircleAvatar(
-                      radius: context.w(16),
-                      backgroundColor: const Color(0xFF333333),
-                      backgroundImage: _getImageProvider(widget.review.profileImage),
-                      onBackgroundImageError: (_, __) {}, 
-                      child: widget.review.profileImage.isEmpty 
-                          ? Text(
-                              widget.review.nickname.isNotEmpty ? widget.review.nickname[0] : 'U',
-                              style: const TextStyle(color: Colors.white),
-                            )
-                          : null,
+                    UserProfileImage(
+                      imageUrl: widget.review.profileImage,
+                      size: context.w(32),
                     ),
                     SizedBox(width: context.w(8)),
                     Column(
