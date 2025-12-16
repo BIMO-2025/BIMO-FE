@@ -15,6 +15,7 @@ class RouteNames {
   static const String sleepPattern = '/sleep-pattern';
   static const String home = '/home';
   static const String myFlight = '/myflight';
+  static const String reviewWrite = '/review-write'; // 리뷰 작성 페이지
  
   static const List<String> bottomNavRoutes = [
     home,
