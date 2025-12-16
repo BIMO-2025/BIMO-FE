@@ -36,9 +36,13 @@ class AuthRepositoryImpl implements AuthRepository {
       // 토큰 저장
       if (accessToken != null) {
         await _tokenStorage.saveAccessToken(accessToken);
+        print('✅ Access Token 저장 완료');
       }
       if (refreshToken != null) {
         await _tokenStorage.saveRefreshToken(refreshToken);
+        print('✅ Refresh Token 저장 완료: ${refreshToken.substring(0, 20)}...');
+      } else {
+        print('⚠️ Refresh Token이 응답에 없습니다!');
       }
 
       return AuthResult(

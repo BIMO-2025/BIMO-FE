@@ -1,9 +1,12 @@
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/responsive_extensions.dart';
 import '../../domain/models/review_model.dart'; // Review 모델 import
+import '../../data/datasources/airline_api_service.dart'; // API Service import
+import '../../../myflight/pages/review_write_page.dart'; // ReviewWritePage import
 import 'airline_review_page.dart'; // For Review class
 
 class ReviewDetailPage extends StatefulWidget {
@@ -21,13 +24,71 @@ class ReviewDetailPage extends StatefulWidget {
 }
 
 class _ReviewDetailPageState extends State<ReviewDetailPage> {
+  final AirlineApiService _apiService = AirlineApiService();
+  late Review _currentReview; // 현재 리뷰 데이터 (수정 반영을 위해 State로 관리)
+  late int _currentLikes; // 현재 좋아요 수
+  bool _isLiking = false; // 좋아요 처리 중
+  bool _isEdited = false; // 수정 여부
+
+  @override
+  void initState() {
+    super.initState();
+    _currentReview = widget.review;
+    _currentLikes = widget.review.likes;
+  }
+
+  // 좋아요 처리
+  Future<void> _handleLike() async {
+    if (widget.isMyReview || _isLiking || widget.review.reviewId == null) {
+      return; // 본인 리뷰거나 처리 중이거나 reviewId가 없으면 무시
+    }
+
+    setState(() {
+      _isLiking = true;
+    });
+
+    try {
+      final updatedLikes = await _apiService.addReviewLike(
+        reviewId: widget.review.reviewId!,
+      );
+
+      if (mounted) {
+        setState(() {
+          _currentLikes = updatedLikes;
+          _isLiking = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('좋아요가 추가되었습니다.'),
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ 좋아요 실패: $e');
+      if (mounted) {
+        setState(() {
+          _isLiking = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('좋아요 추가 실패: $e'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
   // 메뉴 버튼을 표시하는 메서드
   void _showReviewMenu(BuildContext context, Offset buttonPosition) {
     showMenu(
       context: context,
       position: RelativeRect.fromLTRB(
-        buttonPosition.dx - context.w(90), // 버튼보다 90만큼 왼쪽 (오른쪽에 40 공간)
-        buttonPosition.dy + context.h(1), // 버튼보다 1만큼 아래
+        buttonPosition.dx - context.w(102), // 20만큼 오른쪽으로
+        buttonPosition.dy + context.h(1),
         buttonPosition.dx,
         buttonPosition.dy,
       ),
@@ -39,95 +100,133 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
       items: [
         PopupMenuItem(
           padding: EdgeInsets.zero,
-          child: Container(
-            width: context.w(90),
-            decoration: BoxDecoration(
-              color: AppColors.white.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(context.w(12)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.25),
-                  blurRadius: 10,
-                  offset: const Offset(0, 0),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(context.w(12)),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: Container(
+                width: context.w(90),
+                decoration: BoxDecoration(
+                  color: AppColors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(context.w(12)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.25),
+                      blurRadius: 10,
+                      offset: const Offset(0, 0),
+                    ),
+                  ],
+                ),
+                child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 수정하기 버튼
+                _buildActionButton(
+                  context,
+                  icon: SizedBox(
+                    width: context.w(12),
+                    height: context.h(12),
+                    child: Image.asset(
+                      'assets/images/myflight/pencil.png',
+                      width: context.w(12),
+                      height: context.h(12),
+                      color: Colors.white,
+                    ),
+                  ),
+                  text: '수정하기',
+                  onTap: () async {
+                    Navigator.pop(context);
+                    // 리뷰 수정 페이지로 이동 (ReviewWritePage를 수정 모드로 사용)
+                    // 결과를 받아와서 화면 갱신
+                    final updatedData = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ReviewWritePage(
+                          flightNumber: _currentReview.tags.length > 1 ? _currentReview.tags[1] : '',
+                          departureCode: _currentReview.tags.isNotEmpty 
+                              ? _currentReview.tags[0].split('-')[0] 
+                              : '',
+                          arrivalCode: _currentReview.tags.isNotEmpty && _currentReview.tags[0].contains('-')
+                              ? _currentReview.tags[0].split('-')[1] 
+                              : '',
+                          isEditMode: true,
+                          existingReview: _currentReview,
+                        ),
+                      ),
+                    );
+
+                    // 수정된 데이터가 있으면 바로 목록으로 이동하며 갱신 요청
+                    if (updatedData != null && mounted) {
+                      print('🔄 리뷰 수정 완료 -> 마이페이지로 이동 (강제 2단계 POP)');
+                      
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('리뷰가 수정되었습니다.')),
+                      );
+                      
+                      // 강제로 2단계 뒤로 이동 (ReviewDetail -> MyReviews -> MyPage)
+                      int count = 0;
+                      Navigator.of(context).popUntil((route) {
+                        return count++ == 2;
+                      });
+                    }
+                  },
+                ),
+                // 구분선
+                Container(
+                  height: 1,
+                  color: AppColors.white.withOpacity(0.2),
+                ),
+                // 삭제하기 버튼
+                _buildActionButton(
+                  context,
+                  icon: Icon(
+                    Icons.close,
+                    size: context.w(12),
+                    color: Colors.white,
+                  ),
+                  text: '삭제하기',
+                  onTap: () {
+                    Navigator.pop(context); // 메뉴 닫기
+                    _showDeleteConfirmDialog(context);
+                  },
                 ),
               ],
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // 수정하기
-                GestureDetector(
-                  onTap: () {
-                    Navigator.pop(context);
-                    // TODO: 리뷰 수정 페이지로 이동
-                  },
-                  child: Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: context.w(14.5),
-                      vertical: context.h(12),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.edit,
-                          size: context.w(8),
-                          color: AppColors.white,
-                        ),
-                        SizedBox(width: context.w(8)),
-                        Text(
-                          '수정하기',
-                          style: AppTextStyles.smallBody.copyWith(
-                            color: AppColors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // 구분선
-                Container(
-                  width: context.w(90),
-                  height: 1,
-                  color: AppColors.white.withOpacity(0.1),
-                ),
-
-                // 삭제하기
-                GestureDetector(
-                  onTap: () {
-                    Navigator.pop(context);
-                    // TODO: 리뷰 삭제 확인 다이얼로그 표시
-                  },
-                  child: Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: context.w(14.5),
-                      vertical: context.h(12),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.close,
-                          size: context.w(8),
-                          color: AppColors.white,
-                        ),
-                        SizedBox(width: context.w(8)),
-                        Text(
-                          '삭제하기',
-                          style: AppTextStyles.smallBody.copyWith(
-                            color: AppColors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),
       ],
+    );
+  }
+
+  // 액션 버튼 위젯
+  Widget _buildActionButton(
+    BuildContext context, {
+    required Widget icon,
+    required String text,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: context.w(12),
+          vertical: context.h(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            icon,
+            SizedBox(width: context.w(4)),
+            Text(
+              text,
+              style: AppTextStyles.smallBody.copyWith(color: Colors.white),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -143,7 +242,7 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
         leading: Padding(
           padding: EdgeInsets.only(left: context.w(20)),
           child: GestureDetector(
-            onTap: () => Navigator.pop(context),
+            onTap: () => Navigator.pop(context, _isEdited),
             child: SizedBox(
               width: context.w(40),
               height: context.h(40),
@@ -157,7 +256,7 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
           ),
         ),
         title: Text(
-          '${widget.review.nickname} 님의 리뷰',
+          widget.isMyReview ? '나의 리뷰' : '${_currentReview.nickname} 님의 리뷰',
           style: AppTextStyles.large.copyWith(color: AppColors.white),
         ),
         centerTitle: true,
@@ -227,14 +326,14 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
                       CircleAvatar(
                         radius: context.w(20),
                         backgroundColor: const Color(0xFF333333),
-                        backgroundImage: AssetImage(widget.review.profileImage),
+                        backgroundImage: AssetImage(_currentReview.profileImage),
                       ),
                       SizedBox(width: context.w(12)),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            widget.review.nickname,
+                            _currentReview.nickname,
                             style: TextStyle(
                               fontFamily: 'Pretendard',
                               fontSize: context.fs(16),
@@ -252,7 +351,7 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
                               ),
                               SizedBox(width: context.w(2)),
                               Text(
-                                '${widget.review.rating}',
+                                '${_currentReview.rating}',
                                 style: TextStyle(
                                   fontFamily: 'Pretendard',
                                   fontSize: context.fs(14),
@@ -275,15 +374,32 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
                       ),
                     ],
                   ),
-                  Text(
-                    '좋아요 ${widget.review.likes}',
-                    style: TextStyle(
-                      fontFamily: 'Pretendard',
-                      fontSize: context.fs(14),
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.yellow1,
+                  // 좋아요 표시 (본인 리뷰는 회색으로 비활성화, 다른 사람 리뷰는 클릭 가능)
+                  if (!widget.isMyReview)
+                    GestureDetector(
+                      onTap: _handleLike,
+                      child: Text(
+                        '좋아요 $_currentLikes',
+                        style: TextStyle(
+                          fontFamily: 'Pretendard',
+                          fontSize: context.fs(14),
+                          fontWeight: FontWeight.w500,
+                          color: _isLiking 
+                              ? AppColors.yellow1.withOpacity(0.5) 
+                              : AppColors.yellow1,
+                        ),
+                      ),
+                    )
+                  else
+                    Text(
+                      '좋아요 $_currentLikes',
+                      style: TextStyle(
+                        fontFamily: 'Pretendard',
+                        fontSize: context.fs(14),
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.yellow1, // 연두색으로 표시
+                      ),
                     ),
-                  ),
                 ],
               ),
               SizedBox(height: context.h(16)),
@@ -291,7 +407,7 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
               // Tags
               Row(
                 children:
-                    widget.review.tags.map((tag) {
+                    _currentReview.tags.map((tag) {
                       return Container(
                         margin: EdgeInsets.only(right: context.w(6)),
                         padding: EdgeInsets.symmetric(
@@ -316,19 +432,41 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
               ),
               SizedBox(height: context.h(24)),
 
-              // Detail Ratings (Mock data for now as it's not in Review model yet)
-              _buildDetailRatingRow(context, '좌석 편안함', 2.4),
-              _buildDetailRatingRow(context, '기내식 및 음료', 3.8),
-              _buildDetailRatingRow(context, '서비스', 4.8),
-              _buildDetailRatingRow(context, '청결도', 2.7),
-              _buildDetailRatingRow(context, '시간 준수도 및 수속', 5.0),
+              // Detail Ratings (실제 데이터 매핑)
+              if (_currentReview.detailRatings != null) ...[
+                _buildDetailRatingRow(
+                  context,
+                  '좌석 편안함',
+                  (_currentReview.detailRatings!['seatComfort'] ?? 0).toDouble(),
+                ),
+                _buildDetailRatingRow(
+                  context,
+                  '기내식 및 음료',
+                  (_currentReview.detailRatings!['inflightMeal'] ?? 0).toDouble(),
+                ),
+                _buildDetailRatingRow(
+                  context,
+                  '서비스',
+                  (_currentReview.detailRatings!['service'] ?? 0).toDouble(),
+                ),
+                _buildDetailRatingRow(
+                  context,
+                  '청결도',
+                  (_currentReview.detailRatings!['cleanliness'] ?? 0).toDouble(),
+                ),
+                _buildDetailRatingRow(
+                  context,
+                  '시간 준수도 및 수속',
+                  (_currentReview.detailRatings!['checkIn'] ?? 0).toDouble(),
+                ),
+              ],
+
 
               SizedBox(height: context.h(24)),
 
               // Content
               Text(
-                widget.review.content.replaceAll('...더보기', '') +
-                    '\n그래서 말이죠 저희는 앞으로 이 항공사만 탈 것입니다 너무너무 좋고요 파리 갈 대 이것만 타겠습니다', // Extending content as per image
+                _currentReview.content.replaceAll('...더보기', ''),
                 style: TextStyle(
                   fontFamily: 'Pretendard',
                   fontSize: context.fs(15),
@@ -340,12 +478,12 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
               SizedBox(height: context.h(24)),
 
               // Photos
-              if (widget.review.images.isNotEmpty)
+              if (_currentReview.images.isNotEmpty)
                 SizedBox(
                   height: context.w(100),
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
-                    itemCount: widget.review.images.length,
+                    itemCount: _currentReview.images.length,
                     separatorBuilder: (context, index) => SizedBox(width: context.w(8)),
                     itemBuilder: (context, index) {
                       return GestureDetector(
@@ -358,7 +496,7 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
                             width: context.w(100),
                             height: context.w(100),
                             color: const Color(0xFF333333),
-                            child: _buildReviewImage(widget.review.images[index]),
+                            child: _buildReviewImage(_currentReview.images[index]),
                           ),
                         ),
                       );
@@ -371,7 +509,7 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
               if (widget.isMyReview)
                 // 나의 리뷰인 경우 날짜만 표시
                 Text(
-                  widget.review.date,
+                  _currentReview.date,
                   style: TextStyle(
                     fontFamily: 'Pretendard',
                     fontSize: context.fs(13),
@@ -394,7 +532,7 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
                       ),
                     ),
                     Text(
-                      widget.review.date,
+                      _currentReview.date,
                       style: TextStyle(
                         fontFamily: 'Pretendard',
                         fontSize: context.fs(13),
@@ -415,10 +553,195 @@ class _ReviewDetailPageState extends State<ReviewDetailPage> {
     showDialog(
       context: context,
       builder: (context) => _FullScreenImageViewer(
-        images: widget.review.images,
+        images: _currentReview.images,
         initialIndex: initialIndex,
       ),
     );
+  }
+
+  void _showDeleteConfirmDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.5),
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: EdgeInsets.symmetric(horizontal: context.w(20)),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+              child: Container(
+                width: context.w(320),
+                padding: EdgeInsets.only(
+                  top: 0,
+                  right: context.w(20),
+                  bottom: context.w(20),
+                  left: context.w(20),
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1A1A1A),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.1),
+                    width: 1,
+                  ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // 헤더 영역
+                    Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.only(
+                        top: context.h(20),
+                        bottom: context.h(10),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // 제목
+                          Text(
+                            '리뷰 삭제',
+                            style: TextStyle(
+                              fontFamily: 'Pretendard',
+                              fontSize: context.fs(19),
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                          SizedBox(height: context.h(10)),
+                          // 본문
+                          Padding(
+                            padding: EdgeInsets.only(
+                              left: context.w(14),
+                              right: context.w(14),
+                              top: context.h(10),
+                            ),
+                            child: Text(
+                              '삭제된 리뷰는 복구할 수 없습니다.\n정말 삭제하시겠어요?',
+                              style: TextStyle(
+                                fontFamily: 'Pretendard',
+                                fontSize: context.fs(15),
+                                fontWeight: FontWeight.w400,
+                                color: Colors.white,
+                                height: 1.5,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: context.h(16)),
+                    // 버튼들
+                    Row(
+                      children: [
+                        // 삭제 버튼 (왼쪽, 회색 배경)
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                               Navigator.pop(context); // 다이얼로그 닫기
+                               _deleteReview(); 
+                            },
+                            child: Container(
+                              padding: EdgeInsets.symmetric(
+                                vertical: context.h(16),
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '삭제',
+                                  style: TextStyle(
+                                    fontFamily: 'Pretendard',
+                                    fontSize: context.fs(16),
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: context.w(16)),
+                        // 취소 버튼 (오른쪽, 파란색 강조)
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.pop(context);
+                            },
+                            child: Container(
+                              padding: EdgeInsets.symmetric(
+                                vertical: context.h(16),
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF007AFF),
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '취소',
+                                  style: TextStyle(
+                                    fontFamily: 'Pretendard',
+                                    fontSize: context.fs(16),
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // 실제 삭제 로직 분리
+  Future<void> _deleteReview() async {
+    print('🗑️ 리뷰 삭제 시도. reviewId: ${_currentReview.reviewId}');
+    try {
+      if (_currentReview.reviewId != null) {
+        await _apiService.deleteReview(reviewId: _currentReview.reviewId!);
+        
+        if (mounted) {
+          print('✅ 리뷰 삭제 성공함. 마이페이지로 이동 (강제 2단계 POP)');
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('리뷰가 삭제되었습니다.')),
+          );
+          
+          // 강제로 2단계 뒤로 이동 (ReviewDetail -> MyReviews -> MyPage)
+          int count = 0;
+          Navigator.of(context).popUntil((route) {
+            return count++ == 2;
+          });
+        }
+      } else {
+          print('❌ 리뷰 ID가 null임.');
+          throw Exception('Review ID is null');
+      }
+    } catch (e) {
+      print('❌ 리뷰 삭제 실패: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('리뷰 삭제 실패: $e')),
+        );
+      }
+    }
   }
 
   Widget _buildDetailRatingRow(

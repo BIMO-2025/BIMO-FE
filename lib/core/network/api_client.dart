@@ -20,6 +20,7 @@ class ApiClient {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'ngrok-skip-browser-warning': 'true', // ngrok 브라우저 워닝 페이지 우회
         },
       ),
     );
@@ -136,8 +137,27 @@ class _ApiInterceptor extends Interceptor {
       print('❌ ERROR RESPONSE: ${err.response?.data}');
     }
 
-    // 401 에러이고, 토큰 갱신 요청이 아닌 경우
-    if (err.response?.statusCode == 401 && !err.requestOptions.path.contains('refresh')) {
+    // 토큰 만료 감지:
+    // 1. 401 에러인 경우
+    // 2. 400 에러이면서 응답에 "토큰이 만료" 메시지가 포함된 경우
+    bool isTokenExpired = false;
+    
+    if (err.response?.statusCode == 401) {
+      isTokenExpired = true;
+    } else if (err.response?.statusCode == 400) {
+      // 400 에러일 때 응답 데이터 확인
+      final responseData = err.response?.data;
+      if (responseData is Map && responseData['detail'] != null) {
+        final detail = responseData['detail'].toString();
+        if (detail.contains('토큰이 만료') || detail.contains('token') && detail.contains('expired')) {
+          isTokenExpired = true;
+          print('🔄 400 에러지만 토큰 만료 메시지 감지');
+        }
+      }
+    }
+
+    // 토큰이 만료되었고, 토큰 갱신 요청이 아닌 경우
+    if (isTokenExpired && !err.requestOptions.path.contains('refresh')) {
       print('🔄 토큰 만료 감지. 갱신 시도...');
       
       final storage = AuthTokenStorage();

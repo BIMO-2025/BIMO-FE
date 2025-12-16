@@ -16,7 +16,6 @@ import 'faq_page.dart';
 import 'announcement_page.dart';
 import 'my_reviews_page.dart';
 import 'sleep_pattern_page.dart';
-import '../../../../test_token_refresh.dart';
 
 /// 마이 페이지 (탭 컨텐츠)
 class MyPage extends StatefulWidget {
@@ -75,7 +74,8 @@ class _MyPageState extends State<MyPage> {
           print('✅ 프로필 사진 업로드 성공: $response');
           
           // 3. 응답에서 새로운 photo_url 받아서 저장
-          final newPhotoUrl = response['photo_url'];
+          // 명세에 따르면 response['user']['photo_url'] 형태일 가능성 높음
+          final newPhotoUrl = response['user']?['photo_url'] ?? response['photo_url'];
           if (newPhotoUrl != null) {
             final storage = AuthTokenStorage();
             await storage.saveUserInfo(photoUrl: newPhotoUrl);
@@ -305,39 +305,6 @@ class _MyPageState extends State<MyPage> {
                   },
                 ),
               ],
-            ),
-
-            SizedBox(height: context.h(20)),
-
-            // 토큰 갱신 테스트 버튼 (개발용)
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: context.w(20)),
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const TestTokenRefreshPage(),
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.yellow1,
-                  foregroundColor: Colors.black,
-                  minimumSize: Size(context.w(335), context.h(48)),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(context.w(12)),
-                  ),
-                ),
-                child: const Text(
-                  '🔄 토큰 갱신 테스트',
-                  style: TextStyle(
-                    fontFamily: 'Pretendard',
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
             ),
 
             SizedBox(height: context.h(100)), // 탭바 공간 확보

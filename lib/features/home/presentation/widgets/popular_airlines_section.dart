@@ -9,12 +9,14 @@ class PopularAirlinesSection extends StatelessWidget {
   final String weekLabel; // 예: "[10월 1주]"
   final VoidCallback? onMoreTap;
   final List<AirlineData> airlines;
+  final Function(AirlineData)? onItemTap;
 
   const PopularAirlinesSection({
     super.key,
     required this.weekLabel,
     required this.airlines,
     this.onMoreTap,
+    this.onItemTap,
   });
 
   @override
@@ -117,12 +119,17 @@ class PopularAirlinesSection extends StatelessWidget {
           offsetY,
       left: 0,
       right: 0,
-      child: AirlineCard(
-        rank: index + 1,
-        airline: airline,
-        rotation: rotation,
-        isSelected: index == 1, // 아시아나만 Blue1 색상
-        hasBlur: hasBlur,
+      child: GestureDetector(
+        onTap: () {
+          onItemTap?.call(airline);
+        },
+        child: AirlineCard(
+          rank: index + 1,
+          airline: airline,
+          rotation: rotation,
+          isSelected: index == 1, // 아시아나만 Blue1 색상
+          hasBlur: hasBlur,
+        ),
       ),
     );
   }
@@ -130,11 +137,15 @@ class PopularAirlinesSection extends StatelessWidget {
 
 /// 항공사 데이터 모델 (임시)
 class AirlineData {
+  final String id;
+  final String code;
   final String name;
   final double rating;
   final String logoPath;
 
   AirlineData({
+    required this.id,
+    required this.code,
     required this.name,
     required this.rating,
     required this.logoPath,

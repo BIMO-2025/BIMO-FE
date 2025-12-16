@@ -11,6 +11,8 @@ import '../../../features/home/data/mock_airlines.dart';
 import '../../../features/auth/presentation/pages/login_page.dart';
 import '../../../features/myflight/pages/myflight_page.dart';
 import '../../../features/myflight/pages/flight_plan_page.dart';
+import '../../../features/myflight/pages/review_write_page.dart';
+import '../../../features/home/domain/models/airline.dart';
 
 /// 앱의 라우팅 설정을 관리하는 클래스
 class AppRouter {
@@ -21,7 +23,7 @@ class AppRouter {
 
   static final GoRouter _router = GoRouter(
     // initialLocation: '/airline-detail',
-    initialLocation: RouteNames.home, // Start with Home (which defaults to tab 1)
+    initialLocation: '/review-write', // Start with ReviewWritePage
     routes: [
       GoRoute(
         path: RouteNames.splash,
@@ -84,13 +86,31 @@ class AppRouter {
         path: '/airline-detail',
         name: 'airline-detail',
         builder: (context, state) {
-          // 대한항공 mock 데이터 사용
+          // 전달받은 airline 객체 사용
+          if (state.extra is Airline) {
+            return AirlineDetailPage(airline: state.extra as Airline);
+          }
+
+          // Fallback: 대한항공 mock 데이터 사용
           final koreanAir = mockAirlines.firstWhere(
             (airline) => airline.code == 'KE',
             orElse: () => mockAirlines.first,
           );
           return AirlineDetailPage(airline: koreanAir);
         },
+      ),
+      GoRoute(
+        path: '/review-write',
+        name: 'review-write',
+        builder: (context, state) => const ReviewWritePage(
+          departureCode: 'ICN',
+          departureCity: 'Seoul',
+          arrivalCode: 'JFK',
+          arrivalCity: 'New York',
+          flightNumber: 'KE081',
+          date: '2025.10.15',
+          stopover: '직항',
+        ),
       ),
     ],
   );

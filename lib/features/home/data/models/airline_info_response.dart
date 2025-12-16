@@ -37,16 +37,16 @@ class AirlineInfoResponse {
 
   factory AirlineInfoResponse.fromJson(Map<String, dynamic> json) {
     return AirlineInfoResponse(
-      airlineName: json['airlineName'] as String? ?? '',
-      logoUrl: json['logoUrl'] as String? ?? '',
-      totalReviews: json['totalReviews'] as int? ?? 0,
-      overallRating: (json['overallRating'] as num?)?.toDouble() ?? 0.0,
+      airlineName: json['name'] as String? ?? '', // API는 'name' 키 사용
+      logoUrl: json['logo_url'] as String? ?? '', // API는 'logo_url' 키 사용
+      totalReviews: json['total_reviews'] as int? ?? 0, // API는 'total_reviews' 키 사용
+      overallRating: (json['overall_rating'] as num?)?.toDouble() ?? 0.0, // API는 'overall_rating' 키 사용
       alliance: json['alliance'] as String? ?? '',
       type: json['type'] as String? ?? '',
       country: json['country'] as String? ?? '',
-      hubAirport: json['hubAirport'] as String?,
-      hubAirportName: json['hubAirportName'] as String?,
-      operatingClasses: (json['operatingClasses'] as List<dynamic>?)
+      hubAirport: json['hub_airport'] as String?, // API는 'hub_airport' 키 사용
+      hubAirportName: json['hub_airport_name'] as String?, // API는 'hub_airport_name' 키 사용
+      operatingClasses: (json['operating_classes'] as List<dynamic>?) // API는 'operating_classes' 키 사용
               ?.map((e) => e.toString())
               .toList() ??
           [],
@@ -55,11 +55,11 @@ class AirlineInfoResponse {
               .toList() ??
           [],
       description: json['description'] as String? ?? '',
-      bimoSummary: json['bimoSummary'] != null
-          ? AirlineSummaryResponse.fromJson(json['bimoSummary'] as Map<String, dynamic>)
+      bimoSummary: json['bimo_summary'] != null // API는 'bimo_summary' 키 사용
+          ? AirlineSummaryResponse.fromJson(json['bimo_summary'] as Map<String, dynamic>)
           : null,
-      averageRatings: json['averageRatings'] != null
-          ? AverageRatings.fromJson(json['averageRatings'] as Map<String, dynamic>)
+      averageRatings: json['average_ratings'] != null // API는 'average_ratings' 키 사용 (스네이크 케이스!)
+          ? AverageRatings.fromJson(json['average_ratings'] as Map<String, dynamic>)
           : null,
     );
   }

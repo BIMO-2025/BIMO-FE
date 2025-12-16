@@ -5,6 +5,7 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/responsive_extensions.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/primary_button.dart';
+import '../../../../core/storage/auth_token_storage.dart';
 import '../../data/repositories/user_repository_impl.dart';
 
 /// 수면 패턴 설정 페이지
@@ -28,7 +29,7 @@ class _SleepPatternPageState extends State<SleepPatternPage> {
   int _wakeupMinute = 0;
 
   final _userRepository = UserRepositoryImpl();
-  bool _isLoading = false;
+  bool _isLoading = true; // 초기 로딩 상태 true로 변경
 
   @override
   void initState() {
@@ -43,24 +44,26 @@ class _SleepPatternPageState extends State<SleepPatternPage> {
         if (data['sleepPatternStart'] != null) {
           final parts = (data['sleepPatternStart'] as String).split(':');
           if (parts.length == 2) {
-            setState(() {
-              _bedtimeHour = int.parse(parts[0]);
-              _bedtimeMinute = int.parse(parts[1]);
-            });
+            _bedtimeHour = int.parse(parts[0]);
+            _bedtimeMinute = int.parse(parts[1]);
           }
         }
         if (data['sleepPatternEnd'] != null) {
           final parts = (data['sleepPatternEnd'] as String).split(':');
           if (parts.length == 2) {
-            setState(() {
-              _wakeupHour = int.parse(parts[0]);
-              _wakeupMinute = int.parse(parts[1]);
-            });
+            _wakeupHour = int.parse(parts[0]);
+            _wakeupMinute = int.parse(parts[1]);
           }
         }
       }
     } catch (e) {
       print('수면 패턴 로드 실패: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false; // 로딩 완료
+        });
+      }
     }
   }
 
@@ -73,10 +76,19 @@ class _SleepPatternPageState extends State<SleepPatternPage> {
       final startStr = '${_bedtimeHour.toString().padLeft(2, '0')}:${_bedtimeMinute.toString().padLeft(2, '0')}';
       final endStr = '${_wakeupHour.toString().padLeft(2, '0')}:${_wakeupMinute.toString().padLeft(2, '0')}';
 
+      final storage = AuthTokenStorage();
+      final userInfo = await storage.getUserInfo();
+      final userId = userInfo['userId'];
+
+      if (userId == null || userId.isEmpty) {
+        throw Exception('사용자 ID를 찾을 수 없습니다.');
+      }
+
       print('🔵 수면 패턴 저장 시작');
-      print('🔵 취침: $startStr, 기상: $endStr');
+      print('🔵 취침: $startStr, 기상: $endStr, userId: $userId');
 
       await _userRepository.updateSleepPattern(
+        userId: userId,
         sleepPatternStart: startStr,
         sleepPatternEnd: endStr,
       );
@@ -84,9 +96,6 @@ class _SleepPatternPageState extends State<SleepPatternPage> {
       print('🔵 저장 완료!');
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('수면 패턴이 저장되었습니다.')),
-        );
         Navigator.pop(context);
       }
     } catch (e) {
@@ -136,59 +145,61 @@ class _SleepPatternPageState extends State<SleepPatternPage> {
         ),
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: EdgeInsets.only(
-            left: context.w(20),
-            right: context.w(20),
-            top: context.h(16),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 제목
-              Text(
-                '완벽한\n여정의 첫 걸음',
-                style: TextStyle(
-                  fontFamily: 'Pretendard',
-                  fontSize: context.fs(24),
-                  fontWeight: FontWeight.w700, // Bold
-                  height: 1.2, // 120%
-                  letterSpacing: -0.48, // -2% of 24
-                  color: AppColors.white,
+      body: _isLoading
+          ? Center(child: CircularProgressIndicator(color: AppColors.yellow1))
+          : SingleChildScrollView(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: context.w(20),
+                  right: context.w(20),
+                  top: context.h(16),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 제목
+                    Text(
+                      '완벽한\n여정의 첫 걸음',
+                      style: TextStyle(
+                        fontFamily: 'Pretendard',
+                        fontSize: context.fs(24),
+                        fontWeight: FontWeight.w700, // Bold
+                        height: 1.2, // 120%
+                        letterSpacing: -0.48, // -2% of 24
+                        color: AppColors.white,
+                      ),
+                    ),
+
+                    SizedBox(height: context.h(16)),
+
+                    // 설명
+                    Text(
+                      'BIMO가 회원님의 평소 수면 패턴에 맞춰\n최적의 비행을 준비할게요.',
+                      style: AppTextStyles.body.copyWith(color: AppColors.white),
+                    ),
+
+                    SizedBox(height: context.h(48)),
+
+                    // 수면 패턴 선택 박스 (탭 + 피커)
+                    _buildSleepPatternBox(context),
+
+                    SizedBox(height: context.h(81)),
+
+                    // 수정하기 버튼
+                    PrimaryButton(
+                      text: '수정하기',
+                      isEnabled: !_isLoading,
+                      onTap: _saveSleepPattern,
+                    ),
+
+                    // 버튼 아래 여백 (하단 인디케이터 고려)
+                    SizedBox(
+                      height: Responsive.bottomSafeArea(context) + context.h(36),
+                    ),
+                  ],
                 ),
               ),
-
-              SizedBox(height: context.h(16)),
-
-              // 설명
-              Text(
-                'BIMO가 회원님의 평소 수면 패턴에 맞춰\n최적의 비행을 준비할게요.',
-                style: AppTextStyles.body.copyWith(color: AppColors.white),
-              ),
-
-              SizedBox(height: context.h(48)),
-
-              // 수면 패턴 선택 박스 (탭 + 피커)
-              _buildSleepPatternBox(context),
-
-              SizedBox(height: context.h(81)),
-
-              // 수정하기 버튼
-              PrimaryButton(
-                text: '수정하기',
-                isEnabled: !_isLoading,
-                onTap: _saveSleepPattern,
-              ),
-
-              // 버튼 아래 여백 (하단 인디케이터 고려)
-              SizedBox(
-                height: Responsive.bottomSafeArea(context) + context.h(36),
-              ),
-            ],
-          ),
-        ),
-      ),
+            ),
     );
   }
 

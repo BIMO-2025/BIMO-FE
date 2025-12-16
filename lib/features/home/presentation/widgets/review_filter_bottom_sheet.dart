@@ -18,31 +18,34 @@ class _ReviewFilterBottomSheetState extends State<ReviewFilterBottomSheet> {
   String _departureAirport = '인천 (INC)';
   String _arrivalAirport = '파리 (CDG)';
   
-  String? _selectedClass;
   String? _selectedPeriod;
   String? _selectedRating;
   bool _photoOnly = false;
   
+  // Store airport codes for API 
+  String _departureAirportCode = 'ICN';
+  String _arrivalAirportCode = 'CDG';
+  
   bool _isFilterApplied = false; // Track if filter has been applied
 
-  final List<String> _classes = ['전체', '프리미엄 이코노미', '이코노미', '비즈니스', '퍼스트'];
   final List<String> _periods = ['전체', '최근 3개월', '최근 6개월', '최근 1년'];
+
   final List<String> _ratings = ['전체', '5점', '4점', '3점', '2점', '1점'];
 
   @override
   void initState() {
     super.initState();
-    _selectedClass = '전체';
     _selectedPeriod = '전체';
     _selectedRating = '전체';
   }
 
   // Check if any filter is different from default
   bool get _hasNonDefaultFilters {
-    return _selectedClass != '전체' ||
-        _selectedPeriod != '전체' ||
+    return _selectedPeriod != '전체' ||
         _selectedRating != '전체' ||
-        _photoOnly == true;
+        _photoOnly == true ||
+        _departureAirportCode != 'ICN' ||
+        _arrivalAirportCode != 'CDG';
   }
 
   void _showAirportSearch(BuildContext context, bool isDeparture) {
@@ -56,8 +59,10 @@ class _ReviewFilterBottomSheetState extends State<ReviewFilterBottomSheet> {
             final airportString = '${airport.cityName} (${airport.airportCode})';
             if (isDeparture) {
               _departureAirport = airportString;
+              _departureAirportCode = airport.airportCode;
             } else {
               _arrivalAirport = airportString;
+              _arrivalAirportCode = airport.airportCode;
             }
           });
         },
@@ -71,13 +76,22 @@ class _ReviewFilterBottomSheetState extends State<ReviewFilterBottomSheet> {
         final temp = _departureAirport;
         _departureAirport = _arrivalAirport;
         _arrivalAirport = temp;
+        
+        final tempCode = _departureAirportCode;
+        _departureAirportCode = _arrivalAirportCode;
+        _arrivalAirportCode = tempCode;
       });
     }
   }
 
   void _resetFilters() {
     setState(() {
-      _selectedClass = '전체';
+      // Reset to defaults
+      _departureAirport = '인천 (INC)'; // 오타 수정: INC -> ICN? UI값은 그대로 유지
+      _arrivalAirport = '파리 (CDG)';
+      _departureAirportCode = 'ICN';
+      _arrivalAirportCode = 'CDG';
+      
       _selectedPeriod = '전체';
       _selectedRating = '전체';
       _photoOnly = false;
@@ -91,11 +105,21 @@ class _ReviewFilterBottomSheetState extends State<ReviewFilterBottomSheet> {
       _resetFilters();
       Navigator.pop(context, false); // Return false when filter is cleared
     } else {
-      // Apply filters
+      // Apply filters and return data
       setState(() {
         _isFilterApplied = _hasNonDefaultFilters;
       });
-      Navigator.pop(context, _hasNonDefaultFilters); // Return true if filters are applied
+      
+      final filterData = {
+        'applied': _hasNonDefaultFilters,
+        'departureAirport': _departureAirportCode,
+        'arrivalAirport': _arrivalAirportCode,
+        'period': _selectedPeriod,
+        'minRating': _selectedRating,
+        'photoOnly': _photoOnly,
+      };
+      
+      Navigator.pop(context, filterData);
     }
   }
 
@@ -270,57 +294,7 @@ class _ReviewFilterBottomSheetState extends State<ReviewFilterBottomSheet> {
                   ),
                   SizedBox(height: context.h(16)),
 
-                  // Seat Class Section
-                  Text(
-                    '좌석 등급',
-                    style: TextStyle(
-                      fontFamily: 'Pretendard',
-                      fontSize: context.fs(16),
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                  SizedBox(height: context.h(12)),
-                  Wrap(
-                    spacing: context.w(8),
-                    runSpacing: context.h(8),
-                    children: _classes.map((classType) {
-                      final isSelected = _selectedClass == classType;
-                      return GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _selectedClass = classType;
-                          });
-                        },
-                        child: IntrinsicWidth(
-                          child: Container(
-                            height: context.h(33),
-                            padding: EdgeInsets.symmetric(
-                              horizontal: context.w(16),
-                            ),
-                            decoration: BoxDecoration(
-                              color: isSelected ? AppColors.blue1 : const Color(0xFF333333),
-                              borderRadius: BorderRadius.circular(context.w(8)),
-                            ),
-                            child: Center(
-                              child: Text(
-                                classType,
-                                style: TextStyle(
-                                  fontFamily: 'Pretendard',
-                                  fontSize: context.fs(13),
-                                  fontWeight: FontWeight.w400,
-                                  height: 1.2,
-                                  letterSpacing: -context.fs(0.26),
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                  SizedBox(height: context.h(32)),
+
 
                   // Period Section
                   Text(
@@ -454,7 +428,7 @@ class _ReviewFilterBottomSheetState extends State<ReviewFilterBottomSheet> {
                       ),
                       SizedBox(width: context.w(8)),
                       Text(
-                        '사진/동영상 리뷰만 보기',
+                        '사진 리뷰만 보기',
                         style: TextStyle(
                           fontFamily: 'Pretendard',
                           fontSize: context.fs(16),
