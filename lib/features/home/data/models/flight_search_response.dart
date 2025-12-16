@@ -38,8 +38,10 @@ class FlightSearchData {
   final FlightEndpoint arrival;
   final int duration; // 분 단위
   final String flightNumber;
-  final List<FlightSegment>? segments;
-  final String date; // 표시용 날짜
+  final List<FlightSegment>? segments; // 복구
+  final String date; // 복구 (표시용 날짜)
+  final double ratingScore; // 변경된 필드 유지
+  final int reviewCountNum; // 변경된 필드 유지
 
   FlightSearchData({
     required this.airline,
@@ -49,6 +51,8 @@ class FlightSearchData {
     required this.flightNumber,
     this.segments,
     required this.date,
+    this.ratingScore = 0.0,
+    this.reviewCountNum = 0,
   });
 
   // existing fromJson kept for compatibility/tests if needed, but delegating
@@ -57,6 +61,8 @@ class FlightSearchData {
   }
 
   factory FlightSearchData.fromMap(Map<String, dynamic> json, {Map<String, String>? airlineLogos}) {
+    // 디버그 로그 제거됨
+    
     // segments가 있으면 첫 번째 세그먼트의 출발, 마지막 세그먼트의 도착 정보를 사용
     final segmentsList = (json['segments'] as List<dynamic>?)
         ?.map((e) => FlightSegment.fromJson(e as Map<String, dynamic>))
@@ -71,7 +77,6 @@ class FlightSearchData {
         depEndpoint = FlightEndpoint(airport: first.departureAirport, time: first.departureTime);
         arrEndpoint = FlightEndpoint(airport: last.arrivalAirport, time: last.arrivalTime);
     } else {
-        // Fallback or throw
         depEndpoint = FlightEndpoint(airport: '', time: '');
         arrEndpoint = FlightEndpoint(airport: '', time: '');
     }
@@ -79,25 +84,16 @@ class FlightSearchData {
     var rawDuration = json['total_duration'] ?? json['duration'];
     int parsedDuration = 0;
     
-    // 1. 세그먼트가 있으면 세그먼트 duration 합산 (가장 정확)
     if (segmentsList != null && segmentsList.isNotEmpty) {
       for (var seg in segmentsList) {
         parsedDuration += _parseDuration(seg.duration);
       }
     }
     
-    // 2. 세그먼트 합산이 실패했거나 0이면 total_duration 사용
     if (parsedDuration == 0) {
       parsedDuration = _parseDuration(rawDuration);
     }
     
-    // 디버깅용 (빌드 후 로그 확인)
-    if (parsedDuration == 0) {
-        print('⚠️ Duration parsing failed for: $rawDuration. Fallback to diff.');
-    }
-    
-    // 3. 여전히 0이면 시간 차이로 계산 (Fallback)
-    // 주의: 현지 시간(Local Time) 기준일 경우 시차로 인해 계산이 부정확할 수 있음
     if (parsedDuration == 0 && depEndpoint.time.isNotEmpty && arrEndpoint.time.isNotEmpty) {
       try {
         final start = DateTime.parse(depEndpoint.time);
@@ -106,11 +102,7 @@ class FlightSearchData {
       } catch (_) {}
     }
     
-    // 항공사 로고 찾기
-    // 1. logo_symbol_url 확인 (최우선)
     String? logoUrl = json['logo_symbol_url'] as String?;
-    
-    // 2. 없으면 기존 로직 (매핑 또는 fallback)
     String carrierCode = json['operating_carrier'] as String? ?? '';
     if (logoUrl == null || logoUrl.isEmpty) {
         if (carrierCode.isEmpty && segmentsList != null && segmentsList.isNotEmpty) {
@@ -120,7 +112,6 @@ class FlightSearchData {
     }
 
     return FlightSearchData(
-      // Airline 정보가 없으면 operating_carrier 코드만이라도 사용
       airline: FlightAirline(
           name: carrierCode, 
           logo: logoUrl
@@ -130,7 +121,10 @@ class FlightSearchData {
       duration: parsedDuration,
       flightNumber: json['flight_number'] ?? '',
       segments: segmentsList,
-      date: '', // 응답에 날짜 필드가 명시적으로 없으면 빈 문자열 혹은 출발 시간 등 사용
+      date: '', 
+      // 필드명 변경 적용, 정상 파싱 로직 사용
+      ratingScore: double.tryParse(json['overall_rating']?.toString() ?? '') ?? 0.0,
+      reviewCountNum: int.tryParse(json['total_reviews']?.toString() ?? '') ?? 0,
     );
   }
 
