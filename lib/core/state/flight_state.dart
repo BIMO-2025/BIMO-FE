@@ -41,6 +41,11 @@ class FlightState extends ChangeNotifier {
   Duration _debugTimeOffset = Duration.zero;
   Duration get debugTimeOffset => _debugTimeOffset;
   
+  set debugTimeOffset(Duration value) {
+    _debugTimeOffset = value;
+    notifyListeners();
+  }
+  
   void setDebugTimeOffset(Duration offset) {
     _debugTimeOffset = offset;
     notifyListeners();

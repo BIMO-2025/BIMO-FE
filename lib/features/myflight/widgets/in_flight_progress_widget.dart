@@ -623,12 +623,23 @@ class _InFlightProgressWidgetState extends State<InFlightProgressWidget> {
                 // 가사 보기 스타일 타임라인
                 Column(
                   children: [
-                    Text(
-                      '비행기 탑승',
-                      style: AppTextStyles.smallBody.copyWith(
-                        color: Colors.white.withOpacity(0.5),
+                    // 이전 항목 (옅은 회색)
+                    if (_currentActivityIndex > 0)
+                      Text(
+                        widget.timeline[_currentActivityIndex - 1]['title'] as String,
+                        style: AppTextStyles.smallBody.copyWith(
+                          color: Colors.white.withOpacity(0.5),
+                        ),
+                      )
+                    else 
+                       // 첫 번째 항목인 경우 '비행 시작' 등으로 표시하거나 숨김
+                       Text(
+                        '비행 시작',
+                        style: AppTextStyles.smallBody.copyWith(
+                          color: Colors.white.withOpacity(0.5),
+                        ),
                       ),
-                    ),
+                      
                     SizedBox(height: context.h(8)),
                     // 타임라인 항목들 (가사처럼 흐름)
                     ..._buildTimelineItems(),

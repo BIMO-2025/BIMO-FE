@@ -77,25 +77,65 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
   }
   
   
-  /// 현재 진행 중인 이벤트 하이라이트 업데이트
+  /// 현재 진행 중인 이벤트 하이라이트 업데이트 (InFlightProgressWidget과 로직 통일)
   void _updateCurrentEventHighlight() {
     if (!widget.isReadOnly) return;
+    if (_localTimelineEvents.isEmpty || _currentFlight == null) return;
     
     final now = DateTime.now().add(FlightState().debugTimeOffset);
+    final departureTime = _currentFlight!.departureTime;
     
-    // 로컬 이벤트 리스트와 UI 이벤트 리스트 동기화 가정
+    // 경과 시간 계산 (초 단위)
+    final diff = now.difference(departureTime).inSeconds;
+    final elapsedSeconds = diff > 0 ? diff : 0;
+    
+    // 1. 비행 시작 전
+    if (diff < 0) {
+      for (int i = 0; i < _events.length; i++) {
+         _events[i].isActive = (i == 0);
+      }
+      return;
+    }
+    
+    // 2. 경과 시간에 따른 활성 인덱스 찾기
+    int activeIndex = -1;
+    int cumulativeMinutes = 0;
+    
     for (int i = 0; i < _localTimelineEvents.length; i++) {
-        if (i >= _events.length) break;
-        
+        // LocalTimelineEvent에는 duration 필드가 없으므로 start/end 차이로 계산
         final localEvent = _localTimelineEvents[i];
-        final uiEvent = _events[i];
         
-        // 현재 시간이 범위 내에 있는지 확인 (시작 시간 <= 현재 < 종료 시간)
-        // startInclusive, endExclusive
-        bool isActive = !now.isBefore(localEvent.startTime) && now.isBefore(localEvent.endTime);
+        // 날짜 무시하고 시간 차이로 Duration 반환
+        int durationMinutes;
+        try {
+            // 시간 파싱 로직 이용하거나, 저장된 Times로 계산
+             Duration d = localEvent.endTime.difference(localEvent.startTime);
+             if (d.isNegative) { 
+                 d += const Duration(days: 1); // 자정 넘김 처리
+             }
+             durationMinutes = d.inMinutes;
+        } catch (_) {
+            durationMinutes = 60; // fallback
+        }
+
+        // 범위 체크: cumulative <= elapsed < cumulative + duration
+        if (elapsedSeconds < (cumulativeMinutes + durationMinutes) * 60) {
+            activeIndex = i;
+            break;
+        }
         
-        if (uiEvent.isActive != isActive) {
-            uiEvent.isActive = isActive;
+        cumulativeMinutes += durationMinutes;
+    }
+    
+    // 3. 만약 범위 내에 없다면 (모든 시간 지남) -> 마지막 항목 활성화
+    if (activeIndex == -1) {
+        activeIndex = _events.length - 1;
+    }
+    
+    // 4. UI 적용
+    for (int i = 0; i < _events.length; i++) {
+        if (i < _events.length) {
+            _events[i].isActive = (i == activeIndex);
         }
     }
   }
@@ -166,10 +206,27 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
       // 4. 해당 비행의 타임라인 로드
       final localTimelineRepo = LocalTimelineRepository();
       await localTimelineRepo.init();
-      final localEvents = await localTimelineRepo.getTimeline(targetFlightId);
-      _localTimelineEvents = localEvents;
-      
-      // [Self-Healing] 데이터 오염 감지 (모든 시간이 동일한 경우)
+      // 1. 저장된 타임라인 조회
+    var localEvents = await localTimelineRepo.getTimeline(targetFlightId);
+    
+    // 2. 없으면 자동 생성
+    if (localEvents.isEmpty && _currentFlight != null) {
+      print('⚠️ 타임라인 데이터 없음: 자동 생성 시작 (${targetFlightId})');
+      localEvents = await localTimelineRepo.generateDefaultTimeline(
+        targetFlightId,
+        _currentFlight!.departureTime,
+        _currentFlight!.arrivalTime,
+      );
+    } 
+
+    if (localEvents.isEmpty) {
+      print('❌ 타임라인 생성 실패 또는 비행 정보 없음');
+      return;
+    }
+    
+    _localTimelineEvents = localEvents;
+
+    // 3. 데이터 손상 확인 및 자동 복구    // [Self-Healing] 데이터 오염 감지 (모든 시간이 동일한 경우)
       if (localEvents.length > 1 && localEvents.every((e) => e.startTime.isAtSameMomentAs(localEvents[0].startTime))) {
           print('🚨 타임라인 데이터 오염 감지! 자동 복구를 시작합니다.');
           
@@ -222,7 +279,15 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
         print('✅ Hive에서 비행 $targetFlightId의 ${localEvents.length}개 타임라인 이벤트 로드');
       }
       
+
+      
       _initialEvents = List.from(_events);
+      
+      // [Flicker Fix] 초기 로딩 직후 즉시 하이라이트 적용 (깜빡임 방지)
+      if (widget.isReadOnly) {
+          _updateCurrentEventHighlight();
+      }
+      
       if (mounted) setState(() {});
       
     } catch (e) {
@@ -231,6 +296,15 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
       _initialEvents = List.from(_events);
       if (mounted) setState(() {});
     }
+  }
+
+  /// Asset 경로를 IconType으로 역매핑 (저장용)
+  String? _mapAssetToIconType(String? assetPath) {
+    if (assetPath == null) return null;
+    if (assetPath.contains('airplane')) return 'airplane';
+    if (assetPath.contains('meal')) return 'meal';
+    if (assetPath.contains('moon')) return 'moon';
+    return null;
   }
   
   /// 현재 타임라인을 Hive에 저장
@@ -281,7 +355,7 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
           description: event.description,
           startTime: startTime,
           endTime: endTime,
-          iconType: event.icon,
+          iconType: _mapAssetToIconType(event.icon),
           isEditable: event.isEditable,
           isCustom: true,
           isActive: event.isActive,
@@ -404,12 +478,15 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
             top: context.h(31),
             child: Center(
               child: Text(
-                '나의 비행 플랜',
+                (_currentFlight != null)
+                    ? '${_currentFlight!.origin} ✈ ${_currentFlight!.destination}'
+                    : '나의 비행 플랜',
                 style: AppTextStyles.large.copyWith(color: Colors.white),
               ),
             ),
           ),
-          // 더보기 버튼 (오른쪽)
+          // 더보기 버튼 (오른쪽) - 읽기 전용 모드에서는 숨김
+          if (!widget.isReadOnly)
           Positioned(
             right: context.w(20),
             top: context.h(21),
@@ -1041,7 +1118,13 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
                             // 현재 비행만 forceInProgress를 true로 설정
                             _currentFlight!.forceInProgress = true;
                             await repo.saveFlight(_currentFlight!);
+                            
+                            // [Simulation] 디버그 시간 오프셋 설정: 현재 시간을 비행 출발 시간으로 맞춤
+                            // now + offset = departureTime  => offset = departureTime - now
+                            FlightState().debugTimeOffset = _currentFlight!.departureTime.difference(DateTime.now());
+                            
                             print('🧪 forceInProgress 설정: ${_currentFlight!.id}');
+                            print('⏱️ 시뮬레이션 시간 동기화 완료: Offset ${FlightState().debugTimeOffset}');
                             
                             // 새로고침
                             if (mounted) {
@@ -3178,6 +3261,10 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
 
   /// 플로팅 액션 버튼
   Widget _buildFloatingActionButton(BuildContext context) {
+    if (widget.isReadOnly) {
+      return const SizedBox.shrink();
+    }
+
     return GestureDetector(
       onTap: () {
         _showAddPlanBottomSheet(context);

@@ -923,13 +923,15 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
         print('✅ 비행 저장 완료');
         
         // 4. 로컬에 비행 즉시 저장 (FlightState)
-        final newFlight = _convertToLocalFlight(selectedFlight);
+        // 4. 로컬에 비행 즉시 저장 (FlightState)
+        final flightId = '${selectedFlight.departure.airport}_${selectedFlight.arrival.airport}_${DateTime.now().millisecondsSinceEpoch}';
+        final newFlight = _convertToLocalFlight(selectedFlight, flightId);
         FlightState().addFlight(newFlight);
         print('✅ 로컬 비행 저장 완료 (FlightState)');
         
         // 4-1. Hive에도 비행 저장 (앱 재시작 후에도 유지)
         final localFlight = LocalFlight(
-          id: '${selectedFlight.departure.airport}_${selectedFlight.arrival.airport}_${DateTime.now().millisecondsSinceEpoch}',
+          id: flightId,
           origin: selectedFlight.departure.airport,
           destination: selectedFlight.arrival.airport,
           departureTime: DateTime.parse(selectedFlight.departure.time),
@@ -995,15 +997,8 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
           
           // 타임라인 성공 시 FlightPlanPage, 실패 시 MyFlight
           if (timelineSuccess) {
-            // Navigator.push 사용하여 뒤로가기 스택 유지
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => FlightPlanPage(
-                  flightId: localFlight.id, // 생성된 비행 ID 전달
-                ),
-              ),
-            );
+            // Navigator.push가 아닌 홈으로 이동하여 탭 전환
+            context.goNamed('home', extra: {'initialIndex': 1});
           } else {
             context.go('/myflight');
           }
@@ -1030,7 +1025,7 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
     }
   
   /// FlightSearchData를 Flight 모델로 변환 (로컬 저장용)
-  Flight _convertToLocalFlight(FlightSearchData data) {
+  Flight _convertToLocalFlight(FlightSearchData data, String flightId) {
     // 공항 코드에서 도시 이름 추론
     String getCityName(String airportCode) {
       const cityMap = {
@@ -1118,6 +1113,7 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
       arrivalTime: formatTime(data.arrival.time),
       rating: null,
       date: formatDate(data.departure.time),
+      id: flightId, // ID 추가
     );
   }
   

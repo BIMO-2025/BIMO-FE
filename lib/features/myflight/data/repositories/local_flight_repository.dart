@@ -98,6 +98,24 @@ class LocalFlightRepository {
     print('⚠️ 모든 비행 삭제됨');
   }
 
+  /// 비행 강제 활성화 (시뮬레이션 용)
+  Future<void> setInProgressFlight(String id) async {
+    final allFlights = _box.values.toList();
+    for (final f in allFlights) {
+      if (f.forceInProgress ?? false) {
+        f.forceInProgress = false;
+        await _box.put(f.id, f);
+      }
+    }
+
+    final target = _box.get(id);
+    if (target != null) {
+      target.forceInProgress = true;
+      await _box.put(id, target);
+      print('✅ 비행 강제 활성화: $id');
+    }
+  }
+
   /// 비행 상태 업데이트 (scheduled/inProgress/past)
   Future<void> updateFlightStatus(String id) async {
     final flight = await getFlight(id);

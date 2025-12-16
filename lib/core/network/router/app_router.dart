@@ -48,7 +48,11 @@ class AppRouter {
       GoRoute(
         path: RouteNames.home,
         name: 'home',
-        builder: (context, state) => const HomePage(),
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final initialIndex = extra?['initialIndex'] as int? ?? 0;
+          return HomePage(initialIndex: initialIndex);
+        },
       ),
       GoRoute(
         path: RouteNames.myFlight,

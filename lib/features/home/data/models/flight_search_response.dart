@@ -77,14 +77,26 @@ class FlightSearchData {
     }
 
     var rawDuration = json['total_duration'] ?? json['duration'];
-    int parsedDuration = _parseDuration(rawDuration);
+    int parsedDuration = 0;
+    
+    // 1. 세그먼트가 있으면 세그먼트 duration 합산 (가장 정확)
+    if (segmentsList != null && segmentsList.isNotEmpty) {
+      for (var seg in segmentsList) {
+        parsedDuration += _parseDuration(seg.duration);
+      }
+    }
+    
+    // 2. 세그먼트 합산이 실패했거나 0이면 total_duration 사용
+    if (parsedDuration == 0) {
+      parsedDuration = _parseDuration(rawDuration);
+    }
     
     // 디버깅용 (빌드 후 로그 확인)
     if (parsedDuration == 0) {
         print('⚠️ Duration parsing failed for: $rawDuration. Fallback to diff.');
     }
     
-    // 만약 duration 파싱 결과가 0이고 세그먼트가 있다면 직접 계산 (Fallback)
+    // 3. 여전히 0이면 시간 차이로 계산 (Fallback)
     // 주의: 현지 시간(Local Time) 기준일 경우 시차로 인해 계산이 부정확할 수 있음
     if (parsedDuration == 0 && depEndpoint.time.isNotEmpty && arrEndpoint.time.isNotEmpty) {
       try {

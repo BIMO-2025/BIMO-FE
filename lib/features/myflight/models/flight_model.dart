@@ -9,7 +9,10 @@ class Flight {
   final double? rating;
   final String? date;
 
+  final String? id;
+
   const Flight({
+    this.id,
     required this.departureCode,
     required this.departureCity,
     required this.arrivalCode,

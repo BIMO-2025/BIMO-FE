@@ -101,6 +101,7 @@ class _MyFlightPageState extends State<MyFlightPage> {
             arrivalTime: _formatTimeToAmPm(lf.arrivalTime), // AM/PM 형식
             duration: lf.totalDuration,
             rating: null,
+            id: lf.id, // ID 추가
           ));
         }
         
@@ -191,6 +192,7 @@ class _MyFlightPageState extends State<MyFlightPage> {
             arrivalTime: _formatTimeToAmPm(lf.arrivalTime),
             duration: lf.totalDuration,
             rating: null,
+            id: lf.id,
           ));
         } catch (e) {
           print('❌ [Past] 비행 변환 오류 (${lf.id}): $e');
@@ -317,7 +319,23 @@ class _MyFlightPageState extends State<MyFlightPage> {
     try {
       final localTimelineRepo = LocalTimelineRepository();
       await localTimelineRepo.init();
-      final events = await localTimelineRepo.getTimeline(flightId);
+      
+      var events = await localTimelineRepo.getTimeline(flightId);
+
+      // 데이터가 없으면 자동 생성
+      if (events.isEmpty) {
+        final flightRepo = LocalFlightRepository();
+        await flightRepo.init();
+        final flight = await flightRepo.getFlight(flightId);
+        if (flight != null) {
+          print('⚠️ 타임라인 데이터 없음: 자동 생성 시작 ($flightId)');
+          events = await localTimelineRepo.generateDefaultTimeline(
+            flightId, 
+            flight.departureTime, 
+            flight.arrivalTime
+          );
+        }
+      }
 
       // 데이터 손상 확인 및 자동 복구 (모든 이벤트 시간이 같을 경우)
       if (events.length > 1) {
@@ -541,18 +559,26 @@ class _MyFlightPageState extends State<MyFlightPage> {
                           departureTime: scheduledFlights[index].departureTime,
                           arrivalTime: scheduledFlights[index].arrivalTime,
                           onTap: () async {
-                            // 타임라인 페이지로 이동
+                            // 1. 해당 비행을 'In-Progress'로 설정하여 시뮬레이션 연동
+                            // _flightIdMap 대신 Flight 객체의 id 사용
+                            final flightId = scheduledFlights[index].id;
+                            if (flightId != null) {
+                                final flightRepo = LocalFlightRepository();
+                                await flightRepo.init();
+                                await flightRepo.setInProgressFlight(flightId);
+                            }
+
+                            // 2. 타임라인 페이지로 이동
                             await Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (context) => FlightPlanPage(
-                                  // 예정된 비행은 flightId로 타임라인 로드
                                   isReadOnly: false,
-                                  flightId: _flightIdMap[index], // 해당 비행 ID 전달
+                                  flightId: flightId ?? '', // 해당 비행 ID 전달
                                 ),
                               ),
                             );
-                            // 돌아오면 새로고침 (진행 중 테스트 설정 시 반영)
+                            // 3. 돌아오면 새로고침
                             _refreshData();
                           },
                         ),

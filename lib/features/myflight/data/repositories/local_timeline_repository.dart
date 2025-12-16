@@ -131,4 +131,79 @@ class LocalTimelineRepository {
     await _box.clear();
     print('⚠️ 모든 타임라인 삭제됨');
   }
+  /// 기본 타임라인 생성
+  Future<List<LocalTimelineEvent>> generateDefaultTimeline(String flightId, DateTime departure, DateTime arrival) async {
+    // 도착 시간이 출발 시간보다 이전이면 날짜 변경선/자정 통과로 간주하여 하루 더함
+    DateTime adjustedArrival = arrival;
+    if (arrival.isBefore(departure)) {
+      print('⚠️ 도착 시간이 출발 시간보다 빠름. 하루 더함 처리.');
+      adjustedArrival = arrival.add(const Duration(days: 1));
+    }
+
+    final totalDuration = adjustedArrival.difference(departure);
+    print('📊 타임라인 생성: $flightId, 소요시간: ${totalDuration.inMinutes}분');
+    
+    final events = <LocalTimelineEvent>[];
+
+    // 1. 이륙 및 안정 (출발 ~ 30분)
+    events.add(LocalTimelineEvent(
+      id: 'event_1',
+      flightId: flightId,
+      title: '이륙 및 안정',
+      description: '안전한 비행을 위해 좌석벨트를 매주세요.',
+      startTime: departure,
+      endTime: departure.add(const Duration(minutes: 30)),
+      type: 'flight',
+      order: 0,
+    ));
+
+    // 2. 기내식 (출발 1시간 후)
+    if (totalDuration.inHours >= 2) {
+      events.add(LocalTimelineEvent(
+        id: 'event_2',
+        flightId: flightId,
+        title: '첫 번째 기내식',
+        description: '맛있는 기내식이 제공됩니다.',
+        startTime: departure.add(const Duration(minutes: 60)),
+        endTime: departure.add(const Duration(minutes: 120)),
+        type: 'meal',
+        order: 1,
+      ));
+    }
+
+    // 3. 자유 시간 (중간 시간)
+    final freeTimeStart = totalDuration.inHours >= 2 
+        ? departure.add(const Duration(minutes: 120)) 
+        : departure.add(const Duration(minutes: 30));
+    final freeTimeEnd = arrival.subtract(const Duration(minutes: 40));
+    
+    if (freeTimeEnd.isAfter(freeTimeStart)) {
+      events.add(LocalTimelineEvent(
+        id: 'event_3',
+        flightId: flightId,
+        title: '자유 시간',
+        description: '영화 감상이나 휴식을 취하세요.',
+        startTime: freeTimeStart,
+        endTime: freeTimeEnd,
+        type: 'rest',
+        order: 2,
+      ));
+    }
+
+    // 4. 착륙 준비 (도착 40분 전 ~ 도착)
+    events.add(LocalTimelineEvent(
+      id: 'event_4',
+      flightId: flightId,
+      title: '착륙 준비',
+      description: '좌석 등받이를 세우고 테이블을 접어주세요.',
+      startTime: arrival.subtract(const Duration(minutes: 40)),
+      endTime: arrival,
+      type: 'flight',
+      order: 3,
+    ));
+
+    // 저장
+    await saveTimeline(flightId, events);
+    return events;
+  }
 }

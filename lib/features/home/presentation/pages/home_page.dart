@@ -24,14 +24,26 @@ import '../../../../core/utils/airline_name_mapper.dart';
 
 /// 홈 화면 메인 페이지
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final int initialIndex;
+
+  const HomePage({
+    super.key,
+    this.initialIndex = 0,
+  });
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  int _selectedIndex = 1; // Bottom tab bar index (Test: Start with MyFlight)
+  late int _selectedIndex; // Bottom tab bar index
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedIndex = widget.initialIndex; // 초기 인덱스 설정
+    _loadPopularAirlines();
+  }
   int _searchTabIndex = 0; // Search tab index (0: Airline, 1: Destination)
   final TextEditingController _airlineSearchController =
       TextEditingController();
@@ -97,11 +109,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _loadPopularAirlines();
-  }
+
 
   @override
   void dispose() {
