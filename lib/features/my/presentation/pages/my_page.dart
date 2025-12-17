@@ -187,79 +187,38 @@ class _MyPageState extends State<MyPage> {
       final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
       if (image != null) {
-        // 1. UI에 즉시 반영 (로컬 파일 경로)
+        // 1. 로컬 파일을 영구 저장소로 복사
+        final directory = await getApplicationDocumentsDirectory();
+        final fileName = 'profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final savedPath = '${directory.path}/$fileName';
+        final savedFile = File(savedPath);
+        await savedFile.writeAsBytes(await File(image.path).readAsBytes());
+        
+        // 2. UI에 즉시 반영
         setState(() {
-          _profileImageUrl = image.path;
+          _profileImageUrl = savedPath;
         });
         
-        // 2. 백엔드에 업로드
+        // 3. 백엔드에 업로드 (백그라운드)
         try {
           final userRepository = UserRepositoryImpl();
-          final response = await userRepository.updateProfilePhoto(image.path);
+          await userRepository.updateProfilePhoto(image.path);
+          print('✅ 프로필 사진 업로드 성공');
           
-          print('✅ 프로필 사진 업로드 성공: $response');
-          
-          // 3. 서버에서 최신 프로필 정보 조회 (사진 URL 등)
-          final userProfile = await userRepository.getUserProfile();
-          print('✅ 최신 프로필 정보 조회 완료: $userProfile');
-          
-          // 4. base64 이미지를 로컬 파일로 저장
-          String? localImagePath;
-          final photoUrlBase64 = userProfile['photo_url'];
-          
-          if (photoUrlBase64 != null && photoUrlBase64.isNotEmpty) {
-            try {
-              // data URL 프리픽스 제거 (예: "data:image/jpeg;base64,")
-              String base64String = photoUrlBase64;
-              if (base64String.contains(',')) {
-                base64String = base64String.split(',').last;
-              }
-              
-              // base64 디코딩
-              final bytes = base64Decode(base64String);
-              
-              // 로컬 디렉토리 가져오기
-              final directory = await getApplicationDocumentsDirectory();
-              final filePath = '${directory.path}/profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
-              
-              // 파일로 저장
-              final file = File(filePath);
-              await file.writeAsBytes(bytes);
-              
-              localImagePath = filePath;
-              print('✅ 프로필 사진 로컬 저장 완료: $localImagePath');
-            } catch (e) {
-              print('❌ base64 디코딩 실패: $e');
-            }
-          }
-          
-          // 5. 로컬 스토리지 업데이트 (로컬 파일 경로 저장)
+          // 4. 로컬 스토리지 업데이트
           final storage = AuthTokenStorage();
+          final userInfo = await storage.getUserInfo();
           await storage.saveUserInfo(
-            name: userProfile['display_name'],
-            photoUrl: localImagePath ?? _profileImageUrl, // 로컬 파일 경로 저장
-            email: userProfile['email'],
-            userId: userProfile['uid'],
+            name: userInfo['name'],
+            photoUrl: savedPath,
+            email: userInfo['email'],
+            userId: userInfo['userId'],
           );
-          
-          // 6. UI 갱신
-          setState(() {
-            _profileImageUrl = localImagePath ?? _profileImageUrl;
-          });
-          
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('프로필 사진이 변경되었습니다.'),
-                duration: Duration(seconds: 1),
-              ),
-            );
-          }
         } catch (e) {
           print('❌ 프로필 사진 업로드 실패: $e');
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('사진 업로드 실패: $e')),
+              const SnackBar(content: Text('프로필 사진 업로드에 실패했습니다.')),
             );
           }
         }

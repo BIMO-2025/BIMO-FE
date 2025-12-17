@@ -51,8 +51,17 @@ class AppRouter {
         path: RouteNames.home,
         name: 'home',
         builder: (context, state) {
+          // 쿼리 파라미터에서 tab 값 가져오기
+          final tabParam = state.uri.queryParameters['tab'];
+          final tabIndex = tabParam != null ? int.tryParse(tabParam) ?? 0 : 0;
+          
+          // extra에서도 initialIndex 가져오기 (기존 호환성 유지)
           final extra = state.extra as Map<String, dynamic>?;
-          final initialIndex = extra?['initialIndex'] as int? ?? 0;
+          final extraIndex = extra?['initialIndex'] as int?;
+          
+          // 쿼리 파라미터 우선, 없으면 extra 사용
+          final initialIndex = tabIndex != 0 ? tabIndex : (extraIndex ?? 0);
+          
           return HomePage(initialIndex: initialIndex);
         },
       ),

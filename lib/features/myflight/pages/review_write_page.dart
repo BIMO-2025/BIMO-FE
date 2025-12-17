@@ -220,11 +220,12 @@ class _ReviewWritePageState extends State<ReviewWritePage> {
         // 수정 모드: 이전 화면으로 돌아가기 (수정된 데이터 반환)
         Navigator.pop(context, response.data); 
       } else {
-        // 등록 모드: 홈 화면으로 이동
+        // 등록 모드: 홈의 나의 비행 탭으로 이동
         ScaffoldMessenger.of(context).showSnackBar(
            const SnackBar(content: Text('리뷰가 등록되었습니다!')),
         );
-        context.go(RouteNames.home);
+        // 홈으로 이동하면서 나의 비행 탭(인덱스 1) 선택
+        context.go('${RouteNames.home}?tab=1');
       }
     } catch (e) {
       print('❌ 리뷰 제출 실패: $e');
