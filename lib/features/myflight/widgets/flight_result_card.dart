@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../../../core/theme/app_text_styles.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:intl/intl.dart';
+import '../../../core/theme/app_text_styles.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../home/data/models/flight_search_response.dart';
 import 'flight_card_widget.dart' show DashedLinePainter;
 
@@ -18,37 +20,28 @@ class FlightResultCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 세그먼트가 여러 개인 경우 경유편으로 처리
-    final isLayover = flight.segments != null && flight.segments!.length > 1;
+    // 경유 정보 계산
     final segments = flight.segments ?? [];
-    
-    // 경유지 정보 계산
+    bool isLayover = segments.length > 1;
     String layoverInfo = '';
     if (isLayover) {
-      final List<String> layoverDetails = [];
-      
+      // 경유지 추출 (첫 번째 seg의 도착지 ~ 마지막 seg의 출발지)
+      final layoverAirports = <String>[];
       for (int i = 0; i < segments.length - 1; i++) {
-        final prevArrival = DateTime.parse(segments[i].arrivalTime);
-        final nextDeparture = DateTime.parse(segments[i + 1].departureTime);
-        final diff = nextDeparture.difference(prevArrival);
-        
-        final hours = diff.inHours;
-        final minutes = diff.inMinutes % 60;
-        final airportCode = segments[i].arrivalAirport;
-        
-        layoverDetails.add('${hours.toString().padLeft(2, '0')}시간 ${minutes.toString().padLeft(2, '0')}분 $airportCode');
+        layoverAirports.add(segments[i].arrivalAirport);
       }
-      
-      layoverInfo = layoverDetails.join('\n');
+      layoverInfo = layoverAirports.join(', ');
     }
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(14),
+          color: isSelected
+              ? Colors.white.withOpacity(0.15)
+              : Colors.white.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(16),
           border: isSelected
               ? Border.all(color: Colors.white.withOpacity(0.5), width: 1.5)
               : null,
@@ -137,7 +130,6 @@ class FlightResultCard extends StatelessWidget {
             const Divider(height: 1, color: Colors.white12),
             const SizedBox(height: 10),
             
-            // 하단: 날짜, 편명
             // 하단: 날짜, 편명, 경유 정보
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,

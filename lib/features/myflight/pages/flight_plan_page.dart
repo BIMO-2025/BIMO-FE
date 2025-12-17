@@ -42,7 +42,9 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
   bool _showMoreOptions = false; // 더보기 옵션 메뉴 표시 여부
   List<TimelineEvent> _initialEvents = []; // 초기 타임라인 (AI 초기화용)
   LocalFlight? _currentFlight; // 현재 표시 중인 비행 정보
+
   List<LocalTimelineEvent> _localTimelineEvents = []; // Hive 원본 데이터 (시간 비교용)
+  DateTime? _testModeDepartureTime; // [Test Mode] 테스트용 출발 시간 (진입 시점 고정)
   
   // 읽기 전용 모드 타이머
   Timer? _autoHighlightTimer;
@@ -52,6 +54,9 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
   @override
   void initState() {
     super.initState();
+    // FlightState 변경 감지 (디버그 시간 변경 등)
+    FlightState().addListener(_onFlightStateChanged);
+    
     _loadTimelineFromHive();
     
     // 읽기 전용 모드일 때 자동 하이라이트 타이머 시작
@@ -62,8 +67,17 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
   
   @override
   void dispose() {
+    FlightState().removeListener(_onFlightStateChanged);
     _autoHighlightTimer?.cancel();
     super.dispose();
+  }
+  
+  void _onFlightStateChanged() {
+    if (mounted) {
+      setState(() {
+        _updateCurrentEventHighlight();
+      });
+    }
   }
   
   /// 자동 하이라이트 타이머 시작
@@ -84,8 +98,13 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
     if (!widget.isReadOnly) return;
     if (_localTimelineEvents.isEmpty || _currentFlight == null) return;
     
+    
     final now = DateTime.now().add(FlightState().debugTimeOffset);
-    final departureTime = _currentFlight!.departureTime;
+    // 테스트 모드이면 고정된 테스트 출발 시간 사용, 아니면 실제 출발 시간 사용
+    final departureTime = ((_currentFlight!.forceInProgress ?? false) && _testModeDepartureTime != null)
+        ? _testModeDepartureTime!
+        : _currentFlight!.departureTime;
+    
     
     // 경과 시간 계산 (초 단위)
     final diff = now.difference(departureTime).inSeconds;
@@ -204,6 +223,11 @@ class _FlightPlanPageState extends State<FlightPlanPage> {
       
       // 3. 현재 비행 정보 저장
       _currentFlight = targetFlight;
+      
+      // [Test Mode] 테스트 중인 비행이면 출발 시간을 현재(진입 시점)로 고정
+      if (_currentFlight?.forceInProgress == true) {
+          _testModeDepartureTime = DateTime.now();
+      }
       
       // 4. 해당 비행의 타임라인 로드
       final localTimelineRepo = LocalTimelineRepository();

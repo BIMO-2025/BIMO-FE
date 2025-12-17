@@ -428,74 +428,121 @@ class _InFlightProgressWidgetState extends State<InFlightProgressWidget> {
                         builder: (BuildContext context) {
                           return Dialog(
                             backgroundColor: Colors.transparent,
-                            child: Container(
-                              padding: EdgeInsets.all(24),
-                              decoration: BoxDecoration(
-                                color: Color(0xFF1A1A1A),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: Colors.white.withOpacity(0.1),
-                                  width: 1,
-                                ),
-                              ),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    '비행을 종료하시겠습니까?',
-                                    style: AppTextStyles.body.copyWith(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
+                            insetPadding: EdgeInsets.symmetric(horizontal: context.w(20)),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(24),
+                              child: BackdropFilter(
+                                filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                                child: Container(
+                                  width: context.w(320),
+                                  padding: EdgeInsets.only(
+                                    top: 0,
+                                    right: context.w(20),
+                                    bottom: context.w(20),
+                                    left: context.w(20),
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF1A1A1A),
+                                    borderRadius: BorderRadius.circular(24),
+                                    border: Border.all(
+                                      color: Colors.white.withOpacity(0.1),
+                                      width: 1,
                                     ),
                                   ),
-                                  SizedBox(height: 24),
-                                  Row(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment: CrossAxisAlignment.center,
                                     children: [
-                                      Expanded(
-                                        child: GestureDetector(
-                                          onTap: () => Navigator.pop(context, false),
-                                          child: Container(
-                                            padding: EdgeInsets.symmetric(vertical: 12),
-                                            decoration: BoxDecoration(
-                                              color: Colors.white.withOpacity(0.1),
-                                              borderRadius: BorderRadius.circular(8),
-                                            ),
-                                            child: Center(
-                                              child: Text(
-                                                '취소',
-                                                style: AppTextStyles.smallBody.copyWith(
-                                                  color: Colors.white,
-                                                ),
+                                      // 헤더 영역
+                                      Container(
+                                        width: double.infinity,
+                                        padding: EdgeInsets.only(
+                                          top: context.h(20),
+                                          bottom: context.h(10),
+                                        ),
+                                        child: Column(
+                                          children: [
+                                            Text(
+                                              '비행을 종료하시겠습니까?',
+                                              style: TextStyle(
+                                                fontFamily: 'Pretendard',
+                                                fontSize: context.fs(18),
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.white,
                                               ),
+                                              textAlign: TextAlign.center,
                                             ),
-                                          ),
+                                            SizedBox(height: context.h(8)),
+                                            Text(
+                                              '종료 후에는 되돌릴 수 없습니다.',
+                                              style: TextStyle(
+                                                fontFamily: 'Pretendard',
+                                                fontSize: context.fs(14),
+                                                fontWeight: FontWeight.w400,
+                                                color: const Color(0xFFCCCCCC),
+                                                height: 1.4,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                      SizedBox(width: 12),
-                                      Expanded(
-                                        child: GestureDetector(
-                                          onTap: () => Navigator.pop(context, true),
-                                          child: Container(
-                                            padding: EdgeInsets.symmetric(vertical: 12),
-                                            decoration: BoxDecoration(
-                                              color: AppColors.blue1,
-                                              borderRadius: BorderRadius.circular(8),
-                                            ),
-                                            child: Center(
-                                              child: Text(
-                                                '종료',
-                                                style: AppTextStyles.smallBody.copyWith(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.w600,
+                                      SizedBox(height: context.h(20)),
+                                      // 버튼 영역
+                                      Row(
+                                        children: [
+                                          // 취소 버튼
+                                          Expanded(
+                                            child: GestureDetector(
+                                              onTap: () => Navigator.pop(context, false),
+                                              child: Container(
+                                                height: context.h(52),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFF333333),
+                                                  borderRadius: BorderRadius.circular(12),
+                                                ),
+                                                alignment: Alignment.center,
+                                                child: Text(
+                                                  '취소',
+                                                  style: TextStyle(
+                                                    fontFamily: 'Pretendard',
+                                                    fontSize: context.fs(16),
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Colors.white,
+                                                  ),
                                                 ),
                                               ),
                                             ),
                                           ),
-                                        ),
+                                          SizedBox(width: context.w(10)),
+                                          // 종료 버튼
+                                          Expanded(
+                                            child: GestureDetector(
+                                              onTap: () => Navigator.pop(context, true),
+                                              child: Container(
+                                                height: context.h(52),
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.red, // 위험한 작업이므로 빨간색
+                                                  borderRadius: BorderRadius.circular(12),
+                                                ),
+                                                alignment: Alignment.center,
+                                                child: Text(
+                                                  '종료하기',
+                                                  style: TextStyle(
+                                                    fontFamily: 'Pretendard',
+                                                    fontSize: context.fs(16),
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
-                                ],
+                                ),
                               ),
                             ),
                           );
