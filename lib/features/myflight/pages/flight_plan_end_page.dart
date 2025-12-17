@@ -7,6 +7,8 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/responsive_extensions.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/storage/auth_token_storage.dart';
+import '../data/repositories/flight_repository.dart';
 import '../widgets/flight_card_widget.dart';
 import 'ticket_verification_camera_page.dart';
 import 'review_write_page.dart';
@@ -117,10 +119,38 @@ class FlightPlanEndPage extends StatelessWidget {
               top: context.h(21),
               right: context.w(20),
               child: GestureDetector(
-                onTap: () {
+                onTap: () async {
+                  // 리뷰 상태 업데이트: hasReview=false
+                  try {
+                    final storage = AuthTokenStorage();
+                    final userInfo = await storage.getUserInfo();
+                    final userId = userInfo['userId'];
+                    
+                    if (userId != null && flightNumber != null) {
+                      // 편명에서 항공사 코드 추출 (KE001 -> KE)
+                      final airlineCode = flightNumber!.length >= 2 
+                          ? flightNumber!.substring(0, 2).toUpperCase() 
+                          : '';
+                      
+                      if (airlineCode.isNotEmpty) {
+                        final repository = FlightRepository();
+                        await repository.updateReviewStatus(
+                          userId: userId,
+                          airlineCode: airlineCode,
+                          flightNumber: flightNumber!,
+                          hasReview: false,
+                        );
+                      }
+                    }
+                  } catch (e) {
+                    print('⚠️ 리뷰 상태 업데이트 실패: $e');
+                  }
+                  
                   // 나의 비행 탭(인덱스 1)으로 바로 이동
-                  Navigator.of(context).popUntil((route) => route.isFirst);
-                  context.go('/home?tab=1');
+                  if (context.mounted) {
+                    Navigator.of(context).popUntil((route) => route.isFirst);
+                    context.go('/home?tab=1');
+                  }
                 },
                 child: Container(
                   width: 40,

@@ -53,6 +53,7 @@ class _MyFlightPageState extends State<MyFlightPage> {
     FlightState().addListener(_onFlightStateChanged);
     _loadScheduledFlights();
     _loadPastFlights();
+    _loadHasReviewStatus(); // has-review 상태 조회
   }
   
   @override
@@ -264,6 +265,28 @@ class _MyFlightPageState extends State<MyFlightPage> {
     }
   }
 
+  /// has-review 상태 조회
+  Future<void> _loadHasReviewStatus() async {
+    try {
+      final storage = AuthTokenStorage();
+      final userInfo = await storage.getUserInfo();
+      final userId = userInfo['userId'];
+      
+      if (userId != null) {
+        final repository = FlightRepository();
+        final hasReviewData = await repository.getFlightSegmentsHasReview(
+          userId,
+          status: 'completed',
+        );
+        
+        print('✅ has-review 상태 조회 완료:');
+        print('📊 응답 데이터: $hasReviewData');
+      }
+    } catch (e) {
+      print('❌ has-review 상태 조회 실패: $e');
+    }
+  }
+
   /// 메인 바디 영역
   Widget _buildBody() {
     return SingleChildScrollView(
@@ -354,7 +377,10 @@ class _MyFlightPageState extends State<MyFlightPage> {
                 departureTime: _formatTimeToAmPm(flight.departureTime),
                 arrivalTime: _formatTimeToAmPm(flight.arrivalTime),
                 totalDurationMinutes: _parseDurationToMinutes(flight.totalDuration),
-                departureDateTime: flight.departureTime,
+                departureDateTime: flight.forceInProgress == true 
+                    ? DateTime.now() // 테스트 모드: 현재 시간부터 시작
+                    : flight.departureTime, // 일반 모드: 원래 출발 시간
+                originalDepartureDateTime: flight.departureTime, // 원래 출발 시간 (Start 버튼용)
                 timeline: timeline,
                 flightId: flight.id, // flightId 전달
                 flightNumber: flight.flightNumber, // 편명 전달

@@ -551,4 +551,39 @@ class FlightRepository {
       return '';
     }
   }
+
+  /// 리뷰 상태 업데이트
+  /// airlineCode: 항공사 코드 (예: "KE")
+  /// flightNumber: 편명 (예: "37", "0037", "KE0037" 모두 가능)
+  /// hasReview: true(작성됨) 또는 false(삭제됨/미작성)
+  Future<void> updateReviewStatus({
+    required String userId,
+    required String airlineCode,
+    required String flightNumber,
+    required bool hasReview,
+  }) async {
+    try {
+      final url = ApiConstants.updateReviewStatus(userId);
+      print('🚀 리뷰 상태 업데이트 API 호출: $url');
+      print('📝 데이터: airlineCode=$airlineCode, flightNumber=$flightNumber, hasReview=$hasReview');
+
+      final response = await _dio.put(
+        url,
+        data: {
+          'airlineCode': airlineCode,
+          'flightNumber': flightNumber,
+          'hasReview': hasReview,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        print('✅ 리뷰 상태 업데이트 성공');
+      } else {
+        throw Exception('리뷰 상태 업데이트 실패: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('❌ 리뷰 상태 업데이트 에러: $e');
+      rethrow;
+    }
+  }
 }

@@ -50,4 +50,5 @@ class ApiConstants {
 
   // 비행 관련
   static String myFlightsHasReview(String userId) => '${_apiPrefix}users/$userId/my-flights/segments/has-review';
+  static String updateReviewStatus(String userId) => '${_apiPrefix}users/$userId/my-flights/segments/review-status';
 }

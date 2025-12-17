@@ -14,6 +14,7 @@ import '../../../core/network/api_client.dart';
 import '../../../core/storage/auth_token_storage.dart';
 import '../../../core/network/router/route_names.dart';
 import '../../../core/state/flight_state.dart';
+import '../data/repositories/flight_repository.dart';
 import '../widgets/flight_card_widget.dart' show DashedLinePainter;
 import '../../home/domain/models/review_model.dart'; // Review 모델 import
 
@@ -221,7 +222,33 @@ class _ReviewWritePageState extends State<ReviewWritePage> {
         // 수정 모드: 이전 화면으로 돌아가기 (수정된 데이터 반환)
         Navigator.pop(context, response.data); 
       } else {
-        // 등록 모드: FlightState 업데이트하여 데이터 새로고침 트리거
+        // 등록 모드: 리뷰 상태 업데이트 (hasReview=true)
+        try {
+          final storage = AuthTokenStorage();
+          final userInfo = await storage.getUserInfo();
+          final userId = userInfo['userId'];
+          
+          if (userId != null) {
+            // 편명에서 항공사 코드 추출 (KE001 -> KE)
+            final airlineCode = widget.flightNumber.length >= 2 
+                ? widget.flightNumber.substring(0, 2).toUpperCase() 
+                : '';
+            
+            if (airlineCode.isNotEmpty) {
+              final repository = FlightRepository();
+              await repository.updateReviewStatus(
+                userId: userId,
+                airlineCode: airlineCode,
+                flightNumber: widget.flightNumber,
+                hasReview: true,
+              );
+            }
+          }
+        } catch (e) {
+          print('⚠️ 리뷰 상태 업데이트 실패: $e');
+        }
+        
+        // FlightState 업데이트하여 데이터 새로고침 트리거
         FlightState().notifyListeners();
         // 모든 페이지 pop 후 홈의 나의 비행 탭으로 이동
         Navigator.of(context).popUntil((route) => route.isFirst);

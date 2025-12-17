@@ -945,6 +945,7 @@ class _AddFlightPageState extends State<AddFlightPage> with SingleTickerProvider
           lastModified: DateTime.now(),
           flightGoal: _selectedFlightGoal ?? '시차적응',
           seatClass: 'ECONOMY',
+          flightNumber: selectedFlight.flightNumber, // 편명 추가
         );
         final localFlightRepo = LocalFlightRepository();
         await localFlightRepo.init();
