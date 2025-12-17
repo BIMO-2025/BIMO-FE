@@ -28,13 +28,14 @@ class LocalFlightAdapter extends TypeAdapter<LocalFlight> {
       flightGoal: fields[8] as String?,
       seatClass: fields[9] as String?,
       forceInProgress: fields[10] as bool?,
+      flightNumber: fields[11] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, LocalFlight obj) {
     writer
-      ..writeByte(11)
+      ..writeByte(12)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -56,7 +57,9 @@ class LocalFlightAdapter extends TypeAdapter<LocalFlight> {
       ..writeByte(9)
       ..write(obj.seatClass)
       ..writeByte(10)
-      ..write(obj.forceInProgress);
+      ..write(obj.forceInProgress)
+      ..writeByte(11)
+      ..write(obj.flightNumber);
   }
 
   @override

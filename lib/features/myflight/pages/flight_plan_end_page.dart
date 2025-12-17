@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_colors.dart';
@@ -95,6 +96,9 @@ class FlightPlanEndPage extends StatelessWidget {
                                   flightNumber: flightNumber ?? 'Unknown',
                                   date: date,
                                   stopover: '직항', // TODO: 실제 경유 정보로 대체
+                                  duration: duration,
+                                  departureTime: departureTime,
+                                  arrivalTime: arrivalTime,
                                 ),
                               ),
                             );
@@ -114,7 +118,9 @@ class FlightPlanEndPage extends StatelessWidget {
               right: context.w(20),
               child: GestureDetector(
                 onTap: () {
-                  Navigator.pop(context);
+                  // 나의 비행 탭(인덱스 1)으로 바로 이동
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                  context.go('/home?tab=1');
                 },
                 child: Container(
                   width: 40,

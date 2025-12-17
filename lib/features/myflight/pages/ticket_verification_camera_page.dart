@@ -18,6 +18,9 @@ class TicketVerificationCameraPage extends StatefulWidget {
   final String flightNumber;
   final String date;
   final String? stopover;
+  final String? duration;
+  final String? departureTime;
+  final String? arrivalTime;
 
   const TicketVerificationCameraPage({
     super.key,
@@ -28,6 +31,9 @@ class TicketVerificationCameraPage extends StatefulWidget {
     required this.flightNumber,
     required this.date,
     this.stopover,
+    this.duration,
+    this.departureTime,
+    this.arrivalTime,
   });
 
   @override
@@ -71,6 +77,7 @@ class _TicketVerificationCameraPageState extends State<TicketVerificationCameraP
         }
       } else {
         // 카메라가 없는 경우 (시뮬레이터 등)
+        print('⚠️ 카메라를 사용할 수 없습니다');
         if (mounted) {
           setState(() {
             _isCameraInitialized = false;
@@ -160,6 +167,9 @@ class _TicketVerificationCameraPageState extends State<TicketVerificationCameraP
                 flightNumber: widget.flightNumber,
                 date: widget.date,
                 stopover: widget.stopover ?? '직항',
+                duration: widget.duration,
+                departureTime: widget.departureTime,
+                arrivalTime: widget.arrivalTime,
               ),
             ),
           );
@@ -190,6 +200,28 @@ class _TicketVerificationCameraPageState extends State<TicketVerificationCameraP
         });
       }
     }
+  }
+
+  /// 카메라 건너뛰고 바로 리뷰 작성으로 이동
+  void _skipVerification() {
+    print('🔘 카메라 건너뛰기 버튼 클릭');
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ReviewWritePage(
+          departureCode: widget.departureCode,
+          departureCity: widget.departureCity,
+          arrivalCode: widget.arrivalCode,
+          arrivalCity: widget.arrivalCity,
+          flightNumber: widget.flightNumber,
+          date: widget.date,
+          stopover: widget.stopover ?? '직항',
+          duration: widget.duration,
+          departureTime: widget.departureTime,
+          arrivalTime: widget.arrivalTime,
+        ),
+      ),
+    );
   }
 
   Future<void> _pickImageFromGallery() async {
@@ -224,45 +256,69 @@ class _TicketVerificationCameraPageState extends State<TicketVerificationCameraP
               child: CameraPreview(_cameraController!),
             )
           else
-            const Center(
-              child: CircularProgressIndicator(color: Colors.white),
-            ),
-
-          // 가이드 영역 (항상 표시)
-          Center(
-            child: Container(
-              width: context.w(300),
-              height: context.h(200),
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: Colors.white,
-                  width: 2,
-                ),
-                borderRadius: BorderRadius.circular(16),
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CircularProgressIndicator(color: Colors.white),
+                  const SizedBox(height: 20),
+                  const Text(
+                    '카메라를 초기화하는 중...',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  const SizedBox(height: 40),
+                  ElevatedButton(
+                    onPressed: _skipVerification,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                    ),
+                    child: const Text('카메라 건너뛰고 리뷰 작성하기'),
+                  ),
+                ],
               ),
             ),
-          ),
 
-          // 안내 텍스트 (가이드 아래 16px)
-          Positioned(
-            top: MediaQuery.of(context).size.height / 2 + context.h(100) + context.h(16),
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Text(
-                '탑승권을 가이드 안에 맞춰주세요',
-                style: AppTextStyles.body.copyWith(
-                  color: Colors.white,
+
+          // 가이드 영역 (카메라 초기화되었을 때만 표시)
+          if (_isCameraInitialized && _cameraController != null)
+            Center(
+              child: Container(
+                width: context.w(300),
+                height: context.h(200),
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Colors.white,
+                    width: 2,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
                 ),
               ),
             ),
-          ),
 
-          // 하단 컨트롤 영역 (갤러리 + 촬영 + 전환)
-          Positioned(
-            bottom: context.h(79),
-            left: context.w(20),
-            right: context.w(20),
+          // 안내 텍스트 (카메라 초기화되었을 때만 표시)
+          if (_isCameraInitialized && _cameraController != null)
+            Positioned(
+              top: MediaQuery.of(context).size.height / 2 + context.h(100) + context.h(16),
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Text(
+                    '탑승권을 가이드 안에 맞춰주세요',
+                    style: AppTextStyles.body.copyWith(
+                      color: Colors.white,
+                    ),
+                  ),
+              ),
+            ),
+
+          // 하단 컨트롤 영역 (카메라 초기화되었을 때만 표시)
+          if (_isCameraInitialized && _cameraController != null)
+            Positioned(
+              bottom: context.h(79),
+              left: context.w(20),
+              right: context.w(20),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [

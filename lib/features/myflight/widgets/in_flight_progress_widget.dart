@@ -27,6 +27,7 @@ class InFlightProgressWidget extends StatefulWidget {
   final DateTime departureDateTime; // 출발 시간
   final List<Map<String, dynamic>> timeline; // 타임라인 이벤트
   final String flightId; // 비행 ID (DB 업데이트용)
+  final String? flightNumber; // 편명
   final VoidCallback? onFlightEnded; // 비행 종료 시 콜백
 
   const InFlightProgressWidget({
@@ -41,6 +42,7 @@ class InFlightProgressWidget extends StatefulWidget {
     required this.departureDateTime,
     required this.timeline,
     this.flightId = '',
+    this.flightNumber,
     this.onFlightEnded,
   });
 
@@ -58,7 +60,8 @@ class _InFlightProgressWidgetState extends State<InFlightProgressWidget> {
   void initState() {
     super.initState();
     initializeDateFormatting('ko_KR', null);
-    _adjustedDepartureTime = widget.departureDateTime;
+    _adjustedDepartureTime = DateTime.now(); // 현재 시간을 출발 시간으로 설정 (0초부터 시작)
+    _elapsedSeconds = 0; // 0초부터 시작
     _startTimer();
   }
 
@@ -72,18 +75,10 @@ class _InFlightProgressWidgetState extends State<InFlightProgressWidget> {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!_isPaused) {
         setState(() {
-          // 전역 디버그 시간을 반영하여 경과 시간 계산
-          final now = DateTime.now().add(FlightState().debugTimeOffset);
-          final departure = _adjustedDepartureTime ?? widget.departureDateTime;
+          // 경과 시간 1초씩 증가
+          _elapsedSeconds++;
           
-          final diff = now.difference(departure).inSeconds;
-          _elapsedSeconds = diff > 0 ? diff : 0;
-          
-          // [AUTO END] 비행 시간 종료 시 자동 종료 화면 이동
-          final totalSeconds = widget.totalDurationMinutes * 60;
-          if (_elapsedSeconds >= totalSeconds) {
-             _endFlight();
-          }
+          // 자동 종료 로직 제거 - 사용자가 직접 "종료" 버튼을 눌러야 함
         });
       }
     });
@@ -129,6 +124,7 @@ class _InFlightProgressWidgetState extends State<InFlightProgressWidget> {
               departureTime: widget.departureTime,
               arrivalTime: widget.arrivalTime,
               date: DateFormat('yyyy.MM.dd. (E)', 'ko_KR').format(widget.departureDateTime),
+              flightNumber: widget.flightNumber,
             ),
           ),
         );

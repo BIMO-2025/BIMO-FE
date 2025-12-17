@@ -63,8 +63,22 @@ class _MyFlightPageState extends State<MyFlightPage> {
   
   void _onFlightStateChanged() {
     if (mounted) {
+      // 총 비행 시간 재계산
+      _recalculateTotalFlightTime();
       setState(() {});
     }
+  }
+  
+  /// 총 비행 시간 재계산
+  void _recalculateTotalFlightTime() {
+    int totalMinutes = 0;
+    for (final flight in FlightState().pastFlights) {
+      totalMinutes += _parseDurationToMinutes(flight.duration);
+    }
+    final hours = totalMinutes ~/ 60;
+    final minutes = totalMinutes % 60;
+    _totalFlightTime = '${hours}h ${minutes}m';
+    print('🔄 총 비행 시간 재계산: $_totalFlightTime');
   }
   
   void _refreshData() {
@@ -343,6 +357,7 @@ class _MyFlightPageState extends State<MyFlightPage> {
                 departureDateTime: flight.departureTime,
                 timeline: timeline,
                 flightId: flight.id, // flightId 전달
+                flightNumber: flight.flightNumber, // 편명 전달
                 onFlightEnded: _refreshData, // 비행 종료 시 새로고침
               ),
             );

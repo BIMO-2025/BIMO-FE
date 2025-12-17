@@ -36,11 +36,15 @@ class LocalFlightRepository {
     
     for (final f in allFlights) {
       final isPast = f.departureTime.isBefore(now);
-      print('   ${f.origin}-${f.destination}: departure=${f.departureTime}, status=${f.status}, isPast=$isPast');
+      print('   ${f.origin}-${f.destination}: departure=${f.departureTime}, status=${f.status}, forceInProgress=${f.forceInProgress}, isPast=$isPast');
     }
     
-    // status가 'past'가 아니고, 출발 시간이 미래인 비행만 반환
-    final scheduled = allFlights.where((f) => f.status != 'past' && f.departureTime.isAfter(now)).toList();
+    // status가 'past'가 아니고, 진행중이 아니며, 출발 시간이 미래인 비행만 반환
+    final scheduled = allFlights.where((f) => 
+      f.status != 'past' && 
+      f.forceInProgress != true && 
+      f.departureTime.isAfter(now)
+    ).toList();
     print('✅ [Hive] 예정된 비행: ${scheduled.length}개');
     return scheduled;
   }

@@ -13,6 +13,7 @@ import '../../../core/utils/responsive_extensions.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/storage/auth_token_storage.dart';
 import '../../../core/network/router/route_names.dart';
+import '../../../core/state/flight_state.dart';
 import '../widgets/flight_card_widget.dart' show DashedLinePainter;
 import '../../home/domain/models/review_model.dart'; // Review 모델 import
 
@@ -220,12 +221,11 @@ class _ReviewWritePageState extends State<ReviewWritePage> {
         // 수정 모드: 이전 화면으로 돌아가기 (수정된 데이터 반환)
         Navigator.pop(context, response.data); 
       } else {
-        // 등록 모드: 홈의 나의 비행 탭으로 이동
-        ScaffoldMessenger.of(context).showSnackBar(
-           const SnackBar(content: Text('리뷰가 등록되었습니다!')),
-        );
-        // 홈으로 이동하면서 나의 비행 탭(인덱스 1) 선택
-        context.go('${RouteNames.home}?tab=1');
+        // 등록 모드: FlightState 업데이트하여 데이터 새로고침 트리거
+        FlightState().notifyListeners();
+        // 모든 페이지 pop 후 홈의 나의 비행 탭으로 이동
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        context.go('/home?tab=1');
       }
     } catch (e) {
       print('❌ 리뷰 제출 실패: $e');

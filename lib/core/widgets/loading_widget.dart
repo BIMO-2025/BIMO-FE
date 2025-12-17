@@ -1,5 +1,6 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import '../../theme/app_theme.dart';
+import '../theme/app_theme.dart';
 
 /// 공통 로딩 위젯
 /// 비행기 아이콘이 원형으로 회전하는 로딩 화면
@@ -43,9 +44,9 @@ class _LoadingWidgetState extends State<LoadingWidget>
   Widget _buildRotatingAirplane() {
     // 비행기 아이콘 크기 (34x34)
     const double airplaneSize = 34.0;
-    // 원형 경로의 반지름 (CircularProgressIndicator의 실제 반지름)
+    // 원형 경로의 반지름
     const double circleRadius = 33.0;
-    // 컨테이너 크기 (원형 경로 + 비행기 아이콘 크기 고려)
+    // 컨테이너 크기
     const double containerSize = (circleRadius + airplaneSize / 2) * 2;
 
     return SizedBox(
@@ -55,43 +56,46 @@ class _LoadingWidgetState extends State<LoadingWidget>
         alignment: Alignment.center,
         clipBehavior: Clip.none,
         children: [
-          // 원형 테두리 (회색, stroke만)
-          SizedBox(
-            width: circleRadius * 2,
-            height: circleRadius * 2,
-            child: CircularProgressIndicator(
-              value: 0.75, // 270도 (3/4 원)
-              strokeWidth: 2,
-              backgroundColor: Colors.transparent,
-              valueColor: const AlwaysStoppedAnimation<Color>(
-                Color(0xFF999999), // 회색
-              ),
-            ),
-          ),
-          // 회전하는 비행기 아이콘
+          // CircularProgressIndicator로 원형 진행 표시
           AnimatedBuilder(
             animation: _rotationController,
             builder: (context, child) {
-              final angle = _rotationController.value * 2 * 3.141592653589793;
-              final x = circleRadius * (1 - (angle / (2 * 3.141592653589793)).cos());
-              final y = circleRadius * (angle / (2 * 3.141592653589793)).sin();
-
-              return Transform.translate(
-                offset: Offset(x, y),
+              return SizedBox(
+                width: circleRadius * 2,
+                height: circleRadius * 2,
+                child: CircularProgressIndicator(
+                  value: _rotationController.value,
+                  strokeWidth: 2.0,
+                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                  backgroundColor: Colors.white.withOpacity(0.2),
+                ),
+              );
+            },
+          ),
+          // 비행기 아이콘 (궤적 위에 배치)
+          AnimatedBuilder(
+            animation: _rotationController,
+            builder: (context, child) {
+              // 12시 방향에서 시작하여 시계 방향으로 진행
+              final startAngle = -math.pi / 2;
+              final angle = startAngle + (_rotationController.value * 2 * math.pi);
+              final centerX = containerSize / 2;
+              final centerY = containerSize / 2;
+              
+              // 비행기 아이콘 중심 위치 계산
+              final x = centerX + circleRadius * math.cos(angle);
+              final y = centerY + circleRadius * math.sin(angle);
+              
+              return Positioned(
+                left: x - airplaneSize / 2,
+                top: y - airplaneSize / 2,
                 child: Transform.rotate(
-                  angle: angle + 3.141592653589793 / 2,
-                  child: Container(
+                  angle: angle + math.pi / 2,
+                  child: Image.asset(
+                    'assets/images/myflight/airplane.png',
                     width: airplaneSize,
                     height: airplaneSize,
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.airplanemode_active,
-                      size: 20,
-                      color: Colors.black,
-                    ),
+                    color: Colors.white,
                   ),
                 ),
               );

@@ -38,6 +38,9 @@ class LocalFlight extends HiveObject {
   @HiveField(10)
   bool? forceInProgress; // 테스트용: 강제로 진행 중 상태 (nullable for backward compatibility)
 
+  @HiveField(11)
+  String? flightNumber; // 편명 (KE001 등)
+
   LocalFlight({
     required this.id,
     required this.origin,
@@ -50,6 +53,7 @@ class LocalFlight extends HiveObject {
     this.flightGoal,
     this.seatClass,
     this.forceInProgress,
+    this.flightNumber,
   });
 
   /// 비행 상태 계산 (테스트 모드 지원)
@@ -91,6 +95,7 @@ class LocalFlight extends HiveObject {
       lastModified: DateTime.now(),
       flightGoal: flightInfo['flight_goal'] as String?,
       seatClass: flightInfo['seat_class'] as String?,
+      flightNumber: flightInfo['flight_number'] as String?,
     );
   }
 }

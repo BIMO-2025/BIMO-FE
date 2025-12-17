@@ -1,4 +1,6 @@
 import 'dart:ui';
+import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -7,12 +9,14 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth; // 충돌 방지 alias
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../../../core/network/router/app_router.dart';
 import '../../../../core/network/router/route_names.dart';
 import '../../../../core/storage/auth_token_storage.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../domain/usecases/login_usecase.dart';
+import '../../../my/data/repositories/user_repository_impl.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -242,13 +246,46 @@ class _LoginPageState extends State<LoginPage> {
 
       print('✅ Login Successful! User: $displayName');
 
-      // 저장소에 userId와 최신 닉네임 저장
+      // 4. 프로필 사진 받아오기
+      String? photoUrl;
+      try {
+        final userRepository = UserRepositoryImpl();
+        final userProfile = await userRepository.getUserProfile();
+        print('✅ 로그인 후 프로필 정보 조회');
+        
+        final photoUrlBase64 = userProfile['photo_url'];
+        if (photoUrlBase64 != null && photoUrlBase64.isNotEmpty) {
+          try {
+            String base64String = photoUrlBase64;
+            if (base64String.contains(',')) {
+              base64String = base64String.split(',').last;
+            }
+            
+            final bytes = base64Decode(base64String);
+            final directory = await getApplicationDocumentsDirectory();
+            final filePath = '${directory.path}/profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
+            
+            final file = File(filePath);
+            await file.writeAsBytes(bytes);
+            
+            photoUrl = filePath;
+            print('✅ 로그인 시 프로필 사진 저장 완료: $photoUrl');
+          } catch (e) {
+            print('❌ 프로필 사진 디코딩 실패: $e');
+          }
+        }
+      } catch (e) {
+        print('⚠️ 프로필 사진 조회 실패: $e');
+      }
+
+      // 저장소에 userId와 최신 닉네임, 프로필 사진 저장
       final storage = AuthTokenStorage();
       await storage.saveUserInfo(
         userId: userId,
         // 닉네임이 있으면 저장, 없으면 null (Splash에서 체크용)
         name: displayName, 
-        email: email, 
+        email: email,
+        photoUrl: photoUrl ?? '', // 프로필 사진 경로 저장
       );
       
       if (displayName != null && displayName.toString().isNotEmpty) {
